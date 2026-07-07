@@ -213,17 +213,17 @@ function quoteForBash(value) {
  * @param {{terminal: object, gitBash: string, command: string, status: object}} options
  */
 function launchTerminal({ terminal, gitBash, command, status }) {
-  const pathPrefix = buildBashPathPrefix(status);
-  const keepOpenCommand = `${pathPrefix}${command}; printf '\\n'; read -r -p 'Pressione Enter para fechar...'`;
+  const scriptPath = writeAniCliLaunchScript(command, status);
+  const bashScriptPath = toBashPath(scriptPath);
   const env = {
     ...process.env,
-    PATH: buildWindowsPathPrefix(status) + process.env.PATH
+    PATH: buildWindowsPathPrefix(status) + (process.env.PATH ?? '')
   };
 
   if (terminal.type === 'windows-terminal') {
     spawn(
       terminal.path,
-      ['new-tab', '--title', 'KitsuneDesk ani-cli', gitBash, '-i', '-l', '-c', keepOpenCommand],
+      ['new-tab', '--title', 'KitsuneDesk ani-cli', gitBash, '--login', bashScriptPath],
       {
         detached: true,
         env,
@@ -234,12 +234,46 @@ function launchTerminal({ terminal, gitBash, command, status }) {
     return;
   }
 
-  spawn(gitBash, ['-i', '-l', '-c', keepOpenCommand], {
+  spawn(gitBash, ['--login', bashScriptPath], {
     detached: true,
     env,
     stdio: 'ignore',
     windowsHide: false
   }).unref();
+}
+
+/**
+ * O Windows Terminal interpreta ponto e virgula como separador de comandos.
+ * Por isso, a sequencia Bash e gravada em um arquivo temporario e executada
+ * como script, evitando que `read` seja tratado como um executavel do Windows.
+ *
+ * @param {string} command
+ * @param {object} status
+ * @returns {string}
+ */
+function writeAniCliLaunchScript(command, status) {
+  const scriptPath = path.join(
+    os.tmpdir(),
+    `kitsunedesk-ani-cli-${process.pid}-${Date.now()}.sh`
+  );
+  const pathPrefix = buildBashPathPrefix(status);
+  const script = `#!/usr/bin/env bash
+set +e
+
+${pathPrefix}${command}
+exit_code=$?
+
+printf '\\n'
+if [ "$exit_code" -ne 0 ]; then
+  printf 'O ani-cli foi encerrado com o codigo %s.\\n' "$exit_code"
+fi
+
+read -r -p 'Pressione Enter para fechar...'
+exit "$exit_code"
+`;
+
+  fs.writeFileSync(scriptPath, script, 'utf8');
+  return scriptPath;
 }
 
 /**
@@ -322,9 +356,9 @@ function findScoopAppExecutable(command) {
 function findGitBash() {
   const candidates = [
     path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
-    path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'git-bash.exe'),
+    path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'usr', 'bin', 'bash.exe'),
     path.join(os.homedir(), 'scoop', 'apps', 'git', 'current', 'bin', 'bash.exe'),
-    path.join(os.homedir(), 'scoop', 'apps', 'git', 'current', 'git-bash.exe')
+    path.join(os.homedir(), 'scoop', 'apps', 'git', 'current', 'usr', 'bin', 'bash.exe')
   ];
 
   const match = candidates.find((candidate) => fs.existsSync(candidate));

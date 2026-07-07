@@ -1,6 +1,6 @@
 {
   "name": "kitsunedesk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Aplicacao desktop local para busca organizada e reproducao autorizada de animes no Windows.",
   "main": "src/main/main.js",
   "author": "KitsuneDesk contributors",
