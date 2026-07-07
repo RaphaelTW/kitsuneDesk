@@ -14,6 +14,7 @@
 
 [Visão geral](#visão-geral) •
 [Fluxo](#fluxo-do-projeto) •
+[Requisitos](#requisitos) •
 [Instalação](#instalação-e-execução) •
 [Entendendo o código](#passo-a-passo-para-entender-o-projeto) •
 [Build](#gerar-instalador) •
@@ -128,23 +129,59 @@ O renderer não acessa Node.js diretamente. Ele usa apenas a API exposta por `pr
 
 ## Requisitos
 
-### Para desenvolvimento
+### Sistema operacional
 
 - Windows 10 ou Windows 11.
+- Arquitetura x64 recomendada.
+- PowerShell disponível no sistema.
+- Permissão de administrador para instalar o GoAnime pelo instalador oficial, quando solicitada pelo Windows.
+- Acesso à internet para instalar dependências Node, baixar o GoAnime e instalar ferramentas opcionais.
+
+### Para usar o aplicativo
+
+Obrigatórios:
+
+- KitsuneDesk instalado ou executado em modo desenvolvimento.
+- GoAnime e MPV, para o fluxo recomendado de reprodução.
+
+Observação:
+
+- O instalador oficial do GoAnime inclui o MPV e pode adicionar ambos ao `PATH`.
+- Se GoAnime e MPV não estiverem prontos, o app mostra os botões de instalação e o status das dependências.
+
+### Para desenvolvimento
+
 - Git.
 - Node.js LTS.
 - npm.
+- PowerShell ou terminal compatível.
+- Editor de código, como VS Code.
 
-### Para reprodução
+Dependências Node instaladas por `npm install`:
 
-Recomendado:
+- Electron.
+- better-sqlite3.
+- bcryptjs.
+- Bootstrap.
+- Bootstrap Icons.
+- ESLint.
+- Prettier.
+- electron-builder.
 
-- GoAnime.
-- MPV.
+Se o `npm install` falhar ao compilar dependências nativas, instale também:
 
-O instalador oficial do GoAnime inclui o MPV e pode adicionar ambos ao `PATH`.
+- Visual Studio Build Tools com ferramentas de C++ para desktop.
+- Python compatível com `node-gyp`.
 
-Fallback opcional:
+### Para gerar instalador
+
+- Dependências instaladas com `npm install`.
+- Ambiente Windows x64.
+- `electron-builder`, já listado nas dependências de desenvolvimento.
+
+### Para o fallback ani-cli
+
+O fallback é opcional. Use apenas se quiser rodar sem GoAnime ou manter uma alternativa.
 
 - Git Bash.
 - ani-cli.
@@ -152,7 +189,7 @@ Fallback opcional:
 - ffmpeg.
 - MPV.
 - OpenSSL.
-- Scoop, caso queira instalar o fallback automaticamente.
+- Scoop, caso queira usar a instalação assistida.
 
 ## Instalação e execução
 
@@ -277,7 +314,7 @@ Mapeamento dos filtros para o GoAnime:
 Exemplo de comando gerado:
 
 ```powershell
-goanime --quality best --source ptbr "Naruto"
+goanime --quality best --source ptbr "nome-do-anime"
 ```
 
 ### ani-cli
@@ -524,7 +561,7 @@ O KitsuneDesk cria scripts temporários para abrir GoAnime ou ani-cli. A janela 
 Teste o provedor manualmente:
 
 ```powershell
-goanime "Naruto"
+goanime "nome-do-anime"
 goanime -h
 goanime --update
 ```
