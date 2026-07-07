@@ -10,6 +10,7 @@ const channels = Object.freeze({
   animesDetails: 'animes:details',
   animesEpisodes: 'animes:episodes',
   playerPlay: 'player:play',
+  playerInstallDependencies: 'player:install-dependencies',
   playerPause: 'player:pause',
   playerResume: 'player:resume',
   playerNext: 'player:next',
@@ -50,6 +51,7 @@ const animeDeskApi = Object.freeze({
   }),
   player: Object.freeze({
     play: (payload) => invoke(channels.playerPlay, payload),
+    installDependencies: () => invoke(channels.playerInstallDependencies),
     pause: () => invoke(channels.playerPause),
     resume: () => invoke(channels.playerResume),
     next: () => invoke(channels.playerNext),

@@ -31,6 +31,17 @@
 
       <div class="topbar-actions">
         <span class="status-pill" id="app-platform">Windows</span>
+        <span class="status-pill" id="current-user">Usuario</span>
+        <button
+          class="icon-button"
+          id="logout-button"
+          type="button"
+          data-bs-toggle="tooltip"
+          data-bs-title="Sair"
+          aria-label="Sair"
+        >
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
         <button
           class="icon-button"
           id="health-check-button"
@@ -48,30 +59,83 @@
       <section class="workspace" aria-labelledby="workspace-title">
         <div class="workspace-heading">
           <div>
-            <p class="eyebrow">Etapa 1</p>
-            <h2 id="workspace-title">Inicializacao do projeto</h2>
+            <p class="eyebrow">Etapa 3</p>
+            <h2 id="workspace-title">Painel local</h2>
           </div>
           <span class="version-badge" id="app-version">v0.1.0</span>
         </div>
 
         <div class="row g-3">
           <div class="col-12 col-lg-7">
-            <div class="panel search-panel">
-              <label class="form-label" for="anime-search">Pesquisar anime</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input
-                  id="anime-search"
-                  class="form-control"
-                  type="search"
-                  placeholder="Aguardando Etapa 6"
-                  disabled
-                />
-                <button class="btn btn-primary" type="button" disabled>
-                  <i class="bi bi-arrow-right"></i>
+            <form class="panel search-panel" id="ani-cli-form">
+              <div class="search-header">
+                <label class="form-label" for="anime-search">Pesquisar anime</label>
+                <span class="dependency-badge" id="ani-cli-status">Verificando ani-cli</span>
+              </div>
+
+              <div class="search-grid">
+                <div class="input-group anime-query-control">
+                  <span class="input-group-text"><i class="bi bi-search"></i></span>
+                  <input
+                    id="anime-search"
+                    class="form-control"
+                    name="query"
+                    type="search"
+                    placeholder="Ex: Naruto, Dragon Ball, Jujutsu Kaisen"
+                    autocomplete="off"
+                    required
+                  />
+                </div>
+
+                <select
+                  class="form-select"
+                  id="language-filter"
+                  name="language"
+                  aria-label="Idioma"
+                >
+                  <option value="sub">Legendado</option>
+                  <option value="dub">Dublado</option>
+                </select>
+
+                <select
+                  class="form-select"
+                  id="quality-filter"
+                  name="quality"
+                  aria-label="Qualidade"
+                >
+                  <option value="auto">Automatica</option>
+                  <option value="360">360p</option>
+                  <option value="480">480p</option>
+                  <option value="720">720p</option>
+                  <option value="1080">1080p</option>
+                </select>
+
+                <button class="btn btn-primary ani-cli-submit" id="ani-cli-submit" type="submit">
+                  <i class="bi bi-play-fill"></i>
+                  <span>Abrir</span>
                 </button>
               </div>
-            </div>
+
+              <div id="dependency-alert" class="dependency-alert d-none" role="status"></div>
+              <div class="dependency-actions d-none" id="dependency-actions">
+                <button
+                  class="btn btn-outline-light"
+                  id="install-dependencies-button"
+                  type="button"
+                >
+                  <i class="bi bi-download"></i>
+                  <span>Instalar dependencias</span>
+                </button>
+                <button
+                  class="btn btn-outline-light"
+                  id="refresh-dependencies-button"
+                  type="button"
+                >
+                  <i class="bi bi-arrow-clockwise"></i>
+                  <span>Atualizar status</span>
+                </button>
+              </div>
+            </form>
           </div>
 
           <div class="col-12 col-lg-5">
@@ -113,21 +177,21 @@
             <i class="bi bi-database-lock"></i>
             <div>
               <h3>Banco local</h3>
-              <p>Reservado para migracoes SQLite da proxima etapa.</p>
+              <p>SQLite criado automaticamente na pasta de dados do usuario.</p>
             </div>
           </article>
           <article class="module-card">
             <i class="bi bi-person-lock"></i>
             <div>
               <h3>Autenticacao</h3>
-              <p>Contratos IPC ja expostos para a implementacao do login.</p>
+              <p>Login local, sessao em memoria e troca obrigatoria de senha.</p>
             </div>
           </article>
           <article class="module-card">
             <i class="bi bi-play-btn"></i>
             <div>
-              <h3>Player MPV</h3>
-              <p>Contrato isolado para controle por JSON IPC.</p>
+              <h3>ani-cli + MPV</h3>
+              <p>Busca abre o fluxo interativo do ani-cli com idioma e qualidade.</p>
             </div>
           </article>
         </section>

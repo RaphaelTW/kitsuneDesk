@@ -405,8 +405,10 @@ dist/
 
 ```powershell
 $env:KITSUNEDESK_SMOKE_TEST='1'
+$env:KITSUNEDESK_USER_DATA_DIR="$PWD\.tmp-smoke-user-data"
 npm run start
 Remove-Item Env:KITSUNEDESK_SMOKE_TEST
+Remove-Item Env:KITSUNEDESK_USER_DATA_DIR
 ```
 
 Resultado esperado: a janela carrega e o processo encerra sozinho com código `0`.
@@ -424,12 +426,47 @@ Senha: admin123
 
 > A aplicação deve obrigar a troca da senha antes de liberar as outras telas.
 
+Em desenvolvimento, caso o `better-sqlite3` nativo ainda não esteja reconstruído para o Electron,
+o app usa um worker Node local para acessar o SQLite sem abrir terminal.
+
 ### Requisitos da nova senha
 
 - Mínimo de 8 caracteres.
 - Uma letra maiúscula.
 - Uma letra minúscula.
 - Um número.
+
+---
+
+## ▶️ Uso com ani-cli
+
+Depois de entrar e trocar a senha inicial, a tela inicial permite digitar o nome do anime,
+escolher `Legendado` ou `Dublado`, escolher a qualidade e abrir o fluxo do `ani-cli`.
+
+O `ani-cli` ainda usa `fzf` para escolher resultado e episódio, então o app abre uma aba do
+Windows Terminal com Git Bash para essa seleção interativa. O vídeo é aberto no MPV.
+
+Dependências esperadas no Windows:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+scoop install git
+scoop bucket add extras
+scoop install ani-cli fzf ffmpeg mpv
+```
+
+Se alguma dependência estiver faltando, a tela inicial mostra o alerta e oferece o botão
+`Instalar dependencias`, que abre o PowerShell/Windows Terminal com esses comandos. Depois da
+instalação, clique em `Atualizar status` ou feche e abra o KitsuneDesk novamente.
+
+Exemplos equivalentes gerados pela interface:
+
+```bash
+ani-cli 'Naruto'
+ani-cli --dub -q '1080' 'Dragon Ball'
+```
 
 ---
 
@@ -729,12 +766,12 @@ npm test
 <details>
 <summary><strong>Fase 2 — Banco e autenticação</strong></summary>
 
-- [ ] Criar conexão SQLite.
-- [ ] Criar migrações.
-- [ ] Criar usuário padrão.
-- [ ] Implementar login.
-- [ ] Implementar troca obrigatória de senha.
-- [ ] Implementar logout.
+- [x] Criar conexão SQLite.
+- [x] Criar migrações.
+- [x] Criar usuário padrão.
+- [x] Implementar login.
+- [x] Implementar troca obrigatória de senha.
+- [x] Implementar logout.
 
 </details>
 

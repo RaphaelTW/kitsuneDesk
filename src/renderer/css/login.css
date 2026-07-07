@@ -1,0 +1,127 @@
+.auth-page {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(139, 92, 246, 0.13), transparent 34%),
+    linear-gradient(315deg, rgba(34, 211, 238, 0.1), transparent 32%), var(--app-bg);
+  display: flex;
+  min-height: 100vh;
+}
+
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  padding: 1rem;
+  place-items: center;
+  width: 100%;
+}
+
+.auth-card {
+  background: rgba(23, 26, 33, 0.96);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: var(--app-shadow);
+  max-width: 440px;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  width: min(100%, 440px);
+}
+
+.password-card {
+  max-width: 500px;
+  width: min(100%, 500px);
+}
+
+.auth-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-brand img {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 0.4rem;
+}
+
+.auth-brand p {
+  color: var(--app-cyan);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+}
+
+.auth-brand h1 {
+  font-size: 1.7rem;
+}
+
+.password-toggle {
+  border-color: var(--app-border);
+  min-width: 48px;
+}
+
+.auth-hint {
+  align-items: center;
+  background: #11141b;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  color: var(--app-muted);
+  display: flex;
+  font-size: 0.9rem;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+}
+
+.auth-hint i {
+  color: var(--app-green);
+}
+
+.visual-alert {
+  background: rgba(244, 63, 94, 0.13);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  border-radius: 8px;
+  color: #fecdd3;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.auth-submit {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.6rem;
+  justify-content: center;
+  min-height: 46px;
+}
+
+.password-rules {
+  background: #11141b;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0.85rem;
+}
+
+.password-rules li {
+  align-items: center;
+  color: var(--app-muted);
+  display: flex;
+  font-size: 0.9rem;
+  gap: 0.55rem;
+}
+
+.password-rules li.is-valid {
+  color: #bbf7d0;
+}
+
+.password-rules li.is-valid i {
+  color: var(--app-green);
+}

@@ -8,7 +8,7 @@ const { BrowserWindow, shell } = require('electron');
  */
 function createMainWindow() {
   const preloadPath = path.join(__dirname, 'preload.js');
-  const startPage = path.join(__dirname, '..', 'renderer', 'pages', 'home.html');
+  const startPage = path.join(__dirname, '..', 'renderer', 'pages', 'login.html');
 
   const mainWindow = new BrowserWindow({
     width: 1200,
