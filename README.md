@@ -334,7 +334,7 @@ Após gerar o instalador, o usuário precisa apenas de:
 ### 1. Clonar o projeto
 
 ```bash
-git clone https://github.com/SEU-USUARIO/kitsunedesk.git
+git clone https://github.com/RaphaelTW/kitsuneDesk
 cd kitsunedesk
 ```
 
@@ -640,7 +640,7 @@ Quando o usuário selecionar **Dublado**, a aplicação deve diferenciar:
 
 ### Exemplo de mensagem
 
-> **Versão dublada indisponível**  
+> **Versão dublada indisponível**
 > Este anime foi encontrado, mas não há episódios dublados disponíveis no provedor atual.
 
 Ações:
