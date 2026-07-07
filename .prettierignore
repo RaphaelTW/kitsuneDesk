@@ -1,0 +1,7 @@
+node_modules/
+dist/
+out/
+coverage/
+src/renderer/vendor/
+README.md
+package-lock.json

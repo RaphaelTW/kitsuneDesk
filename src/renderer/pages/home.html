@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self';"
+    />
+    <title>KitsuneDesk</title>
+    <link rel="stylesheet" href="../vendor/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="../css/global.css" />
+    <link rel="stylesheet" href="../css/home.css" />
+  </head>
+  <body>
+    <nav class="topbar" aria-label="Navegacao principal">
+      <div class="brand-group">
+        <img
+          class="brand-mark"
+          src="../../../assets/kitsunedesk-logo.svg"
+          alt=""
+          width="40"
+          height="40"
+        />
+        <div>
+          <p class="brand-kicker">KitsuneDesk</p>
+          <h1>AnimeDesk Local</h1>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="status-pill" id="app-platform">Windows</span>
+        <button
+          class="icon-button"
+          id="health-check-button"
+          type="button"
+          data-bs-toggle="tooltip"
+          data-bs-title="Verificar comunicacao local"
+          aria-label="Verificar comunicacao local"
+        >
+          <i class="bi bi-activity"></i>
+        </button>
+      </div>
+    </nav>
+
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="workspace-title">
+        <div class="workspace-heading">
+          <div>
+            <p class="eyebrow">Etapa 1</p>
+            <h2 id="workspace-title">Inicializacao do projeto</h2>
+          </div>
+          <span class="version-badge" id="app-version">v0.1.0</span>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-7">
+            <div class="panel search-panel">
+              <label class="form-label" for="anime-search">Pesquisar anime</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input
+                  id="anime-search"
+                  class="form-control"
+                  type="search"
+                  placeholder="Aguardando Etapa 6"
+                  disabled
+                />
+                <button class="btn btn-primary" type="button" disabled>
+                  <i class="bi bi-arrow-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-5">
+            <div class="panel foundation-panel">
+              <div class="foundation-status">
+                <i class="bi bi-shield-check"></i>
+                <div>
+                  <p>Preload seguro</p>
+                  <span id="preload-status">Carregando API local</span>
+                </div>
+              </div>
+              <div class="foundation-status">
+                <i class="bi bi-window-stack"></i>
+                <div>
+                  <p>Janela Electron</p>
+                  <span>Context isolation ativo</span>
+                </div>
+              </div>
+              <div class="foundation-status">
+                <i class="bi bi-hdd-network"></i>
+                <div>
+                  <p>Bootstrap local</p>
+                  <span>Sem CDN no renderer</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="module-grid" aria-label="Modulos da aplicacao">
+          <article class="module-card is-ready">
+            <i class="bi bi-pc-display-horizontal"></i>
+            <div>
+              <h3>Aplicacao desktop</h3>
+              <p>Janela principal pronta para receber login, busca e player.</p>
+            </div>
+          </article>
+          <article class="module-card">
+            <i class="bi bi-database-lock"></i>
+            <div>
+              <h3>Banco local</h3>
+              <p>Reservado para migracoes SQLite da proxima etapa.</p>
+            </div>
+          </article>
+          <article class="module-card">
+            <i class="bi bi-person-lock"></i>
+            <div>
+              <h3>Autenticacao</h3>
+              <p>Contratos IPC ja expostos para a implementacao do login.</p>
+            </div>
+          </article>
+          <article class="module-card">
+            <i class="bi bi-play-btn"></i>
+            <div>
+              <h3>Player MPV</h3>
+              <p>Contrato isolado para controle por JSON IPC.</p>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <script src="../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="../js/home.js"></script>
+  </body>
+</html>

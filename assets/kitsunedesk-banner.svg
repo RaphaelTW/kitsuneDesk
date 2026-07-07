@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#0f172a"/>
+    <stop offset="35%" stop-color="#312e81"/>
+    <stop offset="70%" stop-color="#7c3aed"/>
+    <stop offset="100%" stop-color="#ec4899"/>
+  </linearGradient>
+  <linearGradient id="fox" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#f97316"/>
+    <stop offset="100%" stop-color="#facc15"/>
+  </linearGradient>
+  <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-opacity=".35"/></filter>
+</defs>
+<rect width="1400" height="420" rx="28" fill="url(#bg)"/>
+<circle cx="120" cy="80" r="160" fill="#22d3ee" opacity=".10"/>
+<circle cx="1260" cy="360" r="230" fill="#f9a8d4" opacity=".14"/>
+<g opacity=".18" fill="none" stroke="#fff">
+  <path d="M0 330 C260 220 420 420 720 290 S1150 180 1400 280" stroke-width="3"/>
+  <path d="M0 365 C260 255 420 455 720 325 S1150 215 1400 315" stroke-width="2"/>
+</g>
+<g transform="translate(130 85)" filter="url(#shadow)">
+  <path d="M100 25 L155 86 L142 171 Q100 220 58 171 L45 86 Z" fill="url(#fox)"/>
+  <path d="M45 86 L18 36 L76 61 Z" fill="#fb923c"/>
+  <path d="M155 86 L182 36 L124 61 Z" fill="#fb923c"/>
+  <path d="M73 112 Q100 135 127 112 Q121 169 100 180 Q79 169 73 112Z" fill="#fff7ed"/>
+  <circle cx="78" cy="101" r="6" fill="#111827"/>
+  <circle cx="122" cy="101" r="6" fill="#111827"/>
+  <path d="M94 132 Q100 138 106 132 Q104 146 100 148 Q96 146 94 132" fill="#111827"/>
+</g>
+<text x="390" y="175" font-family="Segoe UI, Arial, sans-serif" font-size="86" font-weight="800" fill="#fff">KitsuneDesk</text>
+<text x="395" y="235" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#e0e7ff">Anime local, simples e organizado no Windows</text>
+<g transform="translate(395 275)">
+  <rect width="198" height="46" rx="23" fill="#fff" opacity=".14"/>
+  <text x="99" y="30" text-anchor="middle" font-family="Segoe UI, Arial" font-size="19" font-weight="600" fill="#fff">HTML • CSS • JS</text>
+  <rect x="214" width="156" height="46" rx="23" fill="#fff" opacity=".14"/>
+  <text x="292" y="30" text-anchor="middle" font-family="Segoe UI, Arial" font-size="19" font-weight="600" fill="#fff">Electron</text>
+  <rect x="386" width="156" height="46" rx="23" fill="#fff" opacity=".14"/>
+  <text x="464" y="30" text-anchor="middle" font-family="Segoe UI, Arial" font-size="19" font-weight="600" fill="#fff">SQLite</text>
+  <rect x="558" width="118" height="46" rx="23" fill="#fff" opacity=".14"/>
+  <text x="617" y="30" text-anchor="middle" font-family="Segoe UI, Arial" font-size="19" font-weight="600" fill="#fff">MPV</text>
+</g>
+</svg>

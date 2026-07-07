@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+<defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#312e81"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+<rect width="1200" height="620" rx="24" fill="#0b1020"/>
+<rect x="32" y="32" width="1136" height="556" rx="22" fill="#12192b"/>
+<rect x="60" y="60" width="280" height="390" rx="18" fill="url(#g2)"/>
+<text x="200" y="250" text-anchor="middle" fill="#fff" font-size="28" font-family="Segoe UI" font-weight="700">CAPA</text>
+<text x="380" y="88" fill="#fff" font-size="34" font-family="Segoe UI" font-weight="700">Nome do anime</text>
+<rect x="380" y="112" width="110" height="34" rx="17" fill="#7c3aed"/><text x="435" y="135" text-anchor="middle" fill="#fff" font-size="14" font-family="Segoe UI">Dublado</text>
+<rect x="502" y="112" width="110" height="34" rx="17" fill="#0891b2"/><text x="557" y="135" text-anchor="middle" fill="#fff" font-size="14" font-family="Segoe UI">Legendado</text>
+<text x="380" y="190" fill="#94a3b8" font-size="17" font-family="Segoe UI">Descrição do anime, status, tipo e informações principais.</text>
+<text x="380" y="225" fill="#94a3b8" font-size="17" font-family="Segoe UI">Último episódio assistido: 8</text>
+<rect x="380" y="255" width="220" height="52" rx="14" fill="#ec4899"/><text x="490" y="288" text-anchor="middle" fill="#fff" font-size="17" font-family="Segoe UI" font-weight="600">Continuar episódio 8</text>
+<text x="380" y="365" fill="#fff" font-size="25" font-family="Segoe UI" font-weight="700">Episódios</text>
+<g fill="#1e293b" stroke="#4f46e5">
+<rect x="380" y="390" width="80" height="58" rx="12"/><rect x="474" y="390" width="80" height="58" rx="12"/><rect x="568" y="390" width="80" height="58" rx="12"/><rect x="662" y="390" width="80" height="58" rx="12"/><rect x="756" y="390" width="80" height="58" rx="12"/><rect x="850" y="390" width="80" height="58" rx="12"/><rect x="944" y="390" width="80" height="58" rx="12"/>
+</g>
+<g fill="#fff" font-size="18" font-family="Segoe UI" text-anchor="middle">
+<text x="420" y="426">1</text><text x="514" y="426">2</text><text x="608" y="426">3</text><text x="702" y="426">4</text><text x="796" y="426">5</text><text x="890" y="426">6</text><text x="984" y="426">7</text>
+</g>
+<rect x="380" y="480" width="650" height="68" rx="15" fill="#171e32"/>
+<text x="402" y="510" fill="#fff" font-size="17" font-family="Segoe UI" font-weight="700">Episódio 9</text>
+<text x="402" y="534" fill="#f9a8d4" font-size="14" font-family="Segoe UI">Somente legendado</text>
+<rect x="855" y="493" width="150" height="42" rx="12" fill="#7c3aed"/><text x="930" y="520" text-anchor="middle" fill="#fff" font-size="15" font-family="Segoe UI">Reproduzir</text>
+</svg>

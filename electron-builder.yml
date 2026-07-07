@@ -1,0 +1,29 @@
+appId: br.com.kitsunedesk.local
+productName: KitsuneDesk
+artifactName: KitsuneDesk-Setup-${version}.${ext}
+asar: true
+npmRebuild: true
+
+directories:
+  output: dist
+
+files:
+  - src/**/*
+  - resources/**/*
+  - assets/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: KitsuneDesk
+  runAfterFinish: true
