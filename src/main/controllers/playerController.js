@@ -14,8 +14,8 @@ class PlayerController {
     return this.playerService.play(payload);
   }
 
-  installDependencies() {
-    return this.playerService.installDependencies();
+  installDependencies(payload) {
+    return this.playerService.installDependencies(payload);
   }
 
   pause() {

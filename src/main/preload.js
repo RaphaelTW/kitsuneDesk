@@ -51,7 +51,7 @@ const animeDeskApi = Object.freeze({
   }),
   player: Object.freeze({
     play: (payload) => invoke(channels.playerPlay, payload),
-    installDependencies: () => invoke(channels.playerInstallDependencies),
+    installDependencies: (provider) => invoke(channels.playerInstallDependencies, { provider }),
     pause: () => invoke(channels.playerPause),
     resume: () => invoke(channels.playerResume),
     next: () => invoke(channels.playerNext),

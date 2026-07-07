@@ -1,179 +1,139 @@
 <div align="center">
 
-<img src="./assets/kitsunedesk-banner.svg" alt="KitsuneDesk banner" width="100%">
+<img src="./assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="100%">
 
 <br>
 
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-00A4EF?style=for-the-badge&logo=windows11&logoColor=white)](#-requisitos)
 [![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?style=for-the-badge&logo=electron&logoColor=white)](#-tecnologias)
+[![GoAnime](https://img.shields.io/badge/GoAnime-Provedor%20principal-8B5CF6?style=for-the-badge)](#-integração-com-goanime)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES%20Modules-F7DF1E?style=for-the-badge&logo=javascript&logoColor=111)](#-tecnologias)
 [![SQLite](https://img.shields.io/badge/SQLite-Local-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](#-tecnologias)
-[![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)](#-tecnologias)
-[![MPV](https://img.shields.io/badge/MPV-Player-691F69?style=for-the-badge&logo=mpv&logoColor=white)](#-player-mpv)
+[![License](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)](./LICENSE)
 
-<br>
+### Interface gráfica local para abrir o GoAnime e reproduzir animes no MPV.
 
-### Sua biblioteca de animes em uma experiência local, simples e organizada.
-
-Pesquise títulos, escolha episódios, alterne entre legendado e dublado, continue de onde parou e controle o MPV sem precisar abrir o terminal.
-
-<br>
+Pesquise pelo nome, escolha o idioma e a qualidade e deixe o KitsuneDesk abrir o fluxo interativo do GoAnime sem precisar decorar comandos.
 
 [Visão geral](#-visão-geral) •
-[Recursos](#-recursos) •
+[GoAnime](#-integração-com-goanime) •
 [Instalação](#-instalação) •
-[Estrutura](#-estrutura-do-projeto) •
-[Roadmap](#-roadmap) •
-[FAQ](#-perguntas-frequentes)
+[Uso](#-como-usar) •
+[Estrutura](#-estrutura) •
+[Solução de problemas](#-solução-de-problemas)
 
 </div>
 
 ---
 
-## 🦊 Sobre o nome
+## 🦊 Visão geral
 
-**KitsuneDesk** combina:
+O **KitsuneDesk** é um aplicativo desktop local para Windows desenvolvido com Electron, HTML, CSS, JavaScript puro, Bootstrap e SQLite.
 
-- **Kitsune**: a raposa da cultura japonesa, associada a inteligência e agilidade.
-- **Desk**: a experiência desktop local, instalada diretamente no Windows.
+A versão `0.2.0` utiliza o **GoAnime como provedor principal** e mantém o **ani-cli como fallback opcional**.
 
-O nome é curto, memorável e representa bem uma aplicação moderna para organizar e reproduzir animes no computador.
+O usuário faz a pesquisa pela interface gráfica. Em seguida, o KitsuneDesk abre automaticamente a interface interativa do provedor selecionado para escolher o resultado e o episódio.
 
----
-
-## 🌈 Visão geral
-
-O **KitsuneDesk** é uma aplicação desktop local para Windows criada com tecnologias web, mas executada como um programa tradicional.
-
-A proposta é oferecer uma interface amigável para pessoas que não querem utilizar PowerShell, CMD, Git Bash ou comandos manuais para pesquisar e reproduzir episódios.
-
-> O sistema funciona localmente, mantém os dados na máquina e não exige hospedagem pública.
-
-<div align="center">
-
-<img src="./assets/home-preview.svg" alt="Prévia da tela inicial do KitsuneDesk" width="92%">
-
-</div>
+> O KitsuneDesk não hospeda conteúdo. A disponibilidade depende das fontes consultadas pelos provedores externos e dos direitos de acesso do usuário.
 
 ---
 
-## ✨ Recursos
+## ✨ Recursos atuais
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🔎 Descoberta
-
-- Pesquisa por nome.
-- Resultados em cards.
-- Filtro legendado ou dublado.
-- Seleção de qualidade.
-- Detalhes do título.
-- Lista de episódios.
-- Aviso quando a dublagem não estiver disponível.
-
-</td>
-<td width="50%" valign="top">
-
-### ▶️ Reprodução
-
-- Integração com MPV.
-- Próximo episódio.
-- Episódio anterior.
-- Pausar e continuar.
-- Controle de volume.
-- Salvamento periódico do progresso.
-- Continuação automática do ponto salvo.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 👤 Experiência local
-
-- Login local.
-- Usuário administrador inicial.
-- Troca obrigatória da senha.
-- Histórico por usuário.
-- Configurações individuais.
-- Tema escuro.
-- Nenhum terminal visível após a instalação.
-
-</td>
-<td width="50%" valign="top">
-
-### 🛡️ Segurança
-
-- Senhas protegidas com hash.
-- Context Isolation do Electron.
-- Node Integration desativado.
-- API segura via preload.
-- Validação dos dados recebidos.
-- SQLite na pasta de dados do usuário.
-- Logs sem informações sensíveis.
-
-</td>
-</tr>
-</table>
+- Login local com senha protegida por hash.
+- Troca obrigatória da senha no primeiro acesso.
+- Banco SQLite criado automaticamente.
+- Interface gráfica em HTML, CSS, JavaScript e Bootstrap.
+- Provedor automático com prioridade para GoAnime.
+- GoAnime como provedor recomendado.
+- ani-cli como fallback opcional.
+- Pesquisa direta pelo nome do anime.
+- Filtro Legendado ou Dublado / PT-BR.
+- Qualidade automática, 360p, 480p, 720p ou 1080p.
+- Detecção automática do GoAnime e do MPV.
+- Instalação do GoAnime pelo instalador oficial do GitHub Releases.
+- Instalação assistida do ani-cli e dependências pelo Scoop.
+- Execução em Windows Terminal ou Prompt de Comando.
+- Electron com `nodeIntegration: false`, `contextIsolation: true` e preload seguro.
 
 ---
 
-## 🎬 Demonstração do fluxo
+## 🎌 Integração com GoAnime
 
-```mermaid
-flowchart LR
-    A[Entrar] --> B[Pesquisar anime]
-    B --> C{Idioma}
-    C -->|Legendado| D[Listar resultados]
-    C -->|Dublado| E{Dublagem disponível?}
-    E -->|Sim| D
-    E -->|Não| F[Oferecer versão legendada]
-    D --> G[Selecionar episódio]
-    G --> H[Reproduzir no MPV]
-    H --> I[Salvar progresso]
-    I --> J{Terminou?}
-    J -->|Não| I
-    J -->|Sim| K[Próximo episódio]
+O [GoAnime](https://github.com/alvarorichard/GoAnime) é uma aplicação TUI desenvolvida em Go que permite pesquisar títulos e reproduzir ou baixar episódios pelo MPV.
+
+Segundo a documentação oficial, ele oferece:
+
+- busca de animes, filmes e séries;
+- pesquisa simultânea nas fontes ativas;
+- conteúdo legendado e dublado em português e inglês;
+- qualidade selecionável;
+- integração com MPV;
+- histórico e retomada de reprodução em SQLite.
+
+### Comandos gerados pelo KitsuneDesk
+
+Pesquisa legendada utilizando as fontes ativas:
+
+```powershell
+goanime --quality best "Naruto"
 ```
 
+Pesquisa Dublado / PT-BR:
+
+```powershell
+goanime --quality best --source ptbr "Naruto"
+```
+
+Qualidade específica:
+
+```powershell
+goanime --quality 1080p "Naruto"
+```
+
+O usuário não precisa digitar esses comandos. Eles são montados e executados pelo KitsuneDesk.
+
+### Mapeamento da interface
+
+| KitsuneDesk | GoAnime |
+|---|---|
+| Melhor disponível | `--quality best` |
+| 360p | `--quality 360p` |
+| 480p | `--quality 480p` |
+| 720p | `--quality 720p` |
+| 1080p | `--quality 1080p` |
+| Legendado | Pesquisa nas fontes ativas |
+| Dublado / PT-BR | `--source ptbr` |
+
 ---
 
-## 🖥️ Prévia das telas
+## 🧭 Seleção de provedor
 
-<details open>
-<summary><strong>🏠 Página inicial</strong></summary>
+A tela principal possui três opções:
 
-<br>
+### Automático
 
-<div align="center">
-<img src="./assets/home-preview.svg" alt="Tela inicial" width="92%">
-</div>
+1. Usa GoAnime quando ele estiver instalado.
+2. Se o GoAnime estiver indisponível, tenta o ani-cli.
+3. Se nenhum estiver pronto, mostra os botões de instalação.
 
-</details>
+### GoAnime
 
-<details>
-<summary><strong>📺 Detalhes e episódios</strong></summary>
+Força o uso do GoAnime. Requer:
 
-<br>
+- `goanime.exe`;
+- MPV instalado ou incluído pelo instalador oficial.
 
-<div align="center">
-<img src="./assets/anime-preview.svg" alt="Tela de detalhes do anime" width="92%">
-</div>
+### ani-cli
 
-</details>
+Fallback opcional. Requer:
 
-<details>
-<summary><strong>▶️ Controle do player</strong></summary>
-
-<br>
-
-<div align="center">
-<img src="./assets/player-preview.svg" alt="Tela de controle do player" width="92%">
-</div>
-
-</details>
+- Git Bash;
+- ani-cli;
+- fzf;
+- ffmpeg;
+- MPV;
+- OpenSSL recomendado.
 
 ---
 
@@ -181,43 +141,117 @@ flowchart LR
 
 | Camada | Tecnologia | Função |
 |---|---|---|
-| Interface | HTML5 | Estrutura das páginas |
-| Estilo | CSS3 + Bootstrap 5 | Layout responsivo e componentes |
-| Comportamento | JavaScript ES Modules | Regras da interface |
-| Desktop | Electron | Aplicação para Windows |
+| Desktop | Electron | Janela e integração com Windows |
+| Interface | HTML5 + CSS3 | Estrutura e visual |
+| Componentes | Bootstrap 5 | Grid, formulários e botões |
+| Comportamento | JavaScript ES Modules | Lógica do renderer |
+| Processo principal | Node.js | IPC, banco e execução dos provedores |
 | Banco | SQLite + better-sqlite3 | Dados locais |
-| Segurança | bcryptjs | Hash de senhas |
-| Player | MPV + JSON IPC | Reprodução e controle |
-| Empacotamento | electron-builder | Instalador `.exe` |
-| Qualidade | ESLint + Prettier | Padronização do código |
-| Testes | Vitest ou Jest | Testes unitários e de integração |
+| Segurança | bcryptjs | Hash de senha |
+| Provedor principal | GoAnime | Pesquisa e seleção interativa |
+| Provedor alternativo | ani-cli | Fallback pelo Git Bash |
+| Player | MPV | Reprodução de mídia |
+| Build | electron-builder | Geração do instalador Windows |
 
 ---
 
-## 🧠 Por que JavaScript puro?
+## ✅ Requisitos
 
-O KitsuneDesk utiliza **HTML, CSS e JavaScript puro** porque a aplicação possui um conjunto de telas e fluxos bem definidos.
+### Desenvolvimento
 
-### Vantagens para este projeto
+- Windows 10 ou Windows 11.
+- Node.js.
+- npm.
+- Git.
 
-- Menos dependências.
-- Menor complexidade inicial.
-- Inicialização rápida.
-- Build mais simples.
-- Manutenção direta.
-- Bootstrap resolve a maior parte do layout.
-- Não há necessidade de gerenciamento complexo de estado.
+### Execução com GoAnime
 
-### Quando React faria sentido?
+O instalador oficial do GoAnime inclui o MPV e oferece a opção de adicionar ambos ao PATH.
 
-React seria mais interessante caso o projeto evoluísse para:
+Caminhos detectados automaticamente:
 
-- catálogo muito grande;
-- múltiplos painéis atualizados em tempo real;
-- sincronização online;
-- aplicativo web público;
-- vários desenvolvedores trabalhando em componentes;
-- recursos sociais e perfis avançados.
+```text
+C:\Program Files\GoAnime\goanime.exe
+C:\Program Files\GoAnime\bin\mpv.exe
+```
+
+O KitsuneDesk também procura instalações feitas com:
+
+```powershell
+go install github.com/alvarorichard/Goanime/cmd/goanime@latest
+```
+
+---
+
+## 🚀 Instalação
+
+### 1. Instalar as dependências Node
+
+Abra o terminal dentro da pasta do projeto:
+
+```powershell
+npm install
+```
+
+### 2. Executar em desenvolvimento
+
+```powershell
+npm run dev
+```
+
+### 3. Entrar no sistema
+
+Primeiro acesso:
+
+```text
+Usuário: admin
+Senha: admin123
+```
+
+O sistema solicita a troca da senha inicial.
+
+### 4. Instalar o GoAnime
+
+Na tela principal:
+
+1. Clique em **Instalar GoAnime**.
+2. Aguarde o download da release oficial.
+3. Autorize a execução como administrador.
+4. Mantenha marcada a opção **Add GoAnime and MPV to PATH**.
+5. Finalize o instalador.
+6. Volte ao KitsuneDesk.
+7. Clique em **Atualizar status**.
+
+O botão utiliza a API oficial de releases para localizar o instalador Windows mais recente.
+
+### Instalação manual do GoAnime
+
+Baixe o instalador em:
+
+```text
+https://github.com/alvarorichard/GoAnime/releases/latest
+```
+
+---
+
+## ▶️ Como usar
+
+1. Execute:
+
+```powershell
+npm run dev
+```
+
+2. Faça login.
+3. Na tela principal, selecione **Automático** ou **GoAnime**.
+4. Digite o nome do anime.
+5. Escolha Legendado ou Dublado / PT-BR.
+6. Escolha a qualidade.
+7. Clique em **Abrir**.
+8. Use as setas na TUI do GoAnime para selecionar o resultado.
+9. Pressione `Enter`.
+10. Escolha o episódio e confirme.
+11. O MPV será aberto automaticamente.
 
 ---
 
@@ -225,350 +259,18 @@ React seria mais interessante caso o projeto evoluísse para:
 
 ```mermaid
 flowchart TD
-    R[Renderer<br>HTML + CSS + JavaScript] --> P[Preload seguro]
-    P --> I[IPC do Electron]
-    I --> C[Controllers]
-    C --> S[Services]
-    S --> RP[Repositories]
-    RP --> DB[(SQLite)]
-    S --> PM[Provider Manager]
-    PM --> AP[Provedor autorizado]
-    S --> MPV[MPV JSON IPC]
+    UI[Renderer HTML CSS JavaScript] --> PRELOAD[Preload seguro]
+    PRELOAD --> IPC[Electron IPC]
+    IPC --> CONTROLLER[Player Controller]
+    CONTROLLER --> SERVICE[Player Service]
+    SERVICE --> AUTO{Provedor}
+    AUTO --> GOANIME[GoAnime]
+    AUTO --> ANICLI[ani-cli]
+    GOANIME --> MPV[MPV]
+    ANICLI --> MPV
 ```
 
-### Princípios
-
-- A interface não acessa o banco diretamente.
-- O renderer não recebe acesso ao Node.js.
-- O preload expõe somente funções permitidas.
-- Cada domínio possui controller, service e repository.
-- O player fica isolado em um serviço próprio.
-- A fonte de conteúdo fica atrás de uma interface de provedores.
-
----
-
-## 📁 Estrutura do projeto
-
-```text
-kitsunedesk/
-├── src/
-│   ├── main/
-│   │   ├── main.js
-│   │   ├── preload.js
-│   │   ├── windowManager.js
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── repositories/
-│   │   ├── providers/
-│   │   ├── database/
-│   │   ├── ipc/
-│   │   └── utils/
-│   │
-│   └── renderer/
-│       ├── pages/
-│       ├── css/
-│       ├── js/
-│       ├── assets/
-│       └── vendor/
-│
-├── resources/
-│   ├── mpv/
-│   ├── providers/
-│   └── licenses/
-│
-├── scripts/
-├── tests/
-├── package.json
-├── electron-builder.yml
-├── eslint.config.js
-├── .prettierrc
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
-<details>
-<summary><strong>📂 Ver responsabilidades das pastas</strong></summary>
-
-<br>
-
-| Pasta | Responsabilidade |
-|---|---|
-| `src/main` | Processo principal do Electron |
-| `src/main/controllers` | Entrada das ações da interface |
-| `src/main/services` | Regras de negócio |
-| `src/main/repositories` | Acesso ao SQLite |
-| `src/main/providers` | Integrações de catálogo e reprodução |
-| `src/main/database` | Conexão, migrações e seed |
-| `src/main/ipc` | Registro dos canais IPC |
-| `src/renderer` | Interface da aplicação |
-| `resources/mpv` | Binários e arquivos do MPV |
-| `tests` | Testes automatizados |
-
-</details>
-
----
-
-## ✅ Requisitos
-
-### Para desenvolvimento
-
-- Windows 10 ou Windows 11.
-- Node.js LTS.
-- npm.
-- Git.
-- MPV instalado ou incluído em `resources/mpv`.
-
-### Para o usuário final
-
-Após gerar o instalador, o usuário precisa apenas de:
-
-- Windows 10 ou Windows 11.
-- Conexão com a internet para consultar provedores autorizados.
-- Permissão para instalar aplicativos no perfil do Windows.
-
----
-
-## 🚀 Instalação
-
-### 1. Clonar o projeto
-
-```bash
-git clone https://github.com/RaphaelTW/kitsuneDesk
-cd kitsunedesk
-```
-
-### 2. Instalar dependências
-
-```bash
-npm install
-```
-
-O `postinstall` copia automaticamente Bootstrap e Bootstrap Icons para `src/renderer/vendor`.
-
-### 3. Preparar dependências visuais
-
-```bash
-npm run vendor
-```
-
-### 4. Configurar o MPV
-
-Coloque o executável nesta pasta:
-
-```text
-resources/mpv/mpv.exe
-```
-
-Ou configure o caminho nas configurações do aplicativo.
-
-### 5. Executar em desenvolvimento
-
-```bash
-npm run dev
-```
-
-### 6. Gerar o instalador
-
-```bash
-npm run build
-```
-
-O instalador será criado em:
-
-```text
-dist/
-```
-
----
-
-## 📜 Scripts recomendados
-
-```json
-{
-  "scripts": {
-    "start": "node scripts/start-electron.js",
-    "dev": "npm run vendor && node scripts/start-electron.js",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "vendor": "node scripts/copy-vendor.js",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "postinstall": "npm run vendor"
-  }
-}
-```
-
-### Smoke test da janela
-
-```powershell
-$env:KITSUNEDESK_SMOKE_TEST='1'
-$env:KITSUNEDESK_USER_DATA_DIR="$PWD\.tmp-smoke-user-data"
-npm run start
-Remove-Item Env:KITSUNEDESK_SMOKE_TEST
-Remove-Item Env:KITSUNEDESK_USER_DATA_DIR
-```
-
-Resultado esperado: a janela carrega e o processo encerra sozinho com código `0`.
-
----
-
-## 🔐 Primeiro acesso
-
-Na primeira execução, o KitsuneDesk cria o banco e um usuário inicial.
-
-```text
-Usuário: admin
-Senha: admin123
-```
-
-> A aplicação deve obrigar a troca da senha antes de liberar as outras telas.
-
-Em desenvolvimento, caso o `better-sqlite3` nativo ainda não esteja reconstruído para o Electron,
-o app usa um worker Node local para acessar o SQLite sem abrir terminal.
-
-### Requisitos da nova senha
-
-- Mínimo de 8 caracteres.
-- Uma letra maiúscula.
-- Uma letra minúscula.
-- Um número.
-
----
-
-## ▶️ Uso com ani-cli
-
-Depois de entrar e trocar a senha inicial, a tela inicial permite digitar o nome do anime,
-escolher `Legendado` ou `Dublado`, escolher a qualidade e abrir o fluxo do `ani-cli`.
-
-O `ani-cli` ainda usa `fzf` para escolher resultado e episódio, então o app abre uma aba do
-Windows Terminal com Git Bash para essa seleção interativa. O vídeo é aberto no MPV.
-
-Dependências esperadas no Windows:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-
-scoop install git
-scoop bucket add extras
-scoop install ani-cli fzf ffmpeg mpv
-```
-
-Se alguma dependência estiver faltando, a tela inicial mostra o alerta e oferece o botão
-`Instalar dependencias`, que abre o PowerShell/Windows Terminal com esses comandos. Depois da
-instalação, clique em `Atualizar status` ou feche e abra o KitsuneDesk novamente.
-
-Exemplos equivalentes gerados pela interface:
-
-```bash
-ani-cli 'Naruto'
-ani-cli --dub -q '1080' 'Dragon Ball'
-```
-
----
-
-## 🗄️ Banco de dados
-
-O banco é criado automaticamente na pasta de dados do usuário.
-
-Exemplo no Windows:
-
-```text
-C:\Users\SEU_USUARIO\AppData\Roaming\KitsuneDesk\database\kitsunedesk.sqlite
-```
-
-### Principais tabelas
-
-| Tabela | Finalidade |
-|---|---|
-| `users` | Usuários e permissões |
-| `settings` | Preferências individuais |
-| `watch_history` | Histórico e progresso |
-| `playback_sessions` | Sessão atual de reprodução |
-| `application_logs` | Eventos técnicos do sistema |
-
-<details>
-<summary><strong>🧩 Modelo simplificado</strong></summary>
-
-```mermaid
-erDiagram
-    USERS ||--|| SETTINGS : possui
-    USERS ||--o{ WATCH_HISTORY : assiste
-    USERS ||--o{ PLAYBACK_SESSIONS : mantém
-
-    USERS {
-        int id
-        string username
-        string password_hash
-        string role
-        boolean active
-    }
-
-    SETTINGS {
-        int id
-        int user_id
-        string default_language
-        string default_quality
-        int player_volume
-    }
-
-    WATCH_HISTORY {
-        int id
-        int user_id
-        string anime_id
-        float episode_number
-        int playback_position
-        boolean completed
-    }
-
-    PLAYBACK_SESSIONS {
-        int id
-        int user_id
-        string anime_id
-        float current_episode
-        int playback_position
-    }
-```
-
-</details>
-
----
-
-## 🔌 API segura do preload
-
-O renderer deve utilizar somente métodos explicitamente expostos:
-
-```javascript
-window.animeDesk.app.getInfo();
-window.animeDesk.app.ping();
-
-window.animeDesk.auth.login(credentials);
-window.animeDesk.auth.logout();
-window.animeDesk.auth.changePassword(data);
-
-window.animeDesk.animes.search(filters);
-window.animeDesk.animes.details(animeId);
-window.animeDesk.animes.episodes(animeId);
-
-window.animeDesk.player.play(payload);
-window.animeDesk.player.pause();
-window.animeDesk.player.resume();
-window.animeDesk.player.next();
-window.animeDesk.player.previous();
-window.animeDesk.player.stop();
-window.animeDesk.player.status();
-
-window.animeDesk.history.list(filters);
-window.animeDesk.history.remove(historyId);
-
-window.animeDesk.settings.get();
-window.animeDesk.settings.update(settings);
-```
-
-### Configuração obrigatória do Electron
+### Segurança do Electron
 
 ```javascript
 webPreferences: {
@@ -579,280 +281,67 @@ webPreferences: {
 }
 ```
 
----
+O renderer não recebe acesso direto a:
 
-## 🧩 Sistema de provedores
-
-A aplicação não deve ficar presa a uma fonte específica.
-
-```javascript
-class AnimeProvider {
-  async searchAnime(query, language) {
-    throw new Error('Método não implementado.');
-  }
-
-  async getAnimeDetails(animeId, language) {
-    throw new Error('Método não implementado.');
-  }
-
-  async getEpisodes(animeId, language) {
-    throw new Error('Método não implementado.');
-  }
-
-  async getStream(animeId, episode, language, quality) {
-    throw new Error('Método não implementado.');
-  }
-
-  async checkDubAvailability(animeId) {
-    throw new Error('Método não implementado.');
-  }
-}
-```
-
-### Retorno normalizado
-
-```json
-{
-  "id": "anime-id",
-  "providerId": "provider-id",
-  "title": "Nome do anime",
-  "cover": "https://...",
-  "description": "Descrição",
-  "episodeCount": 24,
-  "subAvailable": true,
-  "dubAvailable": false
-}
-```
-
-> Utilize apenas provedores, arquivos e serviços aos quais você tenha autorização de acesso.
+- `require`;
+- `child_process`;
+- `fs`;
+- banco de dados;
+- `ipcRenderer` completo.
 
 ---
 
-## 🗣️ Tratamento de dublagem
-
-Quando o usuário selecionar **Dublado**, a aplicação deve diferenciar:
-
-- Anime não encontrado.
-- Anime encontrado apenas legendado.
-- Alguns episódios ainda não dublados.
-- Provedor temporariamente indisponível.
-- Falha de conexão.
-
-### Exemplo de mensagem
-
-> **Versão dublada indisponível**
-> Este anime foi encontrado, mas não há episódios dublados disponíveis no provedor atual.
-
-Ações:
-
-- `Ver legendado`
-- `Cancelar`
-
-A aplicação nunca deve alterar automaticamente o idioma sem autorização do usuário.
-
----
-
-## 🎞️ Player MPV
-
-O MPV é controlado por JSON IPC.
-
-### Recursos esperados
-
-- Reproduzir.
-- Pausar.
-- Continuar.
-- Parar.
-- Alterar volume.
-- Consultar duração.
-- Consultar posição atual.
-- Avançar para o próximo episódio.
-- Voltar para o episódio anterior.
-
-### Argumentos recomendados
+## 📁 Estrutura
 
 ```text
---input-ipc-server=\\.\pipe\kitsunedesk-mpv
---force-window=yes
---keep-open=no
---terminal=no
---save-position-on-quit=no
+kitsunedesk/
+├── src/
+│   ├── main/
+│   │   ├── controllers/
+│   │   ├── database/
+│   │   ├── ipc/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── main.js
+│   │   ├── preload.js
+│   │   └── windowManager.js
+│   └── renderer/
+│       ├── css/
+│       ├── js/
+│       ├── pages/
+│       └── vendor/
+├── resources/
+│   ├── goanime/
+│   ├── mpv/
+│   └── licenses/
+├── scripts/
+├── assets/
+├── package.json
+├── electron-builder.yml
+└── README.md
 ```
 
-### Inicialização invisível no Windows
-
-```javascript
-{
-  windowsHide: true,
-  detached: false,
-  stdio: 'ignore'
-}
-```
-
 ---
 
-## 💾 Salvamento do progresso
-
-O progresso deve ser salvo:
-
-- A cada 15 segundos.
-- Ao pausar.
-- Ao trocar de episódio.
-- Ao fechar o MPV.
-- Ao fechar a aplicação.
-
-Um episódio pode ser marcado como concluído quando:
-
-- atingir pelo menos 90% da duração; ou
-- o MPV informar o final do arquivo.
-
----
-
-## 🧯 Tratamento de erros
-
-| Código | Mensagem esperada |
-|---|---|
-| `AUTH_INVALID_CREDENTIALS` | Usuário ou senha inválidos |
-| `AUTH_PASSWORD_CHANGE_REQUIRED` | Altere a senha para continuar |
-| `ANIME_NOT_FOUND` | Nenhum anime encontrado |
-| `DUB_NOT_AVAILABLE` | Versão dublada indisponível |
-| `EPISODE_NOT_FOUND` | Episódio não encontrado |
-| `STREAM_NOT_AVAILABLE` | Reprodução indisponível |
-| `PROVIDER_UNAVAILABLE` | Provedor temporariamente indisponível |
-| `PLAYER_NOT_FOUND` | MPV não localizado |
-| `PLAYER_START_FAILED` | Não foi possível iniciar o player |
-| `DATABASE_ERROR` | Erro ao acessar os dados locais |
-| `NETWORK_ERROR` | Verifique sua conexão |
-
----
-
-## 🧪 Testes
+## 📜 Scripts
 
 ```bash
-npm test
+npm run dev
+npm start
+npm run lint
+npm run lint:fix
+npm run format
+npm run format:check
+npm run build
+npm run build:win
 ```
 
-### Testes prioritários
-
-- Criação do banco.
-- Migrações.
-- Criação do usuário inicial.
-- Login.
-- Troca de senha.
-- Pesquisa normalizada.
-- Verificação de dublagem.
-- Próximo episódio.
-- Episódio anterior.
-- Salvamento do progresso.
-- Configurações.
-- Comunicação IPC.
-
 ---
 
-## 🛠️ Desenvolvimento por etapas
+## 📦 Gerar instalador do KitsuneDesk
 
-<details open>
-<summary><strong>Fase 1 — Fundação</strong></summary>
-
-- [x] Criar projeto Electron.
-- [x] Configurar janela principal.
-- [x] Configurar preload seguro.
-- [x] Adicionar Bootstrap local.
-- [x] Criar tema visual.
-- [x] Configurar ESLint e Prettier.
-- [x] Validar lint, formatação e smoke test.
-
-</details>
-
-<details>
-<summary><strong>Fase 2 — Banco e autenticação</strong></summary>
-
-- [x] Criar conexão SQLite.
-- [x] Criar migrações.
-- [x] Criar usuário padrão.
-- [x] Implementar login.
-- [x] Implementar troca obrigatória de senha.
-- [x] Implementar logout.
-
-</details>
-
-<details>
-<summary><strong>Fase 3 — Catálogo</strong></summary>
-
-- [ ] Criar interface de provedores.
-- [ ] Criar Provider Manager.
-- [ ] Implementar pesquisa.
-- [ ] Implementar detalhes.
-- [ ] Implementar episódios.
-- [ ] Implementar aviso de dublagem.
-
-</details>
-
-<details>
-<summary><strong>Fase 4 — Player</strong></summary>
-
-- [ ] Localizar MPV.
-- [ ] Criar named pipe.
-- [ ] Implementar JSON IPC.
-- [ ] Reproduzir episódio.
-- [ ] Pausar e continuar.
-- [ ] Próximo e anterior.
-- [ ] Salvar progresso.
-
-</details>
-
-<details>
-<summary><strong>Fase 5 — Distribuição</strong></summary>
-
-- [ ] Criar instalador.
-- [ ] Adicionar ícones.
-- [ ] Criar atalhos.
-- [ ] Testar em máquina limpa.
-- [ ] Validar que nenhum terminal aparece.
-- [ ] Documentar licenças.
-
-</details>
-
----
-
-## 🗺️ Roadmap
-
-### Versão 0.1.0 — Base
-
-- [ ] Estrutura inicial.
-- [ ] Interface principal.
-- [ ] Banco local.
-- [ ] Login.
-- [ ] Usuário padrão.
-
-### Versão 0.2.0 — Catálogo
-
-- [ ] Pesquisa.
-- [ ] Filtros.
-- [ ] Detalhes.
-- [ ] Episódios.
-- [ ] Dublagem.
-
-### Versão 0.3.0 — Reprodução
-
-- [ ] MPV.
-- [ ] Controles.
-- [ ] Histórico.
-- [ ] Progresso.
-- [ ] Continuar assistindo.
-
-### Versão 1.0.0 — Estável
-
-- [ ] Instalador.
-- [ ] Testes completos.
-- [ ] Logs.
-- [ ] Tela de configurações.
-- [ ] Documentação final.
-
----
-
-## 📦 Gerar instalador
-
-```bash
+```powershell
 npm run build:win
 ```
 
@@ -864,167 +353,113 @@ dist/
 └── win-unpacked/
 ```
 
-### O instalador deve
-
-- Criar atalho na área de trabalho.
-- Criar atalho no Menu Iniciar.
-- Instalar sem abrir terminal.
-- Armazenar dados no perfil do usuário.
-- Permitir desinstalação.
-- Preservar ou remover dados conforme escolha do usuário.
+O instalador do KitsuneDesk não redistribui automaticamente o executável do GoAnime. O usuário pode instalá-lo pelo botão oficial dentro do aplicativo.
 
 ---
 
-## 📝 Logs
+## 🧯 Solução de problemas
 
-Exemplo de pasta:
+### GoAnime aparece como não instalado
+
+Confirme:
+
+```powershell
+where.exe goanime
+Test-Path "C:\Program Files\GoAnime\goanime.exe"
+```
+
+Depois clique em **Atualizar status**.
+
+### MPV não encontrado
+
+Confirme:
+
+```powershell
+where.exe mpv
+Test-Path "C:\Program Files\GoAnime\bin\mpv.exe"
+```
+
+Se estiver ausente, reinstale o GoAnime e mantenha selecionada a opção de incluir o MPV.
+
+### O terminal fecha imediatamente
+
+O KitsuneDesk executa o GoAnime por um script temporário `.cmd` e mantém a janela aberta após o término para exibir o código de saída.
+
+### Quero testar o GoAnime sem o KitsuneDesk
+
+```powershell
+goanime "Naruto"
+```
+
+Atualização manual:
+
+```powershell
+goanime --update
+```
+
+Ajuda:
+
+```powershell
+goanime -h
+```
+
+### Fallback ani-cli incompleto
+
+Clique em **Instalar fallback ani-cli** ou execute:
+
+```powershell
+scoop install git
+scoop bucket add extras
+scoop install ani-cli fzf ffmpeg mpv openssl
+```
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Electron com preload seguro.
+- [x] Login local.
+- [x] SQLite automático.
+- [x] Pesquisa por ani-cli.
+- [x] Integração principal com GoAnime.
+- [x] Instalador oficial do GoAnime pelo aplicativo.
+- [x] Provedor automático com fallback.
+- [ ] Capturar resultados diretamente na interface gráfica.
+- [ ] Lista visual de episódios sem TUI externa.
+- [ ] Controle do MPV por JSON IPC.
+- [ ] Histórico integrado do KitsuneDesk.
+- [ ] Próximo episódio pela interface do KitsuneDesk.
+
+---
+
+## 📄 Licenças
+
+O KitsuneDesk utiliza a licença MIT disponível em [`LICENSE`](./LICENSE).
+
+O GoAnime possui licença MIT própria. Uma cópia está disponível em:
 
 ```text
-C:\Users\SEU_USUARIO\AppData\Roaming\KitsuneDesk\logs
+resources/licenses/GoAnime-LICENSE.txt
 ```
 
-Nunca registrar:
-
-- senha;
-- hash;
-- token;
-- cookie;
-- cabeçalho sensível;
-- URL com credenciais.
+GoAnime é um projeto independente criado por seus respectivos autores.
 
 ---
 
-## ❓ Perguntas frequentes
+## ⚖️ Uso responsável
 
-<details>
-<summary><strong>Preciso usar terminal depois de instalar?</strong></summary>
+O KitsuneDesk não hospeda, distribui ou armazena episódios.
 
-Não. O objetivo é que o usuário final abra o KitsuneDesk pelo atalho do Windows.
-
-</details>
-
-<details>
-<summary><strong>O sistema funciona sem internet?</strong></summary>
-
-A interface, o login, o histórico e as configurações funcionam localmente. A pesquisa e a reprodução dependem da fonte autorizada configurada.
-
-</details>
-
-<details>
-<summary><strong>Os dados são enviados para um servidor?</strong></summary>
-
-Por padrão, não. Usuários, configurações e histórico ficam no SQLite local.
-
-</details>
-
-<details>
-<summary><strong>Posso trocar o MPV por outro player?</strong></summary>
-
-Sim. O Player Service deve ser isolado para permitir uma implementação alternativa no futuro.
-
-</details>
-
-<details>
-<summary><strong>Posso adicionar outro provedor?</strong></summary>
-
-Sim. Basta implementar a interface `AnimeProvider` e registrar o novo provedor no `ProviderManager`.
-
-</details>
-
-<details>
-<summary><strong>Por que não usar CDN para Bootstrap?</strong></summary>
-
-Para permitir que a interface seja carregada mesmo sem internet e evitar dependência externa para o layout.
-
-</details>
-
-<details>
-<summary><strong>Por que não usar React?</strong></summary>
-
-A primeira versão possui fluxos diretos e pode ser bem organizada com ES Modules. Isso reduz dependências e simplifica a manutenção.
-
-</details>
-
----
-
-## 🤝 Contribuição
-
-1. Crie um fork.
-2. Abra uma branch:
-
-```bash
-git checkout -b feature/minha-funcionalidade
-```
-
-3. Faça o commit:
-
-```bash
-git commit -m "feat: adiciona nova funcionalidade"
-```
-
-4. Envie a branch:
-
-```bash
-git push origin feature/minha-funcionalidade
-```
-
-5. Abra um Pull Request.
-
-### Padrão de commits
-
-```text
-feat: nova funcionalidade
-fix: correção de erro
-docs: documentação
-style: ajustes visuais
-refactor: refatoração
-test: testes
-chore: manutenção
-```
-
----
-
-## 📄 Licença
-
-Defina uma licença compatível com seus objetivos antes de publicar o repositório.
-
-Exemplo:
-
-```text
-MIT License
-```
-
-Inclua também os arquivos de licença das dependências redistribuídas, especialmente do Electron, Bootstrap, MPV e demais bibliotecas.
-
----
-
-## ⚖️ Aviso de uso responsável
-
-O KitsuneDesk é uma interface local e não hospeda conteúdo.
-
-O projeto deve ser utilizado somente com:
-
-- serviços autorizados;
-- APIs oficiais;
-- arquivos do próprio usuário;
-- provedores para os quais o usuário possua direito de acesso.
-
-O desenvolvedor e os colaboradores devem respeitar direitos autorais, termos de serviço e leis aplicáveis.
+Use o aplicativo somente com fontes e conteúdos aos quais você tenha direito de acesso. Respeite direitos autorais, termos de serviço e a legislação aplicável.
 
 ---
 
 <div align="center">
 
-<img src="./assets/kitsunedesk-logo.svg" alt="KitsuneDesk" width="120">
+<img src="./assets/kitsunedesk-logo.svg" alt="KitsuneDesk" width="110">
 
-### KitsuneDesk
+### KitsuneDesk 0.2.0
 
-**Local. Organizado. Direto ao episódio.**
-
-<br>
-
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-ff4d8d?style=flat-square)
-![Version](https://img.shields.io/badge/versão-0.1.0-8b5cf6?style=flat-square)
-![Platform](https://img.shields.io/badge/plataforma-Windows-00A4EF?style=flat-square)
+**GoAnime primeiro. ani-cli como fallback.**
 
 </div>

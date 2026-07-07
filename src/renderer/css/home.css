@@ -1,18 +1,26 @@
 .search-panel {
-  min-height: 192px;
+  min-height: 228px;
   padding: 1.25rem;
 }
 
 .search-header {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   gap: 1rem;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.9rem;
 }
 
 .search-header .form-label {
-  margin-bottom: 0;
+  font-size: 1rem;
+  font-weight: 750;
+  margin-bottom: 0.15rem;
+}
+
+.search-description {
+  color: var(--app-muted);
+  font-size: 0.84rem;
+  margin: 0;
 }
 
 .dependency-badge {
@@ -22,6 +30,7 @@
   border-radius: 999px;
   color: var(--app-muted);
   display: inline-flex;
+  flex: 0 0 auto;
   font-size: 0.8rem;
   min-height: 30px;
   padding: 0.25rem 0.7rem;
@@ -32,6 +41,11 @@
   color: #bbf7d0;
 }
 
+.dependency-badge.is-warning {
+  border-color: rgba(250, 204, 21, 0.45);
+  color: #fef08a;
+}
+
 .dependency-badge.is-missing {
   border-color: rgba(244, 63, 94, 0.45);
   color: #fecdd3;
@@ -39,8 +53,10 @@
 
 .search-grid {
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(220px, 1fr) 132px 132px 112px;
+  gap: 0.7rem;
+  grid-template-columns:
+    minmax(250px, 1.65fr) minmax(125px, 0.8fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr)
+    106px;
 }
 
 .anime-query-control {
@@ -54,12 +70,19 @@
   min-height: 46px;
 }
 
-.ani-cli-submit {
+.provider-submit {
   align-items: center;
   display: inline-flex;
   gap: 0.35rem;
   justify-content: center;
   min-height: 46px;
+}
+
+.provider-hint {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0.8rem 0 0;
 }
 
 .dependency-alert {
@@ -68,7 +91,7 @@
   border-radius: 8px;
   color: #fecdd3;
   font-size: 0.88rem;
-  line-height: 1.4;
+  line-height: 1.45;
   margin-top: 0.85rem;
   padding: 0.8rem;
   white-space: pre-line;
@@ -77,7 +100,7 @@
 .dependency-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.7rem;
   margin-top: 0.85rem;
 }
 
@@ -89,10 +112,22 @@
   min-height: 40px;
 }
 
+.btn-goanime {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  border: 0;
+  color: #fff;
+}
+
+.btn-goanime:hover,
+.btn-goanime:focus {
+  color: #fff;
+  filter: brightness(1.08);
+}
+
 .foundation-panel {
   display: grid;
-  gap: 0.85rem;
-  min-height: 156px;
+  gap: 0.75rem;
+  min-height: 228px;
   padding: 1rem;
 }
 
@@ -103,13 +138,22 @@
   border-radius: 8px;
   display: flex;
   gap: 0.85rem;
-  min-height: 56px;
+  min-height: 59px;
   padding: 0.75rem;
+}
+
+.foundation-status.is-provider {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.16), rgba(236, 72, 153, 0.12));
+  border-color: rgba(168, 85, 247, 0.38);
 }
 
 .foundation-status i {
   color: var(--app-cyan);
   font-size: 1.2rem;
+}
+
+.foundation-status.is-provider i {
+  color: #c4b5fd;
 }
 
 .foundation-status p {
@@ -122,8 +166,9 @@
 .foundation-status span {
   color: var(--app-muted);
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .module-grid {
@@ -172,13 +217,13 @@
   margin-bottom: 0;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1180px) {
   .search-grid {
     grid-template-columns: 1fr 1fr;
   }
 
   .anime-query-control,
-  .ani-cli-submit {
+  .provider-submit {
     grid-column: 1 / -1;
   }
 
@@ -198,7 +243,7 @@
   }
 
   .anime-query-control,
-  .ani-cli-submit {
+  .provider-submit {
     grid-column: auto;
   }
 

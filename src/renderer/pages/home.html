@@ -59,18 +59,23 @@
       <section class="workspace" aria-labelledby="workspace-title">
         <div class="workspace-heading">
           <div>
-            <p class="eyebrow">Etapa 3</p>
+            <p class="eyebrow">GoAnime integrado</p>
             <h2 id="workspace-title">Painel local</h2>
           </div>
-          <span class="version-badge" id="app-version">v0.1.0</span>
+          <span class="version-badge" id="app-version">v0.2.0</span>
         </div>
 
         <div class="row g-3">
-          <div class="col-12 col-lg-7">
-            <form class="panel search-panel" id="ani-cli-form">
+          <div class="col-12 col-xl-8">
+            <form class="panel search-panel" id="provider-form">
               <div class="search-header">
-                <label class="form-label" for="anime-search">Pesquisar anime</label>
-                <span class="dependency-badge" id="ani-cli-status">Verificando ani-cli</span>
+                <div>
+                  <label class="form-label" for="anime-search">Pesquisar anime</label>
+                  <p class="search-description">
+                    O modo automatico prioriza o GoAnime e usa o ani-cli como alternativa.
+                  </p>
+                </div>
+                <span class="dependency-badge" id="provider-status">Verificando provedores</span>
               </div>
 
               <div class="search-grid">
@@ -89,12 +94,23 @@
 
                 <select
                   class="form-select"
+                  id="provider-filter"
+                  name="provider"
+                  aria-label="Provedor"
+                >
+                  <option value="auto">Automatico</option>
+                  <option value="goanime">GoAnime</option>
+                  <option value="ani-cli">ani-cli</option>
+                </select>
+
+                <select
+                  class="form-select"
                   id="language-filter"
                   name="language"
                   aria-label="Idioma"
                 >
                   <option value="sub">Legendado</option>
-                  <option value="dub">Dublado</option>
+                  <option value="dub">Dublado / PT-BR</option>
                 </select>
 
                 <select
@@ -103,28 +119,38 @@
                   name="quality"
                   aria-label="Qualidade"
                 >
-                  <option value="auto">Automatica</option>
+                  <option value="auto">Melhor disponivel</option>
                   <option value="360">360p</option>
                   <option value="480">480p</option>
                   <option value="720">720p</option>
                   <option value="1080">1080p</option>
                 </select>
 
-                <button class="btn btn-primary ani-cli-submit" id="ani-cli-submit" type="submit">
+                <button class="btn btn-primary provider-submit" id="provider-submit" type="submit">
                   <i class="bi bi-play-fill"></i>
                   <span>Abrir</span>
                 </button>
               </div>
 
+              <p class="provider-hint" id="provider-hint">
+                No GoAnime, a opcao Dublado prioriza a fonte PT-BR. A selecao do titulo e do
+                episodio acontece na interface interativa aberta automaticamente.
+              </p>
+
               <div id="dependency-alert" class="dependency-alert d-none" role="status"></div>
-              <div class="dependency-actions d-none" id="dependency-actions">
+
+              <div class="dependency-actions" id="dependency-actions">
+                <button class="btn btn-goanime d-none" id="install-goanime-button" type="button">
+                  <i class="bi bi-download"></i>
+                  <span>Instalar GoAnime</span>
+                </button>
                 <button
-                  class="btn btn-outline-light"
-                  id="install-dependencies-button"
+                  class="btn btn-outline-light d-none"
+                  id="install-anicli-button"
                   type="button"
                 >
-                  <i class="bi bi-download"></i>
-                  <span>Instalar dependencias</span>
+                  <i class="bi bi-terminal"></i>
+                  <span>Instalar fallback ani-cli</span>
                 </button>
                 <button
                   class="btn btn-outline-light"
@@ -138,27 +164,27 @@
             </form>
           </div>
 
-          <div class="col-12 col-lg-5">
+          <div class="col-12 col-xl-4">
             <div class="panel foundation-panel">
-              <div class="foundation-status">
-                <i class="bi bi-shield-check"></i>
+              <div class="foundation-status is-provider">
+                <i class="bi bi-collection-play"></i>
                 <div>
-                  <p>Preload seguro</p>
-                  <span id="preload-status">Carregando API local</span>
+                  <p>GoAnime</p>
+                  <span id="goanime-status">Verificando instalacao</span>
                 </div>
               </div>
               <div class="foundation-status">
-                <i class="bi bi-window-stack"></i>
+                <i class="bi bi-play-circle"></i>
                 <div>
-                  <p>Janela Electron</p>
-                  <span>Context isolation ativo</span>
+                  <p>MPV</p>
+                  <span id="mpv-status">Verificando player</span>
                 </div>
               </div>
               <div class="foundation-status">
-                <i class="bi bi-hdd-network"></i>
+                <i class="bi bi-terminal"></i>
                 <div>
-                  <p>Bootstrap local</p>
-                  <span>Sem CDN no renderer</span>
+                  <p>ani-cli</p>
+                  <span id="anicli-status">Fallback opcional</span>
                 </div>
               </div>
             </div>
@@ -170,7 +196,14 @@
             <i class="bi bi-pc-display-horizontal"></i>
             <div>
               <h3>Aplicacao desktop</h3>
-              <p>Janela principal pronta para receber login, busca e player.</p>
+              <p>Interface grafica local com Electron, Bootstrap e JavaScript puro.</p>
+            </div>
+          </article>
+          <article class="module-card is-ready">
+            <i class="bi bi-collection-play"></i>
+            <div>
+              <h3>GoAnime</h3>
+              <p>Busca interativa, fontes PT-BR, qualidade selecionavel e reproducao no MPV.</p>
             </div>
           </article>
           <article class="module-card">
@@ -185,13 +218,6 @@
             <div>
               <h3>Autenticacao</h3>
               <p>Login local, sessao em memoria e troca obrigatoria de senha.</p>
-            </div>
-          </article>
-          <article class="module-card">
-            <i class="bi bi-play-btn"></i>
-            <div>
-              <h3>ani-cli + MPV</h3>
-              <p>Busca abre o fluxo interativo do ani-cli com idioma e qualidade.</p>
             </div>
           </article>
         </section>

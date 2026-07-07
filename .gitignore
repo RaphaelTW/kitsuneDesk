@@ -12,3 +12,14 @@ logs/
 .env
 .DS_Store
 Thumbs.db
+
+# Binários locais e dependências externas
+resources/goanime/*
+!resources/goanime/.gitkeep
+resources/mpv/*
+!resources/mpv/.gitkeep
+
+# Arquivos temporários de execução
+*.tmp
+*.temp
+*.log

@@ -9,8 +9,8 @@ function registerPlayerHandlers(ipcMain, playerController) {
   ipcMain.handle('player:play', (_event, payload) =>
     handleRequest(() => playerController.play(payload))
   );
-  ipcMain.handle('player:install-dependencies', () =>
-    handleRequest(() => playerController.installDependencies())
+  ipcMain.handle('player:install-dependencies', (_event, payload) =>
+    handleRequest(() => playerController.installDependencies(payload))
   );
   ipcMain.handle('player:pause', () => handleRequest(() => playerController.pause()));
   ipcMain.handle('player:resume', () => handleRequest(() => playerController.resume()));
