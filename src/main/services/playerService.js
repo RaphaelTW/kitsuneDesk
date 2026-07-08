@@ -542,7 +542,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.5.1', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.5.2', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

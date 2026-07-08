@@ -939,9 +939,26 @@ async function playEpisode(episode, button) {
       throw new Error(result.error?.message ?? 'O MPV não confirmou o início da reprodução.');
     }
 
+    const playbackDetails = [];
+    if (result.data.fallbackUsed) {
+      if (result.data.source && result.data.source !== result.data.requestedSource) {
+        playbackDetails.push(`fonte alternativa: ${result.data.source}`);
+      }
+      if (result.data.mode && result.data.mode !== result.data.requestedMode) {
+        playbackDetails.push(
+          result.data.mode === 'dub' ? 'áudio dublado disponível' : 'aberto legendado'
+        );
+      }
+      if (result.data.quality && result.data.quality !== result.data.requestedQuality) {
+        playbackDetails.push(`qualidade: ${formatQuality(result.data.quality)}`);
+      }
+    }
+
     showToast({
-      title: 'MPV aberto',
-      message: `${state.selectedAnime.name} · ${formatEpisodeLabel(episode.number)}`,
+      title: result.data.fallbackUsed ? 'MPV aberto com alternativa' : 'MPV aberto',
+      message: `${state.selectedAnime.name} · ${formatEpisodeLabel(episode.number)}${
+        playbackDetails.length ? ` · ${playbackDetails.join(' · ')}` : ''
+      }`,
       variant: 'success'
     });
   } catch (error) {
@@ -1470,7 +1487,10 @@ function shortPath(value) {
 
 /** @param {string} value */
 function formatQuality(value) {
-  return value === 'auto' ? 'Melhor disponível' : `${value}p`;
+  const normalized = String(value ?? 'auto').toLowerCase();
+  if (normalized === 'auto' || normalized === 'best') return 'Melhor disponível';
+  if (normalized === 'worst') return 'Menor disponível';
+  return normalized.endsWith('p') ? normalized : `${normalized}p`;
 }
 
 /** @param {number} seconds */

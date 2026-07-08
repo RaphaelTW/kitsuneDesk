@@ -2,6 +2,23 @@
 
 Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo.
 
+## [0.5.2] - 2026-07-08
+
+### Corrigido
+
+- Corrigido o erro `no source URLs found for episode 1` no GoAnime com interface gráfica.
+- O bridge tenta automaticamente os modos legendado, dublado e `raw` quando a fonte selecionada não entrega URLs no idioma solicitado.
+- A qualidade escolhida passa a usar `Melhor disponível` como fallback quando a resolução específica não existir.
+- Adicionado fallback para outra fonte compatível do mesmo anime e episódio antes de encerrar a reprodução.
+- Erros `no source URLs` e `no suitable quality` agora são classificados como fonte de vídeo indisponível, em vez de erro genérico do GoAnime.
+- A confirmação do MPV informa quando idioma, qualidade ou fonte alternativa foram usados.
+- Adicionado o comando opcional `npm run rebuild:native` para recompilar `better-sqlite3` para o ABI do Electron e evitar o aviso `NODE_MODULE_VERSION`.
+
+### Alterado
+
+- Bridge gráfico atualizado para a versão 1.3.0; a instalação automática recompila somente o bridge incompatível.
+- Versão do aplicativo atualizada para 0.5.2.
+
 ## [0.5.1] - 2026-07-08
 
 ### Corrigido

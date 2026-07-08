@@ -8,7 +8,7 @@
 [![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?style=for-the-badge&logo=electron&logoColor=white)](#tecnologias)
 [![JavaScript](https://img.shields.io/badge/JavaScript-Puro-F7DF1E?style=for-the-badge&logo=javascript&logoColor=111)](#tecnologias)
 [![SQLite](https://img.shields.io/badge/SQLite-Local-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](#tecnologias)
-[![Version](https://img.shields.io/badge/versão-0.5.1-8b5cf6?style=for-the-badge)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/versão-0.5.2-8b5cf6?style=for-the-badge)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/licença-MIT-22C55E?style=for-the-badge)](./LICENSE)
 
 ### Interface gráfica local para pesquisar animes com GoAnime e reproduzir no MPV.
@@ -21,7 +21,7 @@
 
 O **KitsuneDesk** é uma aplicação desktop para Windows construída com Electron, HTML, CSS, JavaScript puro, Bootstrap e SQLite.
 
-Na versão 0.5.1, o fluxo principal mantém o seletor unificado de provedores e passa a instalar os componentes ausentes dentro da própria interface:
+Na versão 0.5.2, o fluxo principal mantém o seletor unificado de provedores e passa a instalar os componentes ausentes dentro da própria interface:
 
 1. **GoAnime com interface gráfica** permanece como opção principal;
 2. **GoAnime clássico** pode ser aberto pelo mesmo formulário;
@@ -74,9 +74,22 @@ O GoAnime clássico continua disponível na área de ferramentas avançadas e ta
 
 ### Reprodução na interface gráfica
 
-A versão 0.5.1 mantém o mesmo resolvedor e o mesmo proxy de páginas intermediárias do GoAnime clássico antes de abrir o MPV. Isso é necessário principalmente para fontes PT-BR que entregam uma página do Blogger em vez de uma URL de vídeo direta. O KitsuneDesk também aguarda a inicialização do MPV antes de mostrar a confirmação de reprodução.
+A versão 0.5.2 mantém o mesmo resolvedor e o mesmo proxy de páginas intermediárias do GoAnime clássico antes de abrir o MPV. Isso é necessário principalmente para fontes PT-BR que entregam uma página do Blogger em vez de uma URL de vídeo direta. O KitsuneDesk também aguarda a inicialização do MPV antes de mostrar a confirmação de reprodução.
 
 Ao atualizar de uma versão anterior, selecione **GoAnime — Interface gráfica** e use **Instalar automaticamente**. O KitsuneDesk preserva componentes válidos e recompila somente o bridge incompatível ou ausente.
+
+
+### Fallback automático de reprodução
+
+Quando uma fonte encontra o episódio, mas não devolve URLs de vídeo, a interface gráfica agora tenta automaticamente:
+
+1. o idioma solicitado;
+2. o idioma alternativo disponível;
+3. o modo `raw`, quando a fonte oferecer;
+4. `Melhor disponível`, quando a resolução escolhida não existir;
+5. outra fonte compatível para o mesmo título e episódio.
+
+O aviso de reprodução informa quando foi necessário trocar idioma, resolução ou fonte. O GoAnime clássico permanece disponível para casos em que todas as fontes externas estejam indisponíveis.
 
 ## Provedores e ferramentas
 
@@ -176,7 +189,7 @@ npm run build:win
 O instalador será gerado em:
 
 ```text
-dist\KitsuneDesk-Setup-0.5.1.exe
+dist\KitsuneDesk-Setup-0.5.2.exe
 ```
 
 ## Arquitetura

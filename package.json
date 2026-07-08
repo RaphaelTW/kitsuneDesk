@@ -1,7 +1,7 @@
 {
   "name": "kitsunedesk",
-  "version": "0.5.1",
-  "description": "Aplicação desktop com GoAnime gráfico e clássico, provedores opcionais e instalação automática com progresso dentro do app e correções de compatibilidade com Windows PowerShell.",
+  "version": "0.5.2",
+  "description": "Aplicação desktop com GoAnime gráfico e clássico, instalação automática, fallback entre fontes e modos de áudio e correção de módulos nativos do Electron.",
   "main": "src/main/main.js",
   "author": "Raphael Laurentino da Silva",
   "license": "MIT",
@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
-    "postinstall": "npm run vendor"
+    "postinstall": "npm run vendor",
+    "rebuild:native": "electron-builder install-app-deps"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

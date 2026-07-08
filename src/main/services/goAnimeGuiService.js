@@ -4,7 +4,7 @@ const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const AppError = require('../utils/AppError');
 
-const BRIDGE_VERSION = '1.2.0';
+const BRIDGE_VERSION = '1.3.0';
 const TOOLS_ROOT = path.join(
   process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
   'KitsuneDesk',
@@ -106,8 +106,13 @@ class GoAnimeGuiService {
       player: 'MPV',
       anime: anime.name,
       episode: episode.number,
-      source: anime.source,
-      quality,
+      source: playback.source || anime.source,
+      requestedSource: playback.requestedSource || anime.source,
+      quality: playback.quality || quality,
+      requestedQuality: playback.requestedQuality || quality,
+      mode: playback.mode || language,
+      requestedMode: playback.requestedMode || language,
+      fallbackUsed: Boolean(playback.fallbackUsed),
       pid: playback.pid
     };
   }
