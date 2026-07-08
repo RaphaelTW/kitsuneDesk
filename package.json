@@ -1,7 +1,7 @@
 {
   "name": "kitsunedesk",
-  "version": "0.2.0",
-  "description": "Aplicação desktop local para pesquisar animes com GoAnime, ani-cli e reprodução no MPV.",
+  "version": "0.4.1",
+  "description": "Aplicação desktop local com GoAnime gráfico e clássico, seletor de provedores, idioma e resolução.",
   "main": "src/main/main.js",
   "author": "Raphael Laurentino da Silva",
   "license": "MIT",

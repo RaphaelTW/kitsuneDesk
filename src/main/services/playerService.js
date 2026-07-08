@@ -2,114 +2,294 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const dns = require('dns').promises;
+const https = require('https');
 const AppError = require('../utils/AppError');
+const GoAnimeGuiService = require('./goAnimeGuiService');
 
-const SUPPORTED_PROVIDERS = new Set(['auto', 'goanime', 'ani-cli']);
+const SUPPORTED_PROVIDERS = new Set(['auto', 'goanime', 'anime-cli-br', 'ani-cli']);
+const SUPPORTED_INSTALL_TARGETS = new Set([
+  'goanime',
+  'goanime-gui',
+  'anime-cli-br',
+  'ani-cli',
+  'fast-anime-vsr'
+]);
 const SUPPORTED_QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
 const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
 
 class PlayerService {
+  constructor() {
+    this.goAnimeGui = new GoAnimeGuiService();
+  }
+
   /**
-   * Abre o provedor escolhido em um terminal interativo.
-   * O modo automatico prioriza o GoAnime e usa ani-cli como fallback.
+   * Pesquisa animes usando o motor GoAnime sem abrir terminal.
    *
    * @param {unknown} payload
-   * @returns {{launched: boolean, provider: string, providerName: string, terminal: string}}
+   * @returns {Promise<object[]>}
    */
-  play(payload) {
+  searchAnimes(payload) {
+    return this.goAnimeGui.search(payload);
+  }
+
+  /**
+   * Lista os episodios do resultado selecionado dentro da interface grafica.
+   *
+   * @param {unknown} payload
+   * @returns {Promise<object[]>}
+   */
+  listEpisodes(payload) {
+    return this.goAnimeGui.episodes(payload);
+  }
+
+  /**
+   * Resolve o stream pelo GoAnime e abre somente o MPV, sem terminal.
+   *
+   * @param {unknown} payload
+   * @returns {Promise<object>}
+   */
+  playEpisode(payload) {
+    const status = this.status();
+
+    if (!status.providers.goAnime.ready) {
+      throw new AppError(
+        'GOANIME_GUI_NOT_READY',
+        'A interface grafica do GoAnime ainda nao esta pronta. Clique em Ativar GoAnime GUI.',
+        { status: 424 }
+      );
+    }
+
+    return this.goAnimeGui.playEpisode(payload, status.dependencies.mpv.path);
+  }
+
+  /**
+   * Mantem os provedores de terminal como opcoes manuais e experimentais.
+   * Eles nunca sao usados automaticamente pela interface grafica.
+   *
+   * @param {unknown} payload
+   * @returns {Promise<{launched: boolean, provider: string, providerName: string, terminal: string}>}
+   */
+  async play(payload) {
     const request = normalizePlayPayload(payload);
     const status = this.status();
     const provider = resolveProvider(request.provider, status);
 
     if (provider === 'goanime') {
       const terminal = launchGoAnime({ request, status });
-
       return {
         launched: true,
         provider,
-        providerName: 'GoAnime',
+        providerName: 'GoAnime classico',
+        terminal
+      };
+    }
+
+    if (provider === 'anime-cli-br') {
+      await assertAnimeFireReachable();
+      const terminal = launchAnimeCliBr({ request, status });
+      return {
+        launched: true,
+        provider,
+        providerName: 'anime-cli-br',
         terminal
       };
     }
 
     const terminal = launchAniCli({ request, status });
-
     return {
       launched: true,
       provider,
-      providerName: 'ani-cli',
+      providerName: 'ani-cli experimental',
       terminal
     };
   }
 
   /**
-   * Retorna o estado dos provedores e dependencias locais.
+   * Abre uma ferramenta local que nao funciona como provedor de streaming.
+   *
+   * @param {unknown} payload
+   * @returns {{launched: boolean, tool: string, toolName: string, terminal: string, scriptPath: string}}
+   */
+  openTool(payload) {
+    const tool = String(payload?.tool ?? '');
+    if (tool !== 'fast-anime-vsr') {
+      throw new AppError('TOOL_UNAVAILABLE', 'A ferramenta solicitada nao e suportada.', {
+        status: 400
+      });
+    }
+
+    const status = this.status();
+    const fast = status.tools.fastAnimeVsr;
+
+    if (!fast.installed || !fast.path) {
+      throw new AppError(
+        'TOOL_UNAVAILABLE',
+        'FAST Anime VSR ainda nao foi preparado. Use o botao Preparar / reparar ambiente.',
+        { status: 424 }
+      );
+    }
+
+    if (!fast.ready) {
+      throw new AppError(
+        'TOOL_UNAVAILABLE',
+        `FAST Anime VSR ainda nao esta pronto. ${fast.runtime.message}`,
+        { status: 424 }
+      );
+    }
+
+    const terminal = choosePowerShellTerminal(status);
+    if (!terminal.path) {
+      throw new AppError('TOOL_UNAVAILABLE', 'PowerShell nao foi encontrado.', { status: 424 });
+    }
+
+    const scriptPath = writeFastAnimeVsrOpenScript(fast);
+    launchPowerShellScript({ terminal, scriptPath });
+
+    return {
+      launched: true,
+      tool,
+      toolName: 'FAST Anime VSR',
+      terminal: terminal.name,
+      scriptPath
+    };
+  }
+
+  /**
+   * Retorna o estado dos provedores, ferramentas e dependencias locais.
    *
    * @returns {object}
    */
   status() {
     const goAnime = findGoAnime();
+    const goAnimeBridge = this.goAnimeGui.status();
     const mpv = findMpv(goAnime.path);
+    const animeCliBr = findAnimeCliBr();
+    const vlc = findVlc();
     const aniCli = findCommand('ani-cli');
     const fzf = findCommand('fzf');
     const ffmpeg = findCommand('ffmpeg');
     const openssl = findCommand('openssl');
+    const git = findCommand('git');
+    const python = findPython();
+    const nvidia = findNvidia();
+    const fastAnimeVsr = findFastAnimeVsr({ python, ffmpeg, nvidia });
     const gitBash = findGitBash();
     const windowsTerminal = findCommand('wt');
     const cmd = findCommand('cmd.exe');
 
-    const goAnimeReady = Boolean(goAnime.available && mpv.available);
+    const goAnimeClassicReady = Boolean(goAnime.available && mpv.available);
+    const goAnimeGuiReady = Boolean(goAnimeBridge.available && mpv.available);
+    const animeCliBrReady = Boolean(animeCliBr.available && vlc.available);
     const aniCliReady = Boolean(
-      aniCli.available && mpv.available && fzf.available && ffmpeg.available && gitBash.available
+      aniCli.available &&
+      mpv.available &&
+      fzf.available &&
+      ffmpeg.available &&
+      openssl.available &&
+      gitBash.available
     );
 
     return {
-      ready: goAnimeReady || aniCliReady,
-      recommendedProvider: goAnimeReady ? 'goanime' : aniCliReady ? 'ani-cli' : null,
+      ready: goAnimeGuiReady,
+      recommendedProvider: goAnimeGuiReady ? 'goanime-gui' : null,
       providers: {
         goAnime: {
-          id: 'goanime',
-          name: 'GoAnime',
-          ready: goAnimeReady,
+          id: 'goanime-gui',
+          name: 'GoAnime GUI',
+          ready: goAnimeGuiReady,
+          bridge: goAnimeBridge,
           executable: goAnime,
+          classicReady: goAnimeClassicReady,
           mpv,
-          description: 'Provedor recomendado com TUI, historico e suporte a fontes PT-BR.'
+          stability: 'recommended',
+          description:
+            'Pesquisa, resultados, episodios e qualidade dentro do KitsuneDesk; apenas o MPV abre para reproduzir.'
+        },
+        animeCliBr: {
+          id: 'anime-cli-br',
+          name: 'anime-cli-br',
+          ready: animeCliBrReady,
+          executable: animeCliBr,
+          vlc,
+          stability: 'legacy-source',
+          knownIssue: {
+            code: 'ANIMEFIRE_DNS',
+            message:
+              'A fonte animefire.net pode ficar indisponivel por DNS. O KitsuneDesk verifica a fonte antes de abrir e evita o traceback.'
+          },
+          description: 'Alternativa brasileira legada baseada em AnimeFire e VLC.'
         },
         aniCli: {
           id: 'ani-cli',
           name: 'ani-cli',
           ready: aniCliReady,
           executable: aniCli,
-          description: 'Provedor alternativo executado pelo Git Bash.'
+          stability: 'upstream-issue',
+          knownIssue: {
+            code: 'NO_VALID_SOURCES',
+            message:
+              'A versao 4.14.1 pode encontrar o episodio sem receber um link valido dos provedores externos.'
+          },
+          description: 'Mantido como opcao experimental no Git Bash; nunca e usado automaticamente.'
+        }
+      },
+      tools: {
+        fastAnimeVsr: {
+          id: 'fast-anime-vsr',
+          name: 'FAST Anime VSR',
+          installed: fastAnimeVsr.installed,
+          ready: fastAnimeVsr.ready,
+          path: fastAnimeVsr.path,
+          runtime: fastAnimeVsr.runtime,
+          description:
+            'Ferramenta opcional de super-resolucao para arquivos locais; nao e provedor de streaming.'
         }
       },
       dependencies: {
         goAnime,
+        goAnimeBridge,
+        animeCliBr,
         aniCli,
         mpv,
+        vlc,
         fzf,
         ffmpeg,
         openssl,
+        git,
+        python,
+        nvidia,
+        fastAnimeVsr,
         gitBash,
         windowsTerminal,
         cmd
       },
       installCommands: {
-        goAnime: [
-          'Instalador oficial: GitHub Releases do GoAnime',
-          'O instalador inclui o MPV e pode adicionar ambos ao PATH.'
+        goAnimeGui: [
+          'Instala ou confirma GoAnime + MPV',
+          'Instala Go 1.26 ou superior',
+          'Compila o bridge grafico oficial baseado no codigo do GoAnime v1.8.5'
+        ],
+        animeCliBr: [
+          'Ambiente Python dedicado do KitsuneDesk',
+          'VLC Media Player',
+          'Verificacao da disponibilidade do AnimeFire antes de abrir'
         ],
         aniCli: [
           'scoop install git',
           'scoop bucket add extras',
           'scoop install ani-cli fzf ffmpeg mpv openssl'
+        ],
+        fastAnimeVsr: [
+          'Python 3.10 localizado pelo PATH, registro ou instalador oficial',
+          'NVIDIA GPU, CUDA, cuDNN e PyTorch conforme a placa de video'
         ]
       }
     };
   }
 
   /**
-   * Abre o instalador do provedor escolhido.
+   * Abre o instalador do provedor ou ferramenta escolhida.
    *
    * @param {unknown} payload
    * @returns {{launched: boolean, provider: string, terminal: string, scriptPath: string}}
@@ -118,8 +298,7 @@ class PlayerService {
     const provider = normalizeInstallProvider(payload);
     const status = this.status();
     const terminal = choosePowerShellTerminal(status);
-    const scriptPath =
-      provider === 'ani-cli' ? writeAniCliInstallScript() : writeGoAnimeInstallScript();
+    const scriptPath = createInstallScript(provider);
 
     if (!terminal.path) {
       throw new AppError(
@@ -139,6 +318,26 @@ class PlayerService {
     };
   }
 
+  pause() {
+    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+  }
+
+  resume() {
+    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+  }
+
+  next() {
+    return this.notImplemented('Escolha o proximo episodio diretamente na lista do KitsuneDesk.');
+  }
+
+  previous() {
+    return this.notImplemented('Escolha o episodio anterior diretamente na lista do KitsuneDesk.');
+  }
+
+  stop() {
+    return this.goAnimeGui.stop();
+  }
+
   /**
    * @param {string} message
    * @returns {{available: false, message: string}}
@@ -153,7 +352,7 @@ class PlayerService {
 
 /**
  * @param {unknown} payload
- * @returns {{query: string, provider: 'auto'|'goanime'|'ani-cli', language: 'sub'|'dub', quality: string}}
+ * @returns {{query: string, provider: 'auto'|'goanime'|'anime-cli-br'|'ani-cli', language: 'sub'|'dub', quality: string}}
  */
 function normalizePlayPayload(payload) {
   const query = typeof payload?.query === 'string' ? payload.query.trim() : '';
@@ -174,16 +373,37 @@ function normalizePlayPayload(payload) {
 
 /**
  * @param {unknown} payload
- * @returns {'goanime'|'ani-cli'}
+ * @returns {'goanime'|'goanime-gui'|'anime-cli-br'|'ani-cli'|'fast-anime-vsr'}
  */
 function normalizeInstallProvider(payload) {
-  return payload?.provider === 'ani-cli' ? 'ani-cli' : 'goanime';
+  const provider = String(payload?.provider ?? 'goanime');
+  return SUPPORTED_INSTALL_TARGETS.has(provider) ? provider : 'goanime';
 }
 
 /**
- * @param {'auto'|'goanime'|'ani-cli'} requestedProvider
+ * @param {string} provider
+ * @returns {string}
+ */
+function createInstallScript(provider) {
+  switch (provider) {
+    case 'goanime-gui':
+      return writeGoAnimeGuiInstallScript();
+    case 'anime-cli-br':
+      return writeAnimeCliBrInstallScript();
+    case 'ani-cli':
+      return writeAniCliInstallScript();
+    case 'fast-anime-vsr':
+      return writeFastAnimeVsrInstallScript();
+    case 'goanime':
+    default:
+      return writeGoAnimeInstallScript();
+  }
+}
+
+/**
+ * @param {'auto'|'goanime'|'anime-cli-br'|'ani-cli'} requestedProvider
  * @param {object} status
- * @returns {'goanime'|'ani-cli'}
+ * @returns {'goanime'|'anime-cli-br'|'ani-cli'}
  */
 function resolveProvider(requestedProvider, status) {
   if (requestedProvider === 'goanime') {
@@ -191,18 +411,19 @@ function resolveProvider(requestedProvider, status) {
     return 'goanime';
   }
 
+  if (requestedProvider === 'anime-cli-br') {
+    assertAnimeCliBrReady(status);
+    return 'anime-cli-br';
+  }
+
   if (requestedProvider === 'ani-cli') {
     assertAniCliReady(status);
     return 'ani-cli';
   }
 
-  if (status.providers.goAnime.ready) {
-    return 'goanime';
-  }
-
-  if (status.providers.aniCli.ready) {
-    return 'ani-cli';
-  }
+  if (status.providers.goAnime.classicReady) return 'goanime';
+  if (status.providers.animeCliBr.ready) return 'anime-cli-br';
+  if (status.providers.aniCli.ready) return 'ani-cli';
 
   throw new AppError(
     'PROVIDER_UNAVAILABLE',
@@ -211,9 +432,7 @@ function resolveProvider(requestedProvider, status) {
   );
 }
 
-/**
- * @param {object} status
- */
+/** @param {object} status */
 function assertGoAnimeReady(status) {
   if (!status.dependencies.goAnime.available) {
     throw new AppError(
@@ -232,9 +451,22 @@ function assertGoAnimeReady(status) {
   }
 }
 
-/**
- * @param {object} status
- */
+/** @param {object} status */
+function assertAnimeCliBrReady(status) {
+  const missing = [];
+  if (!status.dependencies.animeCliBr.available) missing.push('anime-cli-br');
+  if (!status.dependencies.vlc.available) missing.push('VLC');
+
+  if (missing.length > 0) {
+    throw new AppError(
+      'PROVIDER_UNAVAILABLE',
+      `O anime-cli-br nao esta pronto. Faltando: ${missing.join(', ')}.`,
+      { status: 424 }
+    );
+  }
+}
+
+/** @param {object} status */
 function assertAniCliReady(status) {
   const missing = [];
 
@@ -243,11 +475,12 @@ function assertAniCliReady(status) {
   if (!status.dependencies.mpv.available) missing.push('MPV');
   if (!status.dependencies.fzf.available) missing.push('fzf');
   if (!status.dependencies.ffmpeg.available) missing.push('ffmpeg');
+  if (!status.dependencies.openssl.available) missing.push('OpenSSL');
 
   if (missing.length > 0) {
     throw new AppError(
       'PROVIDER_UNAVAILABLE',
-      `O fallback ani-cli nao esta pronto. Faltando: ${missing.join(', ')}.`,
+      `O provedor ani-cli nao esta pronto. Faltando: ${missing.join(', ')}.`,
       { status: 424 }
     );
   }
@@ -276,9 +509,6 @@ function launchGoAnime({ request, status }) {
 function buildGoAnimeArgs(request) {
   const args = ['--quality', normalizeGoAnimeQuality(request.quality)];
 
-  // A fonte PT-BR e usada para priorizar resultados em portugues quando o
-  // usuario seleciona Dublado. No modo Legendado, o GoAnime pesquisa em todas
-  // as fontes ativas, comportamento padrao documentado pelo projeto.
   if (request.language === 'dub') {
     args.push('--source', 'ptbr');
   }
@@ -287,16 +517,9 @@ function buildGoAnimeArgs(request) {
   return args;
 }
 
-/**
- * @param {string} quality
- * @returns {string}
- */
+/** @param {string} quality @returns {string} */
 function normalizeGoAnimeQuality(quality) {
-  if (quality === 'auto') {
-    return 'best';
-  }
-
-  return `${quality}p`;
+  return quality === 'auto' ? 'best' : `${quality}p`;
 }
 
 /**
@@ -309,6 +532,86 @@ function writeGoAnimeLaunchScript({ executablePath, args, status }) {
   const pathPrefix = directories.length > 0 ? `${directories.join(';')};` : '';
   const command = [quoteForCmd(executablePath), ...args.map(quoteForCmd)].join(' ');
   const script = `@echo off\r\nsetlocal\r\nchcp 65001 >nul\r\nset "PATH=${escapeForSet(pathPrefix)}%PATH%"\r\ntitle KitsuneDesk GoAnime\r\necho KitsuneDesk - abrindo GoAnime...\r\necho.\r\n${command}\r\nset "exit_code=%ERRORLEVEL%"\r\necho.\r\nif not "%exit_code%"=="0" echo O GoAnime foi encerrado com o codigo %exit_code%.\r\necho Pressione qualquer tecla para fechar esta janela.\r\npause >nul\r\nexit /b %exit_code%\r\n`;
+
+  fs.writeFileSync(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+/**
+ * Verifica a fonte do anime-cli-br antes de abrir o terminal. Isso evita que
+ * falhas de DNS gerem um traceback Python enorme para o usuario.
+ *
+ * @returns {Promise<void>}
+ */
+async function assertAnimeFireReachable() {
+  try {
+    await Promise.race([
+      dns.lookup('animefire.net'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), 5000))
+    ]);
+    await probeHttpsHost('https://animefire.net/', 7000);
+  } catch (error) {
+    throw new AppError(
+      'ANIMEFIRE_UNAVAILABLE',
+      'A fonte animefire.net nao esta acessivel neste momento. O anime-cli-br nao foi aberto para evitar o traceback. Use o GoAnime GUI e tente novamente mais tarde.',
+      { status: 502, technicalMessage: error?.message ?? String(error) }
+    );
+  }
+}
+
+/**
+ * @param {string} target
+ * @param {number} timeoutMs
+ * @returns {Promise<void>}
+ */
+function probeHttpsHost(target, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      target,
+      {
+        method: 'GET',
+        timeout: timeoutMs,
+        headers: { 'User-Agent': 'KitsuneDesk/0.4.1', Range: 'bytes=0-0' }
+      },
+      (response) => {
+        response.resume();
+        resolve();
+      }
+    );
+
+    request.on('timeout', () => request.destroy(new Error('HTTPS timeout')));
+    request.on('error', reject);
+    request.end();
+  });
+}
+
+/**
+ * @param {{request: object, status: object}} options
+ * @returns {string}
+ */
+function launchAnimeCliBr({ request, status }) {
+  assertAnimeCliBrReady(status);
+
+  const terminal = chooseInteractiveWindowsTerminal(status);
+  const scriptPath = writeAnimeCliBrLaunchScript({ request, status });
+  launchCommandScript({ terminal, scriptPath, title: 'KitsuneDesk anime-cli-br' });
+  return terminal.name;
+}
+
+/**
+ * @param {{request: object, status: object}} options
+ * @returns {string}
+ */
+function writeAnimeCliBrLaunchScript({ request, status }) {
+  const scriptPath = path.join(
+    os.tmpdir(),
+    `kitsunedesk-anime-cli-br-${process.pid}-${Date.now()}.cmd`
+  );
+  const directories = getAnimeCliBrDirectories(status);
+  const pathPrefix = directories.length > 0 ? `${directories.join(';')};` : '';
+  const executable = quoteForCmd(status.dependencies.animeCliBr.path);
+  const safeQuery = escapeForEcho(request.query);
+  const script = `@echo off\r\nsetlocal\r\nchcp 65001 >nul\r\nset "PATH=${escapeForSet(pathPrefix)}%PATH%"\r\ntitle KitsuneDesk anime-cli-br\r\necho KitsuneDesk - anime-cli-br\r\necho.\r\necho Pesquisa solicitada: ${safeQuery}\r\necho O anime-cli-br nao recebe a pesquisa por argumento. Digite o nome novamente quando solicitado.\r\necho O idioma e a qualidade serao escolhidos dentro do proprio terminal.\r\necho.\r\n${executable}\r\nset "exit_code=%ERRORLEVEL%"\r\necho.\r\nif not "%exit_code%"=="0" echo O anime-cli-br foi encerrado com o codigo %exit_code%.\r\necho Pressione qualquer tecla para fechar esta janela.\r\npause >nul\r\nexit /b %exit_code%\r\n`;
 
   fs.writeFileSync(scriptPath, script, 'utf8');
   return scriptPath;
@@ -369,19 +672,19 @@ function launchAniCli({ request, status }) {
  */
 function buildAniCliCommand(request, executablePath) {
   const executable = executablePath ? quoteForBash(toBashPath(executablePath)) : 'ani-cli';
-  const args = [];
+  const args = ['-q', normalizeAniCliQuality(request.quality)];
 
   if (request.language === 'dub') {
     args.push('--dub');
   }
 
-  if (request.quality !== 'auto') {
-    args.push('-q', request.quality);
-  }
-
   args.push(request.query);
-
   return `${executable} ${args.map(quoteForBash).join(' ')}`;
+}
+
+/** @param {string} quality @returns {string} */
+function normalizeAniCliQuality(quality) {
+  return quality === 'auto' ? 'best' : `${quality}p`;
 }
 
 /**
@@ -395,14 +698,28 @@ function writeAniCliLaunchScript(command, status) {
   const script = `#!/usr/bin/env bash
 set +e
 
-${pathPrefix}${command}
-exit_code=$?
+log_file="$(mktemp)"
+printf 'KitsuneDesk - ani-cli experimental\\n'
+printf 'Atualizando o script antes da pesquisa...\\n\\n'
+${pathPrefix}ani-cli -U >/dev/null 2>&1 || true
 
-printf '\n'
-if [ "$exit_code" -ne 0 ]; then
-  printf 'O ani-cli foi encerrado com o codigo %s.\n' "$exit_code"
+set -o pipefail
+${pathPrefix}${command} 2>&1 | tee "$log_file"
+exit_code=\${PIPESTATUS[0]}
+set +o pipefail
+
+printf '\\n'
+if grep -qi 'Episode is released, but no valid sources' "$log_file"; then
+  printf 'O ani-cli encontrou o episodio, mas a fonte externa nao entregou um link valido.\\n'
+  printf 'Este e um problema upstream conhecido da versao 4.14.1.\\n'
+  printf 'Use o GoAnime no KitsuneDesk enquanto a origem do ani-cli estiver instavel.\\n'
 fi
 
+if [ "$exit_code" -ne 0 ]; then
+  printf 'O ani-cli foi encerrado com o codigo %s.\\n' "$exit_code"
+fi
+
+rm -f "$log_file"
 read -r -p 'Pressione Enter para fechar...'
 exit "$exit_code"
 `;
@@ -425,7 +742,6 @@ function chooseInteractiveWindowsTerminal(status) {
   }
 
   const cmdPath = status.dependencies.cmd.path ?? findCommand('cmd').path;
-
   if (!cmdPath) {
     throw new AppError('PROVIDER_UNAVAILABLE', 'Prompt de Comando nao foi encontrado.', {
       status: 424
@@ -465,7 +781,6 @@ function chooseAniCliTerminal(status) {
 function launchCommandScript({ terminal, scriptPath, title }) {
   if (terminal.type === 'windows-terminal') {
     const cmdPath = findCommand('cmd.exe').path ?? 'cmd.exe';
-
     spawn(terminal.path, ['new-tab', '--title', title, cmdPath, '/d', '/q', '/c', scriptPath], {
       detached: true,
       stdio: 'ignore',
@@ -502,9 +817,7 @@ function choosePowerShellTerminal(status) {
   };
 }
 
-/**
- * @param {{terminal: object, scriptPath: string}} options
- */
+/** @param {{terminal: object, scriptPath: string}} options */
 function launchPowerShellScript({ terminal, scriptPath }) {
   const powerShellPath = findPowerShell() ?? 'powershell.exe';
   const args = ['-NoExit', '-ExecutionPolicy', 'Bypass', '-File', scriptPath];
@@ -526,8 +839,73 @@ function launchPowerShellScript({ terminal, scriptPath }) {
 }
 
 /**
+ * Cria uma sessao PowerShell posicionada na ferramenta FAST Anime VSR.
+ * O usuario pode ajustar o config.py e iniciar o processamento manualmente.
+ *
+ * @param {object} fast
  * @returns {string}
  */
+function writeFastAnimeVsrOpenScript(fast) {
+  const scriptPath = path.join(
+    os.tmpdir(),
+    `kitsunedesk-fast-vsr-open-${process.pid}-${Date.now()}.ps1`
+  );
+  const root = String(fast.path).replace(/'/g, "''");
+  const venvPython = String(fast.venvPython ?? '').replace(/'/g, "''");
+  const script = `$ErrorActionPreference = 'Continue'
+$projectRoot = '${root}'
+$venvPython = '${venvPython}'
+
+Set-Location -LiteralPath $projectRoot
+Write-Host 'KitsuneDesk - FAST Anime VSR' -ForegroundColor Cyan
+Write-Host 'Esta ferramenta melhora arquivos de video locais e nao pesquisa animes.' -ForegroundColor DarkCyan
+Write-Host ''
+Write-Host "Pasta do projeto: $projectRoot" -ForegroundColor Gray
+
+if (Test-Path -LiteralPath $venvPython) {
+  Write-Host 'Ambiente Python dedicado encontrado.' -ForegroundColor Green
+} else {
+  Write-Host 'O ambiente Python dedicado nao foi encontrado.' -ForegroundColor Yellow
+}
+
+Start-Process explorer.exe -ArgumentList $projectRoot
+Write-Host ''
+Write-Host '1. Coloque ou selecione o video de entrada conforme o config.py.' -ForegroundColor Yellow
+Write-Host '2. Ajuste as configuracoes de GPU e caminho do arquivo.' -ForegroundColor Yellow
+Write-Host '3. Para iniciar, execute:' -ForegroundColor Yellow
+Write-Host '   & $venvPython main.py' -ForegroundColor White
+Write-Host ''
+Write-Host 'Esta janela permanecera aberta para voce usar a ferramenta.' -ForegroundColor Green
+`;
+
+  fs.writeFileSync(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+/**
+ * Copia um script PowerShell versionado para a pasta temporaria.
+ *
+ * @param {string} fileName
+ * @returns {string}
+ */
+function copyPowerShellInstaller(fileName) {
+  const sourcePath = path.join(__dirname, '..', '..', '..', 'scripts', 'windows', fileName);
+
+  if (!fs.existsSync(sourcePath)) {
+    throw new AppError(
+      'PROVIDER_UNAVAILABLE',
+      `O script de instalacao ${fileName} nao foi encontrado.`,
+      { status: 500 }
+    );
+  }
+
+  const targetPath = path.join(os.tmpdir(), `kitsunedesk-${process.pid}-${Date.now()}-${fileName}`);
+
+  fs.writeFileSync(targetPath, fs.readFileSync(sourcePath, 'utf8'), 'utf8');
+  return targetPath;
+}
+
+/** @returns {string} */
 function writeGoAnimeInstallScript() {
   const scriptPath = path.join(os.tmpdir(), 'kitsunedesk-install-goanime.ps1');
   const script = `$ErrorActionPreference = 'Stop'
@@ -567,7 +945,6 @@ try {
   } else {
     Write-Host ''
     Write-Host 'O instalador terminou, mas o executavel ainda nao foi localizado.' -ForegroundColor Yellow
-    Write-Host 'Confirme a instalacao e clique em Atualizar status no KitsuneDesk.'
   }
 } catch {
   Write-Host ''
@@ -580,54 +957,69 @@ try {
   return scriptPath;
 }
 
-/**
- * @returns {string}
- */
+/** @returns {string} */
+function writeGoAnimeGuiInstallScript() {
+  const installerSource = path.join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'scripts',
+    'windows',
+    'install-goanime-gui.ps1'
+  );
+  const bridgeSource = path.join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'resources',
+    'goanime-bridge',
+    'main.go'
+  );
+
+  if (!fs.existsSync(installerSource) || !fs.existsSync(bridgeSource)) {
+    throw new AppError(
+      'PROVIDER_UNAVAILABLE',
+      'Os arquivos necessarios para ativar o GoAnime GUI nao foram encontrados.',
+      { status: 500 }
+    );
+  }
+
+  const bridgeTarget = path.join(
+    os.tmpdir(),
+    `kitsunedesk-${process.pid}-${Date.now()}-goanime-bridge-main.go`
+  );
+  const scriptTarget = path.join(
+    os.tmpdir(),
+    `kitsunedesk-${process.pid}-${Date.now()}-install-goanime-gui.ps1`
+  );
+
+  fs.copyFileSync(bridgeSource, bridgeTarget);
+  const escapedBridgePath = bridgeTarget.replace(/'/g, "''");
+  const script = fs
+    .readFileSync(installerSource, 'utf8')
+    .replace('__BRIDGE_SOURCE_PATH__', escapedBridgePath);
+  fs.writeFileSync(scriptTarget, script, 'utf8');
+  return scriptTarget;
+}
+
+/** @returns {string} */
+function writeAnimeCliBrInstallScript() {
+  return copyPowerShellInstaller('install-anime-cli-br.ps1');
+}
+
+/** @returns {string} */
 function writeAniCliInstallScript() {
-  const scriptPath = path.join(os.tmpdir(), 'kitsunedesk-install-ani-cli.ps1');
-  const script = `$ErrorActionPreference = 'Continue'
-
-Write-Host 'KitsuneDesk - instalando fallback ani-cli' -ForegroundColor Cyan
-Write-Host ''
-
-$scoopShims = Join-Path $env:USERPROFILE 'scoop\\shims'
-if (Test-Path $scoopShims) {
-  $env:PATH = "$scoopShims;$env:PATH"
+  return copyPowerShellInstaller('install-ani-cli.ps1');
 }
 
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-
-if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
-  Write-Host 'Instalando Scoop...'
-  Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+/** @returns {string} */
+function writeFastAnimeVsrInstallScript() {
+  return copyPowerShellInstaller('prepare-fast-anime-vsr.ps1');
 }
 
-if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
-  Write-Host 'Scoop ainda nao esta disponivel nesta sessao.' -ForegroundColor Red
-  Write-Host 'Feche e abra o terminal, depois rode o instalador novamente.'
-  return
-}
-
-scoop install git
-
-$hasExtras = scoop bucket list | Select-String -Quiet '^extras\\b'
-if (-not $hasExtras) {
-  scoop bucket add extras
-}
-
-scoop install ani-cli fzf ffmpeg mpv openssl
-
-Write-Host ''
-Write-Host 'Fallback instalado. Volte ao KitsuneDesk e clique em Atualizar status.' -ForegroundColor Green
-`;
-
-  fs.writeFileSync(scriptPath, script, 'utf8');
-  return scriptPath;
-}
-
-/**
- * @returns {{available: boolean, path: string | null}}
- */
+/** @returns {{available: boolean, path: string | null}} */
 function findGoAnime() {
   const pathMatch = findCommandOnPath('goanime');
   const candidates = [
@@ -646,10 +1038,83 @@ function findGoAnime() {
   ].filter(Boolean);
   const match = candidates.find((candidate) => fs.existsSync(candidate));
 
-  return {
-    available: Boolean(match),
-    path: match ?? null
-  };
+  return { available: Boolean(match), path: match ?? null };
+}
+
+/** @returns {{available: boolean, path: string | null}} */
+function findAnimeCliBr() {
+  const localToolsRoot = path.join(
+    process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
+    'KitsuneDesk',
+    'tools',
+    'anime-cli-br',
+    '.venv',
+    'Scripts'
+  );
+  const candidates = [
+    path.join(localToolsRoot, 'anime-cli-br.exe'),
+    path.join(localToolsRoot, 'anime-cli-br'),
+    findCommandOnPath('anime-cli-br'),
+    findPythonScriptsExecutable('anime-cli-br.exe'),
+    findPythonScriptsExecutable('anime-cli-br')
+  ].filter(Boolean);
+  const match = candidates.find(
+    (candidate) => fs.existsSync(candidate) && !/Python31[3-9]/i.test(candidate)
+  );
+
+  return { available: Boolean(match), path: match ?? null };
+}
+
+/** @returns {{available: boolean, path: string | null}} */
+function findVlc() {
+  const candidates = [
+    findCommandOnPath('vlc'),
+    findVlcFromRegistry(),
+    path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'VideoLAN', 'VLC', 'vlc.exe'),
+    path.join(
+      process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)',
+      'VideoLAN',
+      'VLC',
+      'vlc.exe'
+    ),
+    path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'VideoLAN', 'VLC', 'vlc.exe'),
+    findScoopAppExecutable('vlc')
+  ].filter(Boolean);
+  const match = candidates.find((candidate) => fs.existsSync(candidate));
+
+  return { available: Boolean(match), path: match ?? null };
+}
+
+/** @returns {string | null} */
+function findVlcFromRegistry() {
+  const keys = [
+    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\vlc.exe',
+    'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\vlc.exe',
+    'HKLM\\SOFTWARE\\VideoLAN\\VLC',
+    'HKLM\\SOFTWARE\\WOW6432Node\\VideoLAN\\VLC',
+    'HKCU\\SOFTWARE\\VideoLAN\\VLC'
+  ];
+
+  for (const key of keys) {
+    const result = spawnSync('reg.exe', ['query', key, '/s'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 3000
+    });
+    const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+    const executableMatch = output.match(/([A-Za-z]:\\[^\r\n]*?vlc\.exe)/i);
+    if (executableMatch && fs.existsSync(executableMatch[1].trim())) {
+      return executableMatch[1].trim();
+    }
+
+    const directoryMatch = output.match(/InstallDir\s+REG_(?:SZ|EXPAND_SZ)\s+([^\r\n]+)/i);
+    if (directoryMatch) {
+      const candidate = path.join(directoryMatch[1].trim(), 'vlc.exe');
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -659,10 +1124,9 @@ function findGoAnime() {
 function findMpv(goAnimePath) {
   const goAnimeDirectory = goAnimePath ? path.dirname(goAnimePath) : null;
   const bundledCandidate = goAnimeDirectory ? path.join(goAnimeDirectory, 'bin', 'mpv.exe') : null;
-  const pathMatch = findCommandOnPath('mpv');
   const candidates = [
     bundledCandidate,
-    pathMatch,
+    findCommandOnPath('mpv'),
     findScoopShim('mpv'),
     findScoopAppExecutable('mpv'),
     path.join(process.cwd(), 'resources', 'mpv', 'mpv.exe'),
@@ -677,24 +1141,153 @@ function findMpv(goAnimePath) {
   };
 }
 
-/**
- * @param {string} command
- * @returns {{available: boolean, path: string | null}}
- */
-function findCommand(command) {
-  const firstMatch =
-    findCommandOnPath(command) ?? findScoopShim(command) ?? findScoopAppExecutable(command);
+/** @returns {{available: boolean, path: string | null, version: string | null, argsPrefix: string[]}} */
+function findPython() {
+  const candidates = [
+    path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Python', 'Python310', 'python.exe'),
+    path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Python310', 'python.exe'),
+    findPythonFromRegistry('3.10')
+  ].filter(Boolean);
 
-  return {
-    available: Boolean(firstMatch),
-    path: firstMatch ?? null
-  };
+  const launcher = findCommandOnPath('py.exe');
+  if (launcher && fs.existsSync(launcher)) {
+    const launcherResult = spawnSync(
+      launcher,
+      ['-3.10', '-c', 'import sys; print(sys.executable)'],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 3000
+      }
+    );
+    const launcherPython = launcherResult.stdout?.trim();
+    if (launcherResult.status === 0 && launcherPython) candidates.unshift(launcherPython);
+  }
+
+  for (const candidate of [...new Set(candidates)]) {
+    if (!candidate || !fs.existsSync(candidate)) continue;
+    const result = spawnSync(
+      candidate,
+      ['-c', "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 3000
+      }
+    );
+    const version = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+    if (result.status === 0 && version === '3.10') {
+      return { available: true, path: candidate, version: `Python ${version}`, argsPrefix: [] };
+    }
+  }
+
+  return { available: false, path: null, version: null, argsPrefix: [] };
+}
+
+/** @param {string} version @returns {string | null} */
+function findPythonFromRegistry(version) {
+  const keys = [
+    `HKCU\\SOFTWARE\\Python\\PythonCore\\${version}\\InstallPath`,
+    `HKLM\\SOFTWARE\\Python\\PythonCore\\${version}\\InstallPath`,
+    `HKLM\\SOFTWARE\\WOW6432Node\\Python\\PythonCore\\${version}\\InstallPath`
+  ];
+
+  for (const key of keys) {
+    const result = spawnSync('reg.exe', ['query', key, '/ve'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 3000
+    });
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+    const match = output.match(/REG_(?:SZ|EXPAND_SZ)\s+([^\r\n]+)/i);
+    if (!match) continue;
+    const candidate = path.join(match[1].trim(), 'python.exe');
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+/** @returns {{available: boolean, path: string | null}} */
+function findNvidia() {
+  const candidates = [
+    findCommandOnPath('nvidia-smi.exe'),
+    path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'DriverStore', 'FileRepository')
+  ].filter(Boolean);
+  const directMatch = candidates[0] && fs.existsSync(candidates[0]) ? candidates[0] : null;
+  return { available: Boolean(directMatch), path: directMatch };
 }
 
 /**
- * @param {string} command
- * @returns {string | null}
+ * @param {{python: object, ffmpeg: object, nvidia: object}} dependencies
+ * @returns {object}
  */
+function findFastAnimeVsr(dependencies) {
+  const localRoot = path.join(
+    process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
+    'KitsuneDesk',
+    'tools',
+    'FAST_Anime_VSR'
+  );
+  const projectRoot = path.join(process.cwd(), 'resources', 'fast-anime-vsr');
+  const candidates = [localRoot, projectRoot];
+  const root =
+    candidates.find((candidate) => fs.existsSync(path.join(candidate, 'main.py'))) ?? null;
+  const venvPython = root ? path.join(root, '.venv', 'Scripts', 'python.exe') : null;
+  const runtime = probeFastAnimeVsrRuntime(venvPython);
+
+  return {
+    installed: Boolean(root),
+    ready: Boolean(
+      root && runtime.configured && dependencies.ffmpeg.available && dependencies.nvidia.available
+    ),
+    path: root,
+    venvPython: venvPython && fs.existsSync(venvPython) ? venvPython : null,
+    runtime,
+    requirements: {
+      nvidia: dependencies.nvidia.available,
+      ffmpeg: dependencies.ffmpeg.available,
+      python: dependencies.python.available
+    }
+  };
+}
+
+/** @param {string | null} pythonPath @returns {{configured: boolean, cuda: boolean, message: string}} */
+function probeFastAnimeVsrRuntime(pythonPath) {
+  if (!pythonPath || !fs.existsSync(pythonPath)) {
+    return { configured: false, cuda: false, message: 'Ambiente Python ainda nao preparado.' };
+  }
+
+  const code =
+    "import torch, cv2, numpy, moviepy; print('CUDA=' + str(bool(torch.cuda.is_available())))";
+  const result = spawnSync(pythonPath, ['-c', code], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 5000
+  });
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  const configured = result.status === 0;
+  const cuda = /CUDA=True/i.test(output);
+
+  return {
+    configured,
+    cuda,
+    message: configured
+      ? cuda
+        ? 'Runtime configurado com CUDA.'
+        : 'Bibliotecas instaladas, mas CUDA nao esta ativa.'
+      : 'Faltam PyTorch/CUDA ou outras dependencias manuais.'
+  };
+}
+
+/** @param {string} command @returns {{available: boolean, path: string | null}} */
+function findCommand(command) {
+  const firstMatch =
+    findCommandOnPath(command) ?? findScoopShim(command) ?? findScoopAppExecutable(command);
+  return { available: Boolean(firstMatch), path: firstMatch ?? null };
+}
+
+/** @param {string} command @returns {string | null} */
 function findCommandOnPath(command) {
   const result = spawnSync('where.exe', [command], {
     encoding: 'utf8',
@@ -709,10 +1302,7 @@ function findCommandOnPath(command) {
   );
 }
 
-/**
- * @param {string} command
- * @returns {string | null}
- */
+/** @param {string} command @returns {string | null} */
 function findScoopShim(command) {
   const shimsDir = path.join(os.homedir(), 'scoop', 'shims');
   const candidates = [
@@ -721,14 +1311,10 @@ function findScoopShim(command) {
     path.join(shimsDir, `${command}.bat`),
     path.join(shimsDir, command)
   ];
-
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
-/**
- * @param {string} command
- * @returns {string | null}
- */
+/** @param {string} command @returns {string | null} */
 function findScoopAppExecutable(command) {
   const appDir = path.join(os.homedir(), 'scoop', 'apps', command, 'current');
   const candidates = [
@@ -736,13 +1322,50 @@ function findScoopAppExecutable(command) {
     path.join(appDir, `${command}.cmd`),
     path.join(appDir, command)
   ];
-
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
-/**
- * @returns {{available: boolean, path: string | null}}
- */
+/** @param {string} fileName @returns {string | null} */
+function findPythonScriptsExecutable(fileName) {
+  const roots = [
+    path.join(process.env.APPDATA ?? '', 'Python'),
+    path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Python')
+  ].filter(Boolean);
+
+  for (const root of roots) {
+    const match = findFile(root, fileName, 4);
+    if (match) return match;
+  }
+
+  return null;
+}
+
+/** @param {string} root @param {string} fileName @param {number} depth @returns {string | null} */
+function findFile(root, fileName, depth) {
+  if (!root || depth < 0 || !fs.existsSync(root)) return null;
+
+  let entries;
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase()) return fullPath;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const match = findFile(path.join(root, entry.name), fileName, depth - 1);
+    if (match) return match;
+  }
+
+  return null;
+}
+
+/** @returns {{available: boolean, path: string | null}} */
 function findGitBash() {
   const candidates = [
     path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
@@ -752,12 +1375,7 @@ function findGitBash() {
   ];
   const match = candidates.find((candidate) => fs.existsSync(candidate));
 
-  if (match) {
-    return {
-      available: true,
-      path: match
-    };
-  }
+  if (match) return { available: true, path: match };
 
   const bashFromPath = findCommand('bash');
   const isGitBash = Boolean(
@@ -766,54 +1384,34 @@ function findGitBash() {
     !/\\windowsapps\\/i.test(bashFromPath.path)
   );
 
-  return {
-    available: isGitBash,
-    path: isGitBash ? bashFromPath.path : null
-  };
+  return { available: isGitBash, path: isGitBash ? bashFromPath.path : null };
 }
 
-/**
- * @param {object} status
- * @returns {string[]}
- */
+/** @param {object} status @returns {string[]} */
 function getGoAnimeDirectories(status) {
   const paths = [status.dependencies.goAnime.path, status.dependencies.mpv.path].filter(Boolean);
-
   return [...new Set(paths.map((dependencyPath) => path.dirname(dependencyPath)))];
 }
 
-/**
- * @param {object} status
- * @returns {string}
- */
+/** @param {object} status @returns {string[]} */
+function getAnimeCliBrDirectories(status) {
+  const paths = [status.dependencies.animeCliBr.path, status.dependencies.vlc.path].filter(Boolean);
+  return [...new Set(paths.map((dependencyPath) => path.dirname(dependencyPath)))];
+}
+
+/** @param {object} status @returns {string} */
 function buildWindowsPathPrefix(status) {
   const directories = getAniCliDirectories(status);
-
-  if (directories.length === 0) {
-    return '';
-  }
-
-  return `${directories.join(path.delimiter)}${path.delimiter}`;
+  return directories.length === 0 ? '' : `${directories.join(path.delimiter)}${path.delimiter}`;
 }
 
-/**
- * @param {object} status
- * @returns {string}
- */
+/** @param {object} status @returns {string} */
 function buildBashPathPrefix(status) {
   const directories = getAniCliDirectories(status).map(toBashPath).map(quoteForBash);
-
-  if (directories.length === 0) {
-    return '';
-  }
-
-  return `export PATH=${directories.join(':')}:$PATH; `;
+  return directories.length === 0 ? '' : `export PATH=${directories.join(':')}:$PATH; `;
 }
 
-/**
- * @param {object} status
- * @returns {string[]}
- */
+/** @param {object} status @returns {string[]} */
 function getAniCliDirectories(status) {
   const paths = [
     status.dependencies.aniCli.path,
@@ -822,73 +1420,61 @@ function getAniCliDirectories(status) {
     status.dependencies.ffmpeg.path,
     status.dependencies.openssl.path
   ].filter(Boolean);
-
   return [...new Set(paths.map((dependencyPath) => path.dirname(dependencyPath)))];
 }
 
-/**
- * @param {string} value
- * @returns {string}
- */
+/** @param {string} value @returns {string} */
 function quoteForBash(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
 }
 
-/**
- * @param {string} value
- * @returns {string}
- */
+/** @param {string} value @returns {string} */
 function quoteForCmd(value) {
   const escaped = String(value).replace(/%/g, '%%').replace(/"/g, '""');
   return `"${escaped}"`;
 }
 
-/**
- * @param {string} value
- * @returns {string}
- */
+/** @param {string} value @returns {string} */
 function escapeForSet(value) {
   return String(value).replace(/%/g, '%%').replace(/"/g, '');
 }
 
-/**
- * @param {string} windowsPath
- * @returns {string}
- */
+/** @param {string} value @returns {string} */
+function escapeForEcho(value) {
+  return String(value)
+    .replace(/%/g, '%%')
+    .replace(/\^/g, '^^')
+    .replace(/&/g, '^&')
+    .replace(/\|/g, '^|')
+    .replace(/</g, '^<')
+    .replace(/>/g, '^>');
+}
+
+/** @param {string} windowsPath @returns {string} */
 function toBashPath(windowsPath) {
   const normalized = windowsPath.replace(/\\/g, '/');
   const driveMatch = normalized.match(/^([A-Za-z]):\/(.*)$/);
-
-  if (!driveMatch) {
-    return normalized;
-  }
-
-  return `/${driveMatch[1].toLowerCase()}/${driveMatch[2]}`;
+  return driveMatch ? `/${driveMatch[1].toLowerCase()}/${driveMatch[2]}` : normalized;
 }
 
-/**
- * @returns {string | null}
- */
+/** @returns {string | null} */
 function findPowerShell() {
-  const candidate =
-    findCommandOnPath('powershell.exe') ??
-    findCommandOnPath('powershell') ??
+  const candidates = [
+    findCommandOnPath('powershell.exe'),
+    findCommandOnPath('powershell'),
     path.join(
       process.env.SystemRoot ?? 'C:\\Windows',
       'System32',
       'WindowsPowerShell',
       'v1.0',
       'powershell.exe'
-    );
+    )
+  ].filter(Boolean);
 
-  return fs.existsSync(candidate) || /powershell/i.test(candidate) ? candidate : null;
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
-/**
- * @param {string} left
- * @param {string} right
- * @returns {boolean}
- */
+/** @param {string} left @param {string} right @returns {boolean} */
 function samePath(left, right) {
   return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
 }
