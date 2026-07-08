@@ -8,7 +8,7 @@
 [![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?style=for-the-badge&logo=electron&logoColor=white)](#tecnologias)
 [![JavaScript](https://img.shields.io/badge/JavaScript-Puro-F7DF1E?style=for-the-badge&logo=javascript&logoColor=111)](#tecnologias)
 [![SQLite](https://img.shields.io/badge/SQLite-Local-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](#tecnologias)
-[![Version](https://img.shields.io/badge/versão-0.4.1-8b5cf6?style=for-the-badge)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/versão-0.5.1-8b5cf6?style=for-the-badge)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/licença-MIT-22C55E?style=for-the-badge)](./LICENSE)
 
 ### Interface gráfica local para pesquisar animes com GoAnime e reproduzir no MPV.
@@ -21,13 +21,14 @@
 
 O **KitsuneDesk** é uma aplicação desktop para Windows construída com Electron, HTML, CSS, JavaScript puro, Bootstrap e SQLite.
 
-Na versão 0.4.1, o fluxo principal ganhou um seletor unificado de provedores:
+Na versão 0.5.1, o fluxo principal mantém o seletor unificado de provedores e passa a instalar os componentes ausentes dentro da própria interface:
 
 1. **GoAnime com interface gráfica** permanece como opção principal;
 2. **GoAnime clássico** pode ser aberto pelo mesmo formulário;
 3. anime-cli-br, ani-cli experimental e FAST Anime VSR aparecem no mesmo seletor;
 4. idioma e resolução são escolhidos antes da execução;
-5. **Melhor disponível** é a resolução selecionada por padrão.
+5. **Melhor disponível** é a resolução selecionada por padrão;
+6. instalações e reparos exibem porcentagem, etapa atual e a função de cada componente.
 
 A interface possui:
 
@@ -36,7 +37,9 @@ A interface possui:
 - resolução automática, 360p, 480p, 720p ou 1080p;
 - botões para voltar à Home, aos resultados e pesquisar outro anime;
 - filtro de episódios;
-- atalhos avançados de instalação e reparo.
+- atalhos avançados de instalação e reparo;
+- painel gráfico de instalação, sem abrir PowerShell ou Windows Terminal;
+- barra de progresso, monitor de eventos e estados “já instalado”, “instalando”, “aviso” e “erro”.
 
 > O KitsuneDesk não hospeda conteúdo. Ele integra ferramentas e fontes externas instaladas no computador do usuário.
 
@@ -56,22 +59,24 @@ O bridge fica em:
 %LOCALAPPDATA%\KitsuneDesk\tools\goanime-bridge\goanime-bridge.exe
 ```
 
-Para ativá-lo, clique em **Ativar GoAnime GUI**. O assistente:
+Para ativá-lo, selecione **GoAnime — Interface gráfica** e clique em **Instalar automaticamente**. O processo ocorre em segundo plano e instala somente o que estiver faltando:
 
-1. confirma ou instala GoAnime e MPV;
-2. confirma ou instala Git;
-3. confirma ou instala Go;
-4. baixa a versão compatível do GoAnime;
-5. compila o bridge local;
-6. verifica o executável criado.
+1. GoAnime clássico;
+2. MPV;
+3. Scoop, quando necessário;
+4. runtime Go portátil, apenas quando o bridge precisar ser compilado;
+5. biblioteca compatível do GoAnime;
+6. bridge gráfico local.
+
+A tela mostra a porcentagem, a etapa atual, o que já estava instalado e para que serve cada componente. Nenhum terminal externo é aberto.
 
 O GoAnime clássico continua disponível na área de ferramentas avançadas e também no seletor principal da Home.
 
 ### Reprodução na interface gráfica
 
-A versão 0.4.1 usa o mesmo resolvedor e o mesmo proxy de páginas intermediárias do GoAnime clássico antes de abrir o MPV. Isso é necessário principalmente para fontes PT-BR que entregam uma página do Blogger em vez de uma URL de vídeo direta. O KitsuneDesk também aguarda a inicialização do MPV antes de mostrar a confirmação de reprodução.
+A versão 0.5.1 mantém o mesmo resolvedor e o mesmo proxy de páginas intermediárias do GoAnime clássico antes de abrir o MPV. Isso é necessário principalmente para fontes PT-BR que entregam uma página do Blogger em vez de uma URL de vídeo direta. O KitsuneDesk também aguarda a inicialização do MPV antes de mostrar a confirmação de reprodução.
 
-Depois de atualizar a partir da versão 0.4.0, selecione **GoAnime — Interface gráfica** e use **Ativar / atualizar GoAnime GUI** para recompilar o bridge 1.2.0.
+Ao atualizar de uma versão anterior, selecione **GoAnime — Interface gráfica** e use **Instalar automaticamente**. O KitsuneDesk preserva componentes válidos e recompila somente o bridge incompatível ou ausente.
 
 ## Provedores e ferramentas
 
@@ -85,7 +90,7 @@ Depois de atualizar a partir da versão 0.4.0, selecione **GoAnime — Interface
 
 ### anime-cli-br
 
-O instalador agora cria um ambiente isolado com Python 3.10, 3.11 ou 3.12 em:
+A instalação automática cria um ambiente isolado com Python 3.12 em:
 
 ```text
 %LOCALAPPDATA%\KitsuneDesk\tools\anime-cli-br\.venv
@@ -119,15 +124,22 @@ Quando isso acontecer, o terminal explica o problema e recomenda o GoAnime.
 
 FAST Anime VSR não é um provedor de streaming. Ele processa vídeos locais com super-resolução.
 
-O preparador agora procura o Python 3.10 por:
+O preparador automático instala Python 3.10, FFmpeg, ambiente virtual, dependências do projeto e PyTorch. Ao final, verifica GPU NVIDIA e CUDA.
 
-- launcher `py`;
-- pastas padrão;
-- Registro do Windows;
-- instalação pelo winget;
-- instalador oficial do Python 3.10.11 como fallback.
+O ambiente base é concluído mesmo quando CUDA não está ativa. A aceleração depende do driver e da compatibilidade da GPU disponível na máquina.
 
-Depois ele cria um ambiente virtual e instala as dependências básicas. CUDA, cuDNN, PyTorch, TensorRT e torch2trt continuam dependendo da GPU e precisam ser instalados em versões compatíveis.
+## Instalação automática dos componentes
+
+Os quatro grupos instaláveis usam o mesmo painel gráfico:
+
+| Grupo | Instala automaticamente | Observação |
+|---|---|---|
+| **GoAnime completo** | GoAnime, MPV, Scoop, Go portátil e bridge GUI | Principal e recomendado |
+| **anime-cli-br** | Python 3.12, VLC, código e bibliotecas | AnimeFire continua sendo uma fonte externa |
+| **ani-cli experimental** | Scoop, Git Bash, fzf, FFmpeg, MPV, OpenSSL e ani-cli | O erro de fontes inválidas pode continuar upstream |
+| **FAST Anime VSR** | Python 3.10, FFmpeg, dependências e PyTorch | CUDA depende do hardware e driver |
+
+Os instaladores rodam com `windowsHide`, enviam eventos estruturados ao Electron e não abrem uma janela de terminal. O botão **Cancelar** encerra a árvore do processo; **Ocultar** mantém a instalação em segundo plano.
 
 ## Instalação para desenvolvimento
 
@@ -164,7 +176,7 @@ npm run build:win
 O instalador será gerado em:
 
 ```text
-dist\KitsuneDesk-Setup-0.4.1.exe
+dist\KitsuneDesk-Setup-0.5.1.exe
 ```
 
 ## Arquitetura
@@ -175,6 +187,8 @@ flowchart TD
     PRELOAD --> IPC[Electron IPC]
     IPC --> CONTROLLER[PlayerController]
     CONTROLLER --> SERVICE[PlayerService]
+    SERVICE --> INSTALLER[InstallationService]
+    INSTALLER --> PROGRESS[Progresso IPC na interface]
     SERVICE --> BRIDGE[GoAnime bridge JSON]
     BRIDGE --> SOURCES[Fontes do GoAnime]
     SERVICE --> MPV[MPV]
@@ -193,6 +207,7 @@ kitsunedesk/
 │   ├── goanime-bridge/main.go
 │   └── licenses/
 ├── scripts/windows/
+│   ├── install-provider.ps1
 │   ├── install-goanime-gui.ps1
 │   ├── install-anime-cli-br.ps1
 │   ├── install-ani-cli.ps1
@@ -228,7 +243,7 @@ kitsunedesk/
 
 ### GoAnime GUI não está pronto
 
-Clique em **Ativar GoAnime GUI**, acompanhe o PowerShell até a mensagem de sucesso e depois clique em **Atualizar status**.
+Clique em **Instalar automaticamente**. Acompanhe a barra de progresso dentro do KitsuneDesk; o status é atualizado quando o processo termina.
 
 ### anime-cli-br informa AnimeFire indisponível
 
@@ -245,3 +260,8 @@ O Python básico foi preparado, mas ainda faltam componentes compatíveis com a 
 ## Licenças e projetos externos
 
 Consulte [THIRD_PARTY.md](./THIRD_PARTY.md) e `resources/licenses/`.
+
+
+### Correção do instalador gráfico no Windows PowerShell
+
+A versão 0.5.1 corrige a transformação indevida do caminho do `go.exe` em uma coleção de mensagens de progresso. Também grava o script temporário com BOM UTF-8, garantindo acentuação correta no Windows PowerShell 5.1.

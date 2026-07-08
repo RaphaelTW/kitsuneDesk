@@ -19,7 +19,7 @@ const providerCatalog = Object.freeze({
     icon: 'bi-window-stack',
     submitLabel: 'Buscar na interface',
     installTarget: 'goanime-gui',
-    installLabel: 'Ativar / atualizar GoAnime GUI',
+    installLabel: 'Instalar automaticamente',
     kind: 'gui'
   }),
   goanime: Object.freeze({
@@ -30,7 +30,7 @@ const providerCatalog = Object.freeze({
     icon: 'bi-terminal',
     submitLabel: 'Abrir GoAnime clássico',
     installTarget: 'goanime',
-    installLabel: 'Instalar GoAnime',
+    installLabel: 'Instalar automaticamente',
     kind: 'legacy'
   }),
   'anime-cli-br': Object.freeze({
@@ -41,7 +41,7 @@ const providerCatalog = Object.freeze({
     icon: 'bi-translate',
     submitLabel: 'Abrir anime-cli-br',
     installTarget: 'anime-cli-br',
-    installLabel: 'Instalar / reparar',
+    installLabel: 'Verificar e instalar',
     kind: 'legacy'
   }),
   'fast-anime-vsr': Object.freeze({
@@ -52,7 +52,7 @@ const providerCatalog = Object.freeze({
     icon: 'bi-gpu-card',
     submitLabel: 'Abrir FAST Anime VSR',
     installTarget: 'fast-anime-vsr',
-    installLabel: 'Preparar / reparar ambiente',
+    installLabel: 'Preparar automaticamente',
     kind: 'tool'
   }),
   'ani-cli': Object.freeze({
@@ -63,8 +63,215 @@ const providerCatalog = Object.freeze({
     icon: 'bi-exclamation-triangle',
     submitLabel: 'Abrir ani-cli experimental',
     installTarget: 'ani-cli',
-    installLabel: 'Instalar / reparar',
+    installLabel: 'Verificar e instalar',
     kind: 'legacy'
+  })
+});
+
+const installationCatalog = Object.freeze({
+  goanime: Object.freeze({
+    title: 'GoAnime completo',
+    subtitle: 'Instala o modo clássico, MPV e a interface gráfica sem abrir terminal.',
+    components: Object.freeze([
+      {
+        id: 'goanime',
+        icon: 'bi-play-btn',
+        name: 'GoAnime clássico',
+        purpose: 'Motor principal de pesquisa, episódios e fontes.'
+      },
+      {
+        id: 'mpv',
+        icon: 'bi-display',
+        name: 'MPV',
+        purpose: 'Reprodutor usado pelo modo clássico e pela interface gráfica.'
+      },
+      {
+        id: 'scoop',
+        icon: 'bi-box-seam',
+        name: 'Scoop',
+        purpose: 'Gerencia ferramentas portáteis sem depender do Winget.'
+      },
+      {
+        id: 'go-runtime',
+        icon: 'bi-braces',
+        name: 'Runtime Go portátil',
+        purpose: 'Compila localmente o conector gráfico quando necessário.'
+      },
+      {
+        id: 'goanime-source',
+        icon: 'bi-github',
+        name: 'Biblioteca GoAnime',
+        purpose: 'Código oficial utilizado pelo conector gráfico.'
+      },
+      {
+        id: 'goanime-bridge',
+        icon: 'bi-window-stack',
+        name: 'Bridge GoAnime GUI',
+        purpose: 'Conecta pesquisa, episódios e reprodução à interface.'
+      },
+      {
+        id: 'verification',
+        icon: 'bi-shield-check',
+        name: 'Verificação final',
+        purpose: 'Confirma que os modos clássico e gráfico estão prontos.'
+      }
+    ])
+  }),
+  'anime-cli-br': Object.freeze({
+    title: 'anime-cli-br',
+    subtitle: 'Prepara um ambiente isolado com Python e VLC.',
+    components: Object.freeze([
+      {
+        id: 'python-312',
+        icon: 'bi-filetype-py',
+        name: 'Python 3.12',
+        purpose: 'Executa o cliente em uma versão compatível e isolada.'
+      },
+      {
+        id: 'scoop',
+        icon: 'bi-box-seam',
+        name: 'Scoop',
+        purpose: 'Instala ferramentas portáteis sem terminal externo.'
+      },
+      {
+        id: 'vlc',
+        icon: 'bi-play-circle',
+        name: 'VLC Media Player',
+        purpose: 'Reproduz os episódios encontrados pelo anime-cli-br.'
+      },
+      {
+        id: 'anime-cli-br-source',
+        icon: 'bi-github',
+        name: 'Código anime-cli-br',
+        purpose: 'Cliente brasileiro que consulta a fonte AnimeFire.'
+      },
+      {
+        id: 'anime-cli-br-env',
+        icon: 'bi-box',
+        name: 'Ambiente virtual',
+        purpose: 'Evita conflitos com outras versões do Python.'
+      },
+      {
+        id: 'anime-cli-br-dependencies',
+        icon: 'bi-diagram-3',
+        name: 'Bibliotecas Python',
+        purpose: 'Instala Click, Requests, BeautifulSoup e Colorama.'
+      },
+      {
+        id: 'animefire-source',
+        icon: 'bi-globe2',
+        name: 'Fonte AnimeFire',
+        purpose: 'Fonte externa; sua disponibilidade depende do DNS do site.'
+      }
+    ])
+  }),
+  'ani-cli': Object.freeze({
+    title: 'ani-cli experimental',
+    subtitle: 'Instala o cliente e todas as ferramentas exigidas no Windows.',
+    components: Object.freeze([
+      {
+        id: 'scoop',
+        icon: 'bi-box-seam',
+        name: 'Scoop',
+        purpose: 'Gerencia a instalação local das dependências.'
+      },
+      {
+        id: 'git-bash',
+        icon: 'bi-terminal',
+        name: 'Git Bash',
+        purpose: 'Shell necessário para executar o script ani-cli.'
+      },
+      {
+        id: 'fzf',
+        icon: 'bi-list-check',
+        name: 'fzf',
+        purpose: 'Exibe os menus interativos de anime e episódios.'
+      },
+      {
+        id: 'ffmpeg',
+        icon: 'bi-film',
+        name: 'FFmpeg',
+        purpose: 'Processa e identifica fluxos de áudio e vídeo.'
+      },
+      {
+        id: 'mpv',
+        icon: 'bi-display',
+        name: 'MPV',
+        purpose: 'Reproduz os episódios selecionados.'
+      },
+      {
+        id: 'openssl',
+        icon: 'bi-key',
+        name: 'OpenSSL',
+        purpose: 'Descriptografa respostas usadas pelas fontes.'
+      },
+      {
+        id: 'ani-cli',
+        icon: 'bi-code-slash',
+        name: 'ani-cli',
+        purpose: 'Cliente experimental executado no Git Bash.'
+      },
+      {
+        id: 'ani-cli-source',
+        icon: 'bi-exclamation-triangle',
+        name: 'Fontes externas',
+        purpose: 'Podem falhar mesmo quando o episódio é encontrado.'
+      }
+    ])
+  }),
+  'fast-anime-vsr': Object.freeze({
+    title: 'FAST Anime VSR',
+    subtitle: 'Prepara o processamento local de vídeos e verifica a aceleração por GPU.',
+    components: Object.freeze([
+      {
+        id: 'python-310',
+        icon: 'bi-filetype-py',
+        name: 'Python 3.10',
+        purpose: 'Versão compatível com o pipeline de super-resolução.'
+      },
+      {
+        id: 'scoop',
+        icon: 'bi-box-seam',
+        name: 'Scoop',
+        purpose: 'Gerencia ferramentas portáteis do ambiente.'
+      },
+      {
+        id: 'ffmpeg',
+        icon: 'bi-film',
+        name: 'FFmpeg',
+        purpose: 'Lê, converte e grava os arquivos processados.'
+      },
+      {
+        id: 'fast-vsr-source',
+        icon: 'bi-github',
+        name: 'FAST Anime VSR',
+        purpose: 'Código de super-resolução para arquivos locais.'
+      },
+      {
+        id: 'fast-vsr-env',
+        icon: 'bi-box',
+        name: 'Ambiente virtual',
+        purpose: 'Isola as bibliotecas Python do sistema.'
+      },
+      {
+        id: 'fast-vsr-dependencies',
+        icon: 'bi-diagram-3',
+        name: 'Bibliotecas de vídeo',
+        purpose: 'Instala OpenCV, MoviePy, NumPy e dependências.'
+      },
+      {
+        id: 'pytorch',
+        icon: 'bi-cpu',
+        name: 'PyTorch',
+        purpose: 'Executa os modelos de super-resolução.'
+      },
+      {
+        id: 'gpu',
+        icon: 'bi-gpu-card',
+        name: 'NVIDIA / CUDA',
+        purpose: 'Acelera o processamento quando disponível e compatível.'
+      }
+    ])
   })
 });
 
@@ -77,7 +284,15 @@ const state = {
   provider: 'goanime-gui',
   results: [],
   selectedAnime: null,
-  episodes: []
+  episodes: [],
+  installation: {
+    jobId: null,
+    provider: null,
+    active: false,
+    finished: false,
+    percent: 0,
+    componentStates: {}
+  }
 };
 
 const elements = {};
@@ -93,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindProviderSelection();
   bindSearch();
   bindEpisodeFilter();
+  bindInstallationMonitor();
   bindInstallers();
   bindLegacyTools();
   bindHealthCheck();
@@ -144,6 +360,19 @@ function cacheElements() {
     'install-animeclibr-button',
     'install-anicli-button',
     'prepare-fast-vsr-button',
+    'installation-overlay',
+    'installation-title',
+    'installation-subtitle',
+    'installation-current-step',
+    'installation-percent',
+    'installation-progress-bar',
+    'installation-components',
+    'installation-live-badge',
+    'installation-log',
+    'installation-footer-message',
+    'installation-hide-button',
+    'installation-cancel-button',
+    'installation-close-button',
     'open-goanime-classic',
     'open-animeclibr',
     'open-anicli',
@@ -261,24 +490,31 @@ function renderStatus(status) {
   elements['anicli-status'].textContent = aniCliReady
     ? 'Instalado; origem instável'
     : 'Não configurado';
-  elements['fast-vsr-status'].textContent = fast.ready
+  elements['fast-vsr-status'].textContent = fast.accelerated
     ? 'Runtime CUDA pronto'
-    : fast.installed
+    : fast.ready
       ? fast.runtime.message
-      : status.dependencies.python.available
-        ? 'Python 3.10 encontrado; ambiente pendente'
-        : 'Python 3.10 / ambiente pendente';
+      : fast.installed
+        ? fast.runtime.message
+        : status.dependencies.python.available
+          ? 'Python 3.10 encontrado; ambiente pendente'
+          : 'Python 3.10 / ambiente pendente';
 
   elements['open-goanime-classic'].disabled = !classicReady;
   elements['open-animeclibr'].disabled = !animeCliBrReady;
   elements['open-anicli'].disabled = !aniCliReady;
 
-  elements['install-goanime-button'].textContent = classicReady ? 'Reinstalar' : 'Instalar';
-  elements['install-animeclibr-button'].textContent = animeCliBrReady ? 'Reparar' : 'Instalar';
-  elements['install-anicli-button'].textContent = aniCliReady ? 'Reparar' : 'Instalar';
+  elements['install-goanime-button'].textContent =
+    classicReady && guiReady ? 'Verificar / reparar' : 'Instalar automaticamente';
+  elements['install-animeclibr-button'].textContent = animeCliBrReady
+    ? 'Verificar / reparar'
+    : 'Instalar automaticamente';
+  elements['install-anicli-button'].textContent = aniCliReady
+    ? 'Verificar / reparar'
+    : 'Instalar automaticamente';
   elements['prepare-fast-vsr-button'].textContent = fast.installed
-    ? 'Reparar ambiente'
-    : 'Preparar ambiente';
+    ? 'Verificar / reparar'
+    : 'Preparar automaticamente';
 
   updateProviderUi();
 }
@@ -384,7 +620,7 @@ function getProviderAvailability(provider, status) {
         : 'GoAnime GUI ainda não está ativo',
       gateMessage: needsUpdate
         ? `Atualize o motor gráfico da versão ${bridge.version ?? 'antiga'} para ${bridge.expectedVersion ?? 'a atual'} e depois clique em Atualizar status.`
-        : 'Ative o motor gráfico uma única vez e depois atualize o status.'
+        : 'O KitsuneDesk instalará automaticamente apenas o que estiver faltando.'
     };
   }
 
@@ -395,7 +631,7 @@ function getProviderAvailability(provider, status) {
       warning: false,
       label: ready ? 'Pronto' : 'Não configurado',
       gateTitle: 'GoAnime clássico não está pronto',
-      gateMessage: 'Instale o pacote oficial com GoAnime e MPV.'
+      gateMessage: 'Instale automaticamente GoAnime, MPV e os componentes gráficos.'
     };
   }
 
@@ -406,7 +642,7 @@ function getProviderAvailability(provider, status) {
       warning: ready,
       label: ready ? 'Pronto · fonte instável' : 'Não configurado',
       gateTitle: 'anime-cli-br não está pronto',
-      gateMessage: 'Instale o ambiente Python dedicado e o VLC.'
+      gateMessage: 'O KitsuneDesk instalará automaticamente Python, VLC e o cliente.'
     };
   }
 
@@ -417,7 +653,7 @@ function getProviderAvailability(provider, status) {
       warning: true,
       label: ready ? 'Experimental' : 'Não configurado',
       gateTitle: 'ani-cli não está pronto',
-      gateMessage: 'Instale o ani-cli, Git Bash, fzf, FFmpeg, MPV e OpenSSL.'
+      gateMessage: 'O KitsuneDesk instalará automaticamente o ani-cli e todas as dependências.'
     };
   }
 
@@ -425,14 +661,20 @@ function getProviderAvailability(provider, status) {
   const ready = Boolean(fast.ready);
   return {
     ready,
-    warning: !ready,
-    label: ready ? 'Runtime pronto' : fast.installed ? 'Ambiente incompleto' : 'Não preparado',
+    warning: !fast.accelerated,
+    label: fast.accelerated
+      ? 'Runtime CUDA pronto'
+      : ready
+        ? 'Ambiente base pronto'
+        : fast.installed
+          ? 'Ambiente incompleto'
+          : 'Não preparado',
     gateTitle: fast.installed
       ? 'FAST Anime VSR precisa de reparo'
       : 'FAST Anime VSR não está preparado',
     gateMessage: fast.installed
       ? fast.runtime.message
-      : 'Prepare o ambiente Python 3.10, FFmpeg e CUDA antes de usar.'
+      : 'Prepare automaticamente Python, FFmpeg, PyTorch e verifique a GPU.'
   };
 }
 
@@ -766,8 +1008,36 @@ function showView(view) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function bindInstallationMonitor() {
+  animeDesk.player.onInstallationProgress(handleInstallationProgress);
+
+  elements['installation-hide-button'].addEventListener('click', () => {
+    elements['installation-overlay'].classList.add('d-none');
+  });
+
+  elements['installation-close-button'].addEventListener('click', () => {
+    elements['installation-overlay'].classList.add('d-none');
+  });
+
+  elements['installation-cancel-button'].addEventListener('click', async () => {
+    if (!state.installation.jobId || !state.installation.active) return;
+    elements['installation-cancel-button'].disabled = true;
+    try {
+      const result = await animeDesk.player.cancelInstallation(state.installation.jobId);
+      if (!result.ok) throw new Error(result.error?.message ?? 'Não foi possível cancelar.');
+    } catch (error) {
+      showToast({
+        title: 'Instalação',
+        message: error.message || 'Não foi possível cancelar a instalação.',
+        variant: 'error'
+      });
+      elements['installation-cancel-button'].disabled = false;
+    }
+  });
+}
+
 function bindInstallers() {
-  bindInstaller(elements['install-goanime-button'], 'goanime', 'GoAnime clássico');
+  bindInstaller(elements['install-goanime-button'], 'goanime', 'GoAnime completo');
   bindInstaller(elements['install-animeclibr-button'], 'anime-cli-br', 'anime-cli-br');
   bindInstaller(elements['install-anicli-button'], 'ani-cli', 'ani-cli');
   bindInstaller(elements['prepare-fast-vsr-button'], 'fast-anime-vsr', 'FAST Anime VSR');
@@ -782,24 +1052,271 @@ function bindInstaller(button, provider, label) {
 
 /** @param {HTMLButtonElement} button @param {string} provider @param {string} label */
 async function launchInstaller(button, provider, label) {
-  button.disabled = true;
-  try {
-    const result = await animeDesk.player.installDependencies(provider);
-    if (!result.ok) throw new Error(result.error?.message ?? `Falha ao abrir ${label}.`);
+  const normalizedProvider = provider === 'goanime-gui' ? 'goanime' : provider;
 
+  if (state.installation.active && !state.installation.finished) {
+    elements['installation-overlay'].classList.remove('d-none');
     showToast({
-      title: 'Instalação aberta',
-      message: `${label}: acompanhe o processo no ${result.data.terminal} e depois atualize o status.`,
-      variant: 'success'
+      title: 'Instalação em andamento',
+      message:
+        state.installation.provider === normalizedProvider
+          ? 'Este componente já está sendo configurado.'
+          : 'Aguarde a instalação atual terminar antes de iniciar outra.',
+      variant: 'warning'
     });
+    return;
+  }
+
+  openInstallationDialog(normalizedProvider);
+  button.disabled = true;
+
+  try {
+    const result = await animeDesk.player.installDependencies(normalizedProvider);
+    if (!result.ok) throw new Error(result.error?.message ?? `Falha ao instalar ${label}.`);
+
+    state.installation.jobId = result.data.jobId;
+    state.installation.provider = normalizedProvider;
+    state.installation.active = true;
+    state.installation.finished = false;
+    elements['installation-live-badge'].textContent = result.data.started
+      ? 'Instalando'
+      : 'Já em andamento';
+    appendInstallationLog(
+      result.data.started
+        ? 'Instalação iniciada em segundo plano, sem abrir terminal.'
+        : 'A instalação deste componente já estava em andamento.',
+      'running'
+    );
   } catch (error) {
-    showToast({
-      title: 'Instalação',
-      message: error.message || `Não foi possível abrir o instalador do ${label}.`,
-      variant: 'error'
-    });
+    finishInstallation(false, error.message || `Não foi possível instalar ${label}.`);
   } finally {
     button.disabled = false;
+  }
+}
+
+function openInstallationDialog(provider) {
+  const definition = installationCatalog[provider] ?? installationCatalog.goanime;
+  state.installation = {
+    jobId: null,
+    provider,
+    active: true,
+    finished: false,
+    percent: 0,
+    componentStates: {}
+  };
+
+  elements['installation-title'].textContent = definition.title;
+  elements['installation-subtitle'].textContent = definition.subtitle;
+  elements['installation-current-step'].textContent = 'Verificando componentes instalados...';
+  elements['installation-percent'].textContent = '0%';
+  elements['installation-progress-bar'].style.width = '0%';
+  elements['installation-progress-bar'].parentElement.setAttribute('aria-valuenow', '0');
+  elements['installation-progress-bar'].classList.add('progress-bar-animated');
+  elements['installation-live-badge'].textContent = 'Verificando';
+  elements['installation-live-badge'].className = 'installation-live-badge';
+  elements['installation-footer-message'].textContent =
+    'Você pode ocultar esta janela; o processo continuará dentro do KitsuneDesk.';
+  elements['installation-cancel-button'].disabled = false;
+  elements['installation-cancel-button'].classList.remove('d-none');
+  elements['installation-close-button'].classList.add('d-none');
+  elements['installation-log'].replaceChildren();
+  renderInstallationComponents(definition.components);
+  appendInstallationLog('Lendo o estado atual da máquina...', 'running');
+  elements['installation-overlay'].classList.remove('d-none');
+}
+
+/** @param {readonly object[]} components */
+function renderInstallationComponents(components) {
+  elements['installation-components'].replaceChildren();
+  components.forEach((component) => {
+    const article = document.createElement('article');
+    article.className = 'installation-component';
+    article.dataset.component = component.id;
+
+    const icon = document.createElement('span');
+    icon.className = 'installation-component-icon';
+    const iconElement = document.createElement('i');
+    iconElement.className = `bi ${component.icon}`;
+    icon.append(iconElement);
+
+    const copy = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = component.name;
+    const purpose = document.createElement('small');
+    purpose.textContent = component.purpose;
+    copy.append(name, purpose);
+
+    const status = document.createElement('span');
+    status.className = 'installation-component-state';
+    status.textContent = 'Aguardando';
+
+    article.append(icon, copy, status);
+    elements['installation-components'].append(article);
+  });
+}
+
+/** @param {object} event */
+function handleInstallationProgress(event) {
+  if (!event || typeof event !== 'object') return;
+
+  const normalizedProvider = event.provider === 'goanime-gui' ? 'goanime' : event.provider;
+  if (!state.installation.provider) {
+    openInstallationDialog(normalizedProvider);
+  }
+  if (state.installation.provider !== normalizedProvider) return;
+  if (state.installation.jobId && event.jobId !== state.installation.jobId) return;
+  if (!state.installation.jobId) state.installation.jobId = event.jobId;
+
+  const percent = Math.max(state.installation.percent, Math.min(100, Number(event.percent) || 0));
+  state.installation.percent = percent;
+  elements['installation-percent'].textContent = `${percent}%`;
+  elements['installation-progress-bar'].style.width = `${percent}%`;
+  elements['installation-progress-bar'].parentElement.setAttribute(
+    'aria-valuenow',
+    String(percent)
+  );
+
+  if (event.message) {
+    elements['installation-current-step'].textContent = event.message;
+  }
+
+  if (event.component && event.component !== 'installer') {
+    updateInstallationComponent(event.component, event.state, event.message, event.purpose);
+  }
+
+  if (event.type !== 'started' || event.message) {
+    appendInstallationLog(event.message || event.detail, event.state, event.timestamp);
+  }
+  if (event.detail && event.detail !== event.message) {
+    appendInstallationLog(
+      event.detail,
+      event.state === 'error' ? 'error' : 'warning',
+      event.timestamp
+    );
+  }
+
+  if (event.type === 'complete') {
+    finishInstallation(true, event.message || 'Instalação concluída.');
+  } else if (event.type === 'error') {
+    finishInstallation(false, event.detail || event.message || 'A instalação falhou.');
+  } else if (event.type === 'cancelled') {
+    finishInstallation(false, 'Instalação cancelada.', true);
+  }
+}
+
+function updateInstallationComponent(componentId, status, message, purpose) {
+  const card = elements['installation-components'].querySelector(
+    `[data-component="${CSS.escape(componentId)}"]`
+  );
+  if (!card) return;
+
+  const normalizedState = normalizeInstallationState(status);
+  card.className = `installation-component is-${normalizedState}`;
+  const badge = card.querySelector('.installation-component-state');
+  badge.textContent = installationStateLabel(normalizedState);
+  if (purpose) card.querySelector('small').textContent = purpose;
+  if (message) card.title = message;
+  state.installation.componentStates[componentId] = normalizedState;
+}
+
+function normalizeInstallationState(value) {
+  const stateValue = String(value ?? '').toLowerCase();
+  if (['downloading', 'installing', 'checking', 'running'].includes(stateValue)) {
+    return 'installing';
+  }
+  if (['installed', 'skipped', 'warning', 'error', 'cancelled'].includes(stateValue)) {
+    return stateValue;
+  }
+  return 'installing';
+}
+
+function installationStateLabel(value) {
+  return (
+    {
+      installing: 'Em andamento',
+      installed: 'Instalado',
+      skipped: 'Já instalado',
+      warning: 'Atenção',
+      error: 'Erro',
+      cancelled: 'Cancelado'
+    }[value] ?? 'Aguardando'
+  );
+}
+
+function appendInstallationLog(
+  message,
+  stateValue = 'running',
+  timestamp = new Date().toISOString()
+) {
+  const text = String(message ?? '').trim();
+  if (!text) return;
+
+  const row = document.createElement('div');
+  const normalizedState = normalizeLogState(stateValue);
+  row.className = `installation-log-line is-${normalizedState}`;
+
+  const time = document.createElement('span');
+  time.className = 'installation-log-time';
+  time.textContent = formatTime(timestamp);
+
+  const copy = document.createElement('span');
+  copy.className = 'installation-log-message';
+  copy.textContent = text;
+
+  row.append(time, copy);
+  elements['installation-log'].append(row);
+  while (elements['installation-log'].children.length > 120) {
+    elements['installation-log'].firstElementChild.remove();
+  }
+  elements['installation-log'].scrollTop = elements['installation-log'].scrollHeight;
+}
+
+function normalizeLogState(value) {
+  const normalized = String(value ?? '').toLowerCase();
+  if (normalized === 'error') return 'error';
+  if (normalized === 'warning') return 'warning';
+  if (['installed', 'skipped', 'complete'].includes(normalized)) return 'success';
+  return 'running';
+}
+
+async function finishInstallation(success, message, cancelled = false) {
+  if (state.installation.finished) return;
+  state.installation.finished = true;
+  state.installation.active = false;
+
+  elements['installation-progress-bar'].classList.remove('progress-bar-animated');
+  elements['installation-cancel-button'].classList.add('d-none');
+  elements['installation-close-button'].classList.remove('d-none');
+  elements['installation-close-button'].textContent = success ? 'Concluir' : 'Fechar';
+  elements['installation-live-badge'].textContent = success
+    ? 'Concluído'
+    : cancelled
+      ? 'Cancelado'
+      : 'Falha';
+  elements['installation-live-badge'].classList.toggle('is-success', success);
+  elements['installation-live-badge'].classList.toggle('is-error', !success);
+  elements['installation-footer-message'].textContent = message;
+  elements['installation-current-step'].textContent = message;
+
+  if (success) {
+    state.installation.percent = 100;
+    elements['installation-percent'].textContent = '100%';
+    elements['installation-progress-bar'].style.width = '100%';
+    elements['installation-progress-bar'].parentElement.setAttribute('aria-valuenow', '100');
+    appendInstallationLog('Status local atualizado após a instalação.', 'installed');
+    await hydratePlayerStatus();
+    showToast({
+      title: 'Instalação concluída',
+      message,
+      variant: 'success'
+    });
+  } else {
+    appendInstallationLog(message, cancelled ? 'warning' : 'error');
+    showToast({
+      title: cancelled ? 'Instalação cancelada' : 'Falha na instalação',
+      message,
+      variant: cancelled ? 'warning' : 'error'
+    });
   }
 }
 

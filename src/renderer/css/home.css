@@ -907,3 +907,308 @@
     flex-direction: column;
   }
 }
+
+/* Instalação automática dentro do aplicativo */
+.installation-overlay {
+  align-items: center;
+  background: rgba(5, 7, 11, 0.84);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 1rem;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1200;
+}
+
+.installation-dialog {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.48);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: calc(100vh - 2rem);
+  max-width: 880px;
+  overflow: hidden;
+  padding: 1.2rem;
+  width: 100%;
+}
+
+.installation-header,
+.installation-footer,
+.installation-progress-label,
+.installation-monitor-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.installation-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.installation-icon {
+  align-items: center;
+  background: linear-gradient(145deg, rgba(125, 92, 255, 0.24), rgba(37, 212, 255, 0.18));
+  border: 1px solid rgba(125, 92, 255, 0.35);
+  border-radius: 12px;
+  color: var(--app-cyan);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.installation-heading h2 {
+  font-size: 1.18rem;
+  margin: 0.08rem 0 0.2rem;
+}
+
+.installation-heading p:last-child,
+.installation-monitor-heading span,
+.installation-footer > span {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.installation-progress-block {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  padding: 0.9rem;
+}
+
+.installation-progress-label {
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.installation-progress-label strong {
+  font-size: 0.9rem;
+}
+
+.installation-progress-label span {
+  color: var(--app-cyan);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.installation-progress {
+  background: rgba(255, 255, 255, 0.08);
+  height: 10px;
+}
+
+.installation-progress .progress-bar {
+  background: linear-gradient(90deg, var(--app-purple), var(--app-cyan));
+  transition: width 260ms ease;
+}
+
+.installation-components {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 245px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.installation-component {
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.026);
+  border: 1px solid var(--app-border);
+  border-radius: 11px;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  padding: 0.72rem;
+}
+
+.installation-component-icon {
+  align-items: center;
+  background: rgba(125, 92, 255, 0.14);
+  border-radius: 8px;
+  color: var(--app-purple);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.installation-component strong,
+.installation-component small {
+  display: block;
+}
+
+.installation-component strong {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.installation-component small {
+  color: var(--app-muted);
+  font-size: 0.73rem;
+  line-height: 1.35;
+  margin-top: 0.18rem;
+}
+
+.installation-component-state {
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  color: var(--app-muted);
+  font-size: 0.67rem;
+  font-weight: 800;
+  padding: 0.24rem 0.45rem;
+  white-space: nowrap;
+}
+
+.installation-component.is-installing {
+  border-color: rgba(37, 212, 255, 0.42);
+}
+
+.installation-component.is-installing .installation-component-state {
+  color: var(--app-cyan);
+}
+
+.installation-component.is-installed,
+.installation-component.is-skipped {
+  border-color: rgba(55, 214, 122, 0.36);
+}
+
+.installation-component.is-installed .installation-component-state,
+.installation-component.is-skipped .installation-component-state {
+  color: #66e39b;
+}
+
+.installation-component.is-warning {
+  border-color: rgba(255, 190, 75, 0.42);
+}
+
+.installation-component.is-warning .installation-component-state {
+  color: #ffc76b;
+}
+
+.installation-component.is-error {
+  border-color: rgba(255, 92, 111, 0.5);
+}
+
+.installation-component.is-error .installation-component-state {
+  color: #ff7f91;
+}
+
+.installation-monitor {
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  min-height: 135px;
+  overflow: hidden;
+}
+
+.installation-monitor-heading {
+  background: rgba(255, 255, 255, 0.028);
+  border-bottom: 1px solid var(--app-border);
+  gap: 1rem;
+  padding: 0.72rem 0.85rem;
+}
+
+.installation-monitor-heading strong,
+.installation-monitor-heading span {
+  display: block;
+}
+
+.installation-live-badge {
+  background: rgba(125, 92, 255, 0.14);
+  border: 1px solid rgba(125, 92, 255, 0.3);
+  border-radius: 999px;
+  color: var(--app-purple) !important;
+  font-size: 0.68rem !important;
+  font-weight: 800;
+  padding: 0.28rem 0.5rem;
+  white-space: nowrap;
+}
+
+.installation-live-badge.is-success {
+  color: #66e39b !important;
+}
+
+.installation-live-badge.is-error {
+  color: #ff7f91 !important;
+}
+
+.installation-log {
+  background: #090c12;
+  color: #cfd6e4;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  max-height: 150px;
+  min-height: 100px;
+  overflow: auto;
+  padding: 0.75rem 0.85rem;
+}
+
+.installation-log-line {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: 58px minmax(0, 1fr);
+  margin-bottom: 0.3rem;
+}
+
+.installation-log-time {
+  color: #727d91;
+}
+
+.installation-log-line.is-warning .installation-log-message {
+  color: #ffc76b;
+}
+
+.installation-log-line.is-error .installation-log-message {
+  color: #ff7f91;
+}
+
+.installation-log-line.is-success .installation-log-message {
+  color: #66e39b;
+}
+
+.installation-footer {
+  border-top: 1px solid var(--app-border);
+  gap: 1rem;
+  padding-top: 0.9rem;
+}
+
+.installation-footer > div {
+  display: flex;
+  gap: 0.55rem;
+}
+
+@media (max-width: 760px) {
+  .installation-components {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-dialog {
+    max-height: calc(100vh - 1rem);
+    padding: 0.9rem;
+  }
+
+  .installation-header,
+  .installation-footer {
+    align-items: stretch;
+  }
+
+  .installation-footer {
+    flex-direction: column;
+  }
+
+  .installation-footer > div .btn {
+    flex: 1;
+  }
+}

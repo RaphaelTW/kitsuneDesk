@@ -14,6 +14,8 @@ const channels = Object.freeze({
   playerOpenLegacy: 'player:open-legacy',
   playerOpenTool: 'player:open-tool',
   playerInstallDependencies: 'player:install-dependencies',
+  playerCancelInstallation: 'player:cancel-installation',
+  playerInstallationProgress: 'player:installation-progress',
   playerPause: 'player:pause',
   playerResume: 'player:resume',
   playerNext: 'player:next',
@@ -58,6 +60,13 @@ const animeDeskApi = Object.freeze({
     openLegacy: (payload) => invoke(channels.playerOpenLegacy, payload),
     openTool: (payload) => invoke(channels.playerOpenTool, payload),
     installDependencies: (provider) => invoke(channels.playerInstallDependencies, { provider }),
+    cancelInstallation: (jobId) => invoke(channels.playerCancelInstallation, { jobId }),
+    onInstallationProgress: (callback) => {
+      if (typeof callback !== 'function') return () => {};
+      const listener = (_event, payload) => callback(payload);
+      ipcRenderer.on(channels.playerInstallationProgress, listener);
+      return () => ipcRenderer.removeListener(channels.playerInstallationProgress, listener);
+    },
     pause: () => invoke(channels.playerPause),
     resume: () => invoke(channels.playerResume),
     next: () => invoke(channels.playerNext),

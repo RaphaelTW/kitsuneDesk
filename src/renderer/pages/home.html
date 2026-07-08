@@ -71,7 +71,7 @@
             <p class="eyebrow">Central de provedores</p>
             <h2 id="home-title">O que você quer assistir?</h2>
           </div>
-          <span class="version-badge" id="app-version">v0.4.1</span>
+          <span class="version-badge" id="app-version">v0.5.1</span>
         </div>
 
         <div class="home-layout">
@@ -228,8 +228,8 @@
           </summary>
           <div class="advanced-content">
             <p class="advanced-intro">
-              As mesmas opções também estão no seletor principal. Esta área mantém atalhos de
-              instalação, reparo e abertura manual.
+              As mesmas opções também estão no seletor principal. As instalações acontecem dentro do
+              KitsuneDesk, com barra de progresso e detalhes de cada componente.
             </p>
 
             <div class="advanced-grid">
@@ -254,7 +254,7 @@
                     id="install-goanime-button"
                     type="button"
                   >
-                    Instalar
+                    Instalar automaticamente
                   </button>
                 </div>
               </article>
@@ -276,7 +276,7 @@
                     id="install-animeclibr-button"
                     type="button"
                   >
-                    Instalar / reparar
+                    Verificar e instalar
                   </button>
                 </div>
               </article>
@@ -298,7 +298,7 @@
                     id="install-anicli-button"
                     type="button"
                   >
-                    Instalar / reparar
+                    Verificar e instalar
                   </button>
                 </div>
               </article>
@@ -317,7 +317,7 @@
                     id="prepare-fast-vsr-button"
                     type="button"
                   >
-                    Preparar ambiente
+                    Preparar automaticamente
                   </button>
                 </div>
               </article>
@@ -389,6 +389,86 @@
         <div class="episode-grid" id="episode-grid" aria-live="polite"></div>
       </section>
     </main>
+
+    <div
+      class="installation-overlay d-none"
+      id="installation-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="installation-title"
+    >
+      <section class="installation-dialog">
+        <header class="installation-header">
+          <div class="installation-heading">
+            <span class="installation-icon"><i class="bi bi-box-arrow-in-down"></i></span>
+            <div>
+              <p class="eyebrow">Configuração automática</p>
+              <h2 id="installation-title">Preparando componente</h2>
+              <p id="installation-subtitle">
+                O KitsuneDesk instalará somente o que estiver faltando, sem abrir terminal.
+              </p>
+            </div>
+          </div>
+          <button
+            class="icon-button"
+            id="installation-hide-button"
+            type="button"
+            aria-label="Ocultar instalação"
+            title="Ocultar e continuar em segundo plano"
+          >
+            <i class="bi bi-dash-lg"></i>
+          </button>
+        </header>
+
+        <div class="installation-progress-block">
+          <div class="installation-progress-label">
+            <strong id="installation-current-step">Verificando componentes...</strong>
+            <span id="installation-percent">0%</span>
+          </div>
+          <div
+            class="progress installation-progress"
+            role="progressbar"
+            aria-label="Progresso da instalação"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              id="installation-progress-bar"
+              style="width: 0%"
+            ></div>
+          </div>
+        </div>
+
+        <div class="installation-components" id="installation-components"></div>
+
+        <section class="installation-monitor" aria-labelledby="installation-monitor-title">
+          <div class="installation-monitor-heading">
+            <div>
+              <strong id="installation-monitor-title">O que está sendo configurado</strong>
+              <span>Veja o componente, o estado atual e para que ele serve.</span>
+            </div>
+            <span class="installation-live-badge" id="installation-live-badge">Aguardando</span>
+          </div>
+          <div class="installation-log" id="installation-log" aria-live="polite"></div>
+        </section>
+
+        <footer class="installation-footer">
+          <span id="installation-footer-message"
+            >Você pode ocultar esta janela; o processo continuará.</span
+          >
+          <div>
+            <button class="btn btn-outline-light" id="installation-cancel-button" type="button">
+              Cancelar
+            </button>
+            <button class="btn btn-primary d-none" id="installation-close-button" type="button">
+              Concluir
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
 
     <div class="loading-overlay d-none" id="loading-overlay" role="status" aria-live="polite">
       <div class="loading-card">

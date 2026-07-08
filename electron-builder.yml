@@ -2,6 +2,9 @@ appId: br.com.kitsunedesk.local
 productName: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
 asar: true
+asarUnpack:
+  - scripts/windows/**/*
+  - resources/goanime-bridge/**/*
 npmRebuild: true
 
 directories:

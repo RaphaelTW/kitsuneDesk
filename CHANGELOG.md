@@ -2,6 +2,52 @@
 
 Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo.
 
+## [0.5.1] - 2026-07-08
+
+### Corrigido
+
+- Corrigida a falha `Não é possível converter o valor para o tipo System.String` ao preparar o bridge do GoAnime GUI.
+- Eventos de progresso agora são enviados diretamente ao `stdout`, sem contaminarem os valores retornados pelas funções PowerShell.
+- Saída do Scoop é encaminhada ao visor da instalação sem transformar caminhos de executáveis em arrays.
+- Scripts temporários agora são gravados em UTF-8 com BOM para compatibilidade com Windows PowerShell 5.1.
+- Corrigidos textos corrompidos como `grÃ¡fica` e `instalaÃ§Ã£o` no monitor de instalação.
+- Mensagens de erro deixam de ser repetidas pelo formato expandido do `Write-Error`.
+
+### Mantido
+
+- Instalação silenciosa dentro do KitsuneDesk, barra de progresso e visor de componentes.
+- GoAnime clássico, GoAnime GUI, anime-cli-br, ani-cli experimental e FAST Anime VSR.
+
+## [0.5.0] - 2026-07-08
+
+### Adicionado
+
+- Instalação automática dos quatro grupos: GoAnime completo, anime-cli-br, ani-cli experimental e FAST Anime VSR.
+- Painel de instalação dentro do Electron, sem abrir PowerShell ou Windows Terminal.
+- Barra de progresso percentual, etapa atual, monitor de eventos e lista explicando para que serve cada componente.
+- Estados visuais para componente pendente, em andamento, já instalado, instalado, aviso, erro e cancelado.
+- Instalações executadas em segundo plano com eventos IPC seguros entre o processo principal e o renderer.
+- Botões para ocultar a instalação sem interromper e para cancelar a árvore do processo.
+- Runtime Go portátil baixado apenas quando o bridge gráfico precisa ser compilado.
+- Instalação do GoAnime portátil com MPV gerenciado localmente quando necessário.
+- Instalação automática de Python 3.12 e VLC para o anime-cli-br.
+- Instalação automática de Scoop, Git Bash, fzf, FFmpeg, MPV e OpenSSL para o ani-cli.
+- Instalação automática de Python 3.10, FFmpeg, bibliotecas e PyTorch para FAST Anime VSR.
+
+### Alterado
+
+- Os instaladores agora verificam cada dependência e ignoram o que já estiver funcionando.
+- Winget deixou de ser requisito para a configuração dos provedores.
+- O status é atualizado automaticamente ao concluir uma instalação.
+- FAST Anime VSR pode ficar com o ambiente base pronto mesmo sem CUDA ativa; a interface informa a situação da aceleração.
+- GoAnime GUI e GoAnime clássico compartilham a ação “GoAnime completo”, mantendo os dois modos disponíveis.
+
+### Corrigido
+
+- Eliminado o erro “Go não encontrado e winget indisponível” por meio do runtime Go portátil.
+- Evitada a abertura de terminais que poderia confundir usuários durante a instalação.
+- Erros dos scripts agora retornam código diferente de zero e aparecem no visor da interface.
+
 ## [0.4.1] - 2026-07-08
 
 - Corrigida a reprodução do GoAnime gráfico: o bridge agora usa o resolvedor completo do GoAnime, inicia o MPV e permanece ativo enquanto o vídeo toca, preservando proxies locais necessários por fontes como Blogger/Goyabu.

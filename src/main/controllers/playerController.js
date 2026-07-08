@@ -39,8 +39,12 @@ class PlayerController {
     return this.playerService.openTool(payload);
   }
 
-  installDependencies(payload) {
-    return this.playerService.installDependencies(payload);
+  installDependencies(payload, webContents) {
+    return this.playerService.installDependencies(payload, webContents);
+  }
+
+  cancelInstallation(payload) {
+    return this.playerService.cancelInstallation(payload);
   }
 
   pause() {
