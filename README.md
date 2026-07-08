@@ -26,8 +26,8 @@ Na versão 0.4.0, o fluxo principal deixou de depender da TUI do GoAnime:
 1. a pesquisa acontece dentro do KitsuneDesk;
 2. os resultados aparecem em cards com capa, fonte e metadados;
 3. a lista de episódios aparece dentro da aplicação;
-4. o usuário escolhe a qualidade;
-5. somente o MPV é aberto para reproduzir o episódio.
+4. o usuário escolhe provedor, idioma e qualidade;
+5. no GoAnime GUI, somente o MPV é aberto para reproduzir o episódio.
 
 A interface possui botões para:
 
@@ -35,7 +35,8 @@ A interface possui botões para:
 - voltar aos resultados;
 - pesquisar outro anime;
 - filtrar a lista de episódios;
-- abrir manualmente os provedores legados.
+- escolher o provedor principal ou ferramentas alternativas pelo seletor;
+- abrir, instalar ou reparar provedores pela área avançada.
 
 > O KitsuneDesk não hospeda conteúdo. Ele integra ferramentas e fontes externas instaladas no computador do usuário.
 
@@ -64,17 +65,17 @@ Para ativá-lo, clique em **Ativar GoAnime GUI**. O assistente:
 5. compila o bridge local;
 6. verifica o executável criado.
 
-O GoAnime clássico continua disponível na área de ferramentas avançadas.
+O GoAnime GUI é a primeira opção do seletor de provedores. O GoAnime clássico continua disponível no mesmo seletor e na área de ferramentas avançadas.
 
 ## Provedores e ferramentas
 
 | Componente | Uso | Situação |
 |---|---|---|
 | **GoAnime GUI** | Pesquisa, episódios e stream dentro do app | Principal |
-| **GoAnime clássico** | TUI original no terminal | Mantido como alternativa |
-| **anime-cli-br** | Fonte brasileira baseada em AnimeFire e VLC | Legado e manual |
-| **ani-cli** | Provedor em Git Bash | Experimental e manual |
-| **FAST Anime VSR** | Super-resolução de arquivos locais | Ferramenta opcional |
+| **GoAnime clássico** | TUI original no terminal | Alternativa no seletor |
+| **anime-cli-br** | Fonte brasileira baseada em AnimeFire e VLC | Alternativa legada |
+| **ani-cli** | Provedor em Git Bash | Experimental |
+| **FAST Anime VSR** | Super-resolução de arquivos locais | Ferramenta opcional no seletor |
 
 ### anime-cli-br
 

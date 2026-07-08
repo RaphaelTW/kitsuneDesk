@@ -93,7 +93,7 @@
                 id="anime-search"
                 name="query"
                 type="search"
-                placeholder="Ex.: Naruto, Sonic X, Dragon Ball..."
+                placeholder="Ex.: nome-do-anime"
                 autocomplete="off"
                 minlength="2"
                 required
@@ -105,6 +105,16 @@
             </div>
 
             <div class="search-options" aria-label="Opcoes da pesquisa">
+              <label>
+                <span>Provedor</span>
+                <select class="form-select" id="provider-filter" name="provider">
+                  <option value="goanime-gui" selected>GoAnime com interface grafica</option>
+                  <option value="goanime">GoAnime classico</option>
+                  <option value="anime-cli-br">anime-cli-br</option>
+                  <option value="fast-anime-vsr">FAST Anime VSR</option>
+                  <option value="ani-cli">ani-cli experimental</option>
+                </select>
+              </label>
               <label>
                 <span>Idioma</span>
                 <select class="form-select" id="language-filter" name="language">
@@ -123,6 +133,11 @@
                 </select>
               </label>
             </div>
+
+            <p class="provider-hint" id="provider-hint">
+              GoAnime com interface grafica e o fluxo principal: resultados e episodios aparecem
+              dentro do KitsuneDesk; a qualidade padrao e Melhor disponivel.
+            </p>
 
             <div class="gui-gate d-none" id="gui-gate" role="status">
               <div>
@@ -202,8 +217,8 @@
           </summary>
           <div class="advanced-content">
             <p class="advanced-intro">
-              Essas opções ficam separadas da busca gráfica. GoAnime clássico, anime-cli-br e
-              ani-cli continuam disponíveis manualmente.
+              Essas opções também aparecem no seletor principal. Use esta área para instalar,
+              reparar ou abrir os provedores manualmente.
             </p>
 
             <div class="advanced-grid">

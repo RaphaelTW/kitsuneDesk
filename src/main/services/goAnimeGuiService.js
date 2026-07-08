@@ -88,7 +88,7 @@ class GoAnimeGuiService {
 
     const stream = await this.runBridge('stream', { anime, episode, language, quality }, 60000);
 
-    this.launchMpv({ mpvPath, stream, anime, episode });
+    await this.launchMpv({ mpvPath, stream, anime, episode });
 
     return {
       launched: true,
@@ -207,7 +207,8 @@ class GoAnimeGuiService {
     });
   }
 
-  launchMpv({ mpvPath, stream, anime, episode }) {
+  async launchMpv({ mpvPath, stream, anime, episode }) {
+    const streamUrl = normalizeStreamUrl(stream?.url);
     const args = [
       '--force-window=yes',
       '--hwdec=auto-safe',
@@ -216,24 +217,111 @@ class GoAnimeGuiService {
       `--title=KitsuneDesk - ${sanitizeTitle(anime.name)} - Episodio ${episode.number}`
     ];
 
-    const metadata = stream?.metadata ?? {};
-    const referer =
-      metadata.referer ?? metadata.Referer ?? metadata.referrer ?? metadata.Referrer ?? null;
+    args.push(...buildMpvHeaderArgs(stream?.metadata));
 
-    if (referer) {
-      args.push(`--http-header-fields=Referer: ${referer}`);
-    }
-
-    args.push(stream.url);
+    args.push('--', streamUrl);
 
     const child = spawn(mpvPath, args, {
       detached: true,
       stdio: 'ignore',
       windowsHide: false
     });
-    child.unref();
+
     this.mpvProcess = child;
+    await waitForMpvStartup(child);
   }
+}
+
+function buildMpvHeaderArgs(metadata) {
+  const headers = [];
+  const normalizedMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+  const referer = pickMetadata(normalizedMetadata, ['referer', 'referrer', 'Referer', 'Referrer']);
+  const origin = pickMetadata(normalizedMetadata, ['origin', 'Origin']);
+  const cookie = pickMetadata(normalizedMetadata, ['cookie', 'Cookie']);
+  const userAgent = pickMetadata(normalizedMetadata, [
+    'user-agent',
+    'User-Agent',
+    'userAgent',
+    'UserAgent'
+  ]);
+
+  if (referer) headers.push(`Referer: ${referer}`);
+  if (origin) headers.push(`Origin: ${origin}`);
+  if (cookie) headers.push(`Cookie: ${cookie}`);
+  if (userAgent) headers.push(`User-Agent: ${userAgent}`);
+
+  return headers.length > 0 ? [`--http-header-fields=${headers.join(',')}`] : [];
+}
+
+function pickMetadata(metadata, keys) {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function normalizeStreamUrl(value) {
+  const streamUrl = String(value ?? '').trim();
+
+  try {
+    const parsedUrl = new URL(streamUrl);
+    if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+      return streamUrl;
+    }
+  } catch {
+    // Tratado abaixo com uma mensagem publica melhor.
+  }
+
+  throw new AppError(
+    'STREAM_UNAVAILABLE',
+    'A fonte encontrou o episodio, mas nao entregou um link de video valido.',
+    { status: 502 }
+  );
+}
+
+function waitForMpvStartup(child) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.unref();
+      resolve();
+    }, 1500);
+
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(
+        new AppError('PLAYER_NOT_FOUND', 'Nao foi possivel iniciar o MPV.', {
+          status: 500,
+          technicalMessage: error.message
+        })
+      );
+    });
+
+    child.once('exit', (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(
+        new AppError(
+          'PLAYER_CLOSED_IMMEDIATELY',
+          'O MPV abriu e fechou imediatamente. A fonte pode ter recusado o link de video.',
+          {
+            status: 502,
+            technicalMessage: `code=${code ?? 'null'} signal=${signal ?? 'null'}`
+          }
+        )
+      );
+    });
+  });
 }
 
 function parseBridgeResponse(stdout) {

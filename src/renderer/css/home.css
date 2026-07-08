@@ -142,7 +142,7 @@
 .search-options {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1.25fr repeat(2, minmax(0, 1fr));
   margin-top: 0.9rem;
   position: relative;
   z-index: 1;
@@ -164,6 +164,15 @@
   border-color: var(--app-border);
   color: var(--app-text);
   min-height: 44px;
+}
+
+.provider-hint {
+  color: var(--app-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin: 0.75rem 0 0;
+  position: relative;
+  z-index: 1;
 }
 
 .gui-gate {

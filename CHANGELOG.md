@@ -11,6 +11,7 @@ Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo
 - Cards de resultados com capa, fonte, descrição e metadados.
 - Tela interna para listar e filtrar episódios.
 - Seleção de idioma e qualidade dentro do KitsuneDesk.
+- Seletor principal de provedor com GoAnime GUI, GoAnime clássico, anime-cli-br, FAST Anime VSR e ani-cli experimental.
 - Reprodução direta no MPV sem abrir terminal.
 - Botões para voltar à Home, voltar aos resultados e pesquisar outro anime.
 - Bridge local em Go com comunicação JSON entre Electron e GoAnime.
@@ -24,6 +25,8 @@ Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo
 - Instalações globais incompatíveis do Python 3.15 deixam de ser priorizadas.
 - anime-cli-br verifica `animefire.net` antes de abrir e evita traceback em falhas de DNS.
 - O retorno do winget quando VLC já está instalado deixa de causar falso erro.
+- A reprodução pelo GoAnime GUI agora valida melhor a abertura do MPV e evita alerta de sucesso quando o player fecha imediatamente.
+- O texto do episódio não duplica mais a palavra "Episódio" quando a fonte já retorna esse prefixo.
 
 ### Mantido
 

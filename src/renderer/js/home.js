@@ -14,6 +14,7 @@ const state = {
   status: null,
   view: 'home',
   query: '',
+  provider: 'goanime-gui',
   language: 'sub',
   quality: 'auto',
   results: [],
@@ -31,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   enableTooltips();
   hydrateSession(session);
   bindNavigation();
+  bindProviderSelection();
   bindSearch();
   bindEpisodeFilter();
   bindInstallers();
@@ -56,6 +58,8 @@ function cacheElements() {
     'anime-search-form',
     'anime-search',
     'anime-search-submit',
+    'provider-filter',
+    'provider-hint',
     'language-filter',
     'quality-filter',
     'gui-gate',
@@ -211,6 +215,61 @@ function renderStatus(status) {
   elements['prepare-fast-vsr-button'].textContent = fast.installed
     ? 'Reparar ambiente'
     : 'Preparar ambiente';
+
+  updateProviderUi();
+}
+
+function bindProviderSelection() {
+  elements['provider-filter'].addEventListener('change', updateProviderUi);
+  updateProviderUi();
+}
+
+function updateProviderUi() {
+  if (!elements['provider-filter']) return;
+
+  const provider = elements['provider-filter'].value;
+  const guiReady = Boolean(state.status?.providers?.goAnime?.ready);
+  const submitLabel = elements['anime-search-submit'].querySelector('span');
+  const submitIcon = elements['anime-search-submit'].querySelector('i');
+
+  state.provider = provider;
+  elements['anime-search'].required = provider !== 'fast-anime-vsr';
+  elements['gui-gate'].classList.toggle('d-none', provider !== 'goanime-gui' || guiReady);
+  elements['anime-search-submit'].disabled = provider === 'goanime-gui' && !guiReady;
+
+  if (provider === 'fast-anime-vsr') {
+    submitLabel.textContent = 'Preparar';
+    submitIcon.className = 'bi bi-tools';
+  } else if (provider === 'goanime-gui') {
+    submitLabel.textContent = 'Buscar';
+    submitIcon.className = 'bi bi-arrow-right';
+  } else {
+    submitLabel.textContent = 'Abrir';
+    submitIcon.className = 'bi bi-box-arrow-up-right';
+  }
+
+  elements['provider-hint'].textContent = getProviderHint(provider);
+}
+
+/** @param {string} provider */
+function getProviderHint(provider) {
+  if (provider === 'goanime') {
+    return 'GoAnime classico abre a TUI original no terminal usando o idioma e a qualidade escolhidos.';
+  }
+
+  if (provider === 'anime-cli-br') {
+    return 'anime-cli-br e uma alternativa brasileira legada; o terminal pode pedir o nome do anime novamente.';
+  }
+
+  if (provider === 'fast-anime-vsr') {
+    return 'FAST Anime VSR processa arquivos locais com super-resolucao; ele nao reproduz streaming.';
+  }
+
+  if (provider === 'ani-cli') {
+    return 'ani-cli experimental abre no Git Bash e pode falhar quando a fonte externa nao entrega video.';
+  }
+
+  return 'GoAnime com interface grafica e o fluxo principal: resultados e episodios aparecem dentro do KitsuneDesk; a qualidade padrao e Melhor disponivel.';
 }
 
 function bindSearch() {
@@ -218,8 +277,18 @@ function bindSearch() {
     event.preventDefault();
 
     const query = elements['anime-search'].value.trim();
+    const provider = elements['provider-filter'].value;
     const language = elements['language-filter'].value === 'dub' ? 'dub' : 'sub';
     const quality = elements['quality-filter'].value;
+
+    state.provider = provider;
+    state.language = language;
+    state.quality = quality;
+
+    if (provider === 'fast-anime-vsr') {
+      await prepareFastAnimeVsrFromSelect();
+      return;
+    }
 
     if (query.length < 2) {
       showToast({
@@ -227,6 +296,11 @@ function bindSearch() {
         message: 'Digite pelo menos dois caracteres.',
         variant: 'warning'
       });
+      return;
+    }
+
+    if (provider !== 'goanime-gui') {
+      await openLegacy(provider);
       return;
     }
 
@@ -240,8 +314,6 @@ function bindSearch() {
     }
 
     state.query = query;
-    state.language = language;
-    state.quality = quality;
 
     setBusy(true, 'Pesquisando animes', 'Consultando as fontes ativas do GoAnime...');
     try {
@@ -415,10 +487,10 @@ function createEpisodeCard(episode) {
 
   const number = document.createElement('span');
   number.className = 'episode-number';
-  number.textContent = `Episódio ${episode.number}`;
+  number.textContent = formatEpisodeLabel(episode.number);
 
   const title = document.createElement('h4');
-  title.textContent = episode.title || `Episódio ${episode.number}`;
+  title.textContent = episode.title || formatEpisodeLabel(episode.number);
 
   const flags = document.createElement('div');
   flags.className = 'episode-flags';
@@ -459,7 +531,7 @@ async function playEpisode(episode, button) {
 
     showToast({
       title: 'MPV aberto',
-      message: `${state.selectedAnime.name} · Episódio ${episode.number}`,
+      message: `${state.selectedAnime.name} · ${formatEpisodeLabel(episode.number)}`,
       variant: 'success'
     });
   } catch (error) {
@@ -551,6 +623,34 @@ function bindInstaller(button, provider, label) {
       button.disabled = false;
     }
   });
+}
+
+async function prepareFastAnimeVsrFromSelect() {
+  const submitButton = elements['anime-search-submit'];
+  submitButton.disabled = true;
+
+  try {
+    const result = await animeDesk.player.installDependencies('fast-anime-vsr');
+    if (!result.ok) {
+      throw new Error(
+        result.error?.message ?? 'Nao foi possivel abrir o preparador do FAST Anime VSR.'
+      );
+    }
+
+    showToast({
+      title: 'FAST Anime VSR',
+      message: `Preparador aberto no ${result.data.terminal}. Essa ferramenta usa arquivos locais, nao streaming.`,
+      variant: 'success'
+    });
+  } catch (error) {
+    showToast({
+      title: 'FAST Anime VSR',
+      message: error.message || 'Nao foi possivel preparar o FAST Anime VSR.',
+      variant: 'error'
+    });
+  } finally {
+    updateProviderUi();
+  }
 }
 
 function bindLegacyTools() {
@@ -683,6 +783,13 @@ function shortPath(value) {
 /** @param {string} value */
 function formatQuality(value) {
   return value === 'auto' ? 'Melhor disponível' : `${value}p`;
+}
+
+/** @param {unknown} value */
+function formatEpisodeLabel(value) {
+  const label = String(value ?? '').trim();
+  if (!label) return 'Episódio';
+  return /^epis[oó]dio\b/i.test(label) ? label : `Episódio ${label}`;
 }
 
 /** @param {number} seconds */
