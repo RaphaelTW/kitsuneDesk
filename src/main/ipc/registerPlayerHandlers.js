@@ -6,6 +6,20 @@ const logger = require('../utils/logger');
  * @param {import('../controllers/playerController')} playerController
  */
 function registerPlayerHandlers(ipcMain, playerController) {
+  ipcMain.handle('animes:search', (_event, payload) =>
+    handleRequest(() => playerController.searchAnimes(payload))
+  );
+  ipcMain.handle('animes:episodes', (_event, payload) =>
+    handleRequest(() => playerController.listEpisodes(payload))
+  );
+  ipcMain.handle('player:play-episode', (_event, payload) =>
+    handleRequest(() => playerController.playEpisode(payload))
+  );
+  ipcMain.handle('player:open-legacy', (_event, payload) =>
+    handleRequest(() => playerController.openLegacy(payload))
+  );
+
+  // Canal mantido para compatibilidade com versoes anteriores.
   ipcMain.handle('player:play', (_event, payload) =>
     handleRequest(() => playerController.play(payload))
   );
@@ -33,7 +47,8 @@ async function handleRequest(action) {
 
     logger.warning('IPC_PLAYER_ERROR', appError.publicMessage, {
       code: appError.code,
-      status: appError.status
+      status: appError.status,
+      technicalMessage: appError.technicalMessage
     });
 
     return {
@@ -56,7 +71,7 @@ function normalizeError(error) {
     return error;
   }
 
-  return new AppError('UNKNOWN_ERROR', 'Nao foi possivel iniciar o player.', {
+  return new AppError('UNKNOWN_ERROR', 'Nao foi possivel concluir a operacao.', {
     status: 500,
     technicalMessage: error?.message ?? String(error)
   });

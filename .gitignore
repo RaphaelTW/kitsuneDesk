@@ -23,3 +23,9 @@ resources/mpv/*
 *.tmp
 *.temp
 *.log
+
+# Ferramentas opcionais preparadas localmente
+resources/fast-anime-vsr/*
+!resources/fast-anime-vsr/.gitkeep
+resources/anime-cli-br/*
+!resources/anime-cli-br/.gitkeep

@@ -10,6 +10,8 @@ const channels = Object.freeze({
   animesDetails: 'animes:details',
   animesEpisodes: 'animes:episodes',
   playerPlay: 'player:play',
+  playerPlayEpisode: 'player:play-episode',
+  playerOpenLegacy: 'player:open-legacy',
   playerInstallDependencies: 'player:install-dependencies',
   playerPause: 'player:pause',
   playerResume: 'player:resume',
@@ -47,10 +49,12 @@ const animeDeskApi = Object.freeze({
   animes: Object.freeze({
     search: (filters) => invoke(channels.animesSearch, filters),
     details: (animeId, language) => invoke(channels.animesDetails, { animeId, language }),
-    episodes: (animeId, language) => invoke(channels.animesEpisodes, { animeId, language })
+    episodes: (payload) => invoke(channels.animesEpisodes, payload)
   }),
   player: Object.freeze({
     play: (payload) => invoke(channels.playerPlay, payload),
+    playEpisode: (payload) => invoke(channels.playerPlayEpisode, payload),
+    openLegacy: (payload) => invoke(channels.playerOpenLegacy, payload),
     installDependencies: (provider) => invoke(channels.playerInstallDependencies, { provider }),
     pause: () => invoke(channels.playerPause),
     resume: () => invoke(channels.playerResume),

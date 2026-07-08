@@ -6,12 +6,32 @@ class PlayerController {
     this.playerService = playerService;
   }
 
+  /** @param {unknown} payload */
+  searchAnimes(payload) {
+    return this.playerService.searchAnimes(payload);
+  }
+
+  /** @param {unknown} payload */
+  listEpisodes(payload) {
+    return this.playerService.listEpisodes(payload);
+  }
+
+  /** @param {unknown} payload */
+  playEpisode(payload) {
+    return this.playerService.playEpisode(payload);
+  }
+
   /**
+   * Abre apenas provedores legados que ainda usam terminal.
    * @param {unknown} payload
-   * @returns {object}
    */
-  play(payload) {
+  openLegacy(payload) {
     return this.playerService.play(payload);
+  }
+
+  /** Compatibilidade com a API anterior. @param {unknown} payload */
+  play(payload) {
+    return this.openLegacy(payload);
   }
 
   installDependencies(payload) {
@@ -19,25 +39,23 @@ class PlayerController {
   }
 
   pause() {
-    return this.playerService.notImplemented('Pausar pelo MPV entra na etapa de JSON IPC.');
+    return this.playerService.pause();
   }
 
   resume() {
-    return this.playerService.notImplemented('Continuar pelo MPV entra na etapa de JSON IPC.');
+    return this.playerService.resume();
   }
 
   next() {
-    return this.playerService.notImplemented('Proximo episodio entra na etapa de controle do MPV.');
+    return this.playerService.next();
   }
 
   previous() {
-    return this.playerService.notImplemented(
-      'Episodio anterior entra na etapa de controle do MPV.'
-    );
+    return this.playerService.previous();
   }
 
   stop() {
-    return this.playerService.notImplemented('Parar pelo app entra na etapa de controle do MPV.');
+    return this.playerService.stop();
   }
 
   status() {

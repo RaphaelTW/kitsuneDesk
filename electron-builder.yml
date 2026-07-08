@@ -11,6 +11,7 @@ files:
   - src/**/*
   - resources/**/*
   - assets/**/*
+  - scripts/windows/**/*
   - package.json
 
 win:
