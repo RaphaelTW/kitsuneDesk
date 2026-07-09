@@ -25,6 +25,7 @@ win:
 
 nsis:
   oneClick: false
+  license: build/installer-terms.txt
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
