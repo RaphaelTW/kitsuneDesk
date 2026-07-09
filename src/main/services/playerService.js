@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { EventEmitter } = require('events');
 const dns = require('dns').promises;
 const https = require('https');
 const AppError = require('../utils/AppError');
@@ -19,10 +20,20 @@ const SUPPORTED_INSTALL_TARGETS = new Set([
 const SUPPORTED_QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
 const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
 
-class PlayerService {
-  constructor() {
+class PlayerService extends EventEmitter {
+  constructor({ settingsService = null, libraryService = null } = {}) {
+    super();
     this.goAnimeGui = new GoAnimeGuiService();
     this.installationService = new InstallationService();
+    this.settingsService = settingsService;
+    this.libraryService = libraryService;
+    this.currentPlayback = null;
+    this.lastProgressSaveAt = 0;
+    this.autoNextInProgress = false;
+
+    this.goAnimeGui.on('state', (state) => this.handlePlayerState(state));
+    this.goAnimeGui.on('ended', (state) => this.handlePlaybackEnded(state));
+    this.goAnimeGui.on('progress', (progress) => this.emit('source-progress', progress));
   }
 
   /**
@@ -51,18 +62,50 @@ class PlayerService {
    * @param {unknown} payload
    * @returns {Promise<object>}
    */
-  playEpisode(payload) {
+  async playEpisode(payload) {
     const status = this.status();
 
     if (!status.providers.goAnime.ready) {
       throw new AppError(
         'GOANIME_GUI_NOT_READY',
-        'A interface grafica do GoAnime ainda nao esta pronta. Clique em Ativar GoAnime GUI.',
+        'A interface gráfica do GoAnime ainda não está pronta. Use Instalar ou reparar.',
         { status: 424 }
       );
     }
 
-    return this.goAnimeGui.playEpisode(payload, status.dependencies.mpv.path);
+    const settings = this.getUserSettings();
+    const episodes = Array.isArray(payload?.episodes) ? payload.episodes : [];
+    const episodeIndex = Number.isInteger(payload?.episodeIndex)
+      ? payload.episodeIndex
+      : episodes.findIndex((item) => String(item?.number) === String(payload?.episode?.number));
+    const startPosition = settings.rememberPosition
+      ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
+      : 0;
+
+    const result = await this.goAnimeGui.playEpisode(
+      {
+        ...payload,
+        startPosition,
+        volume: settings.playerVolume
+      },
+      status.dependencies.mpv.path
+    );
+
+    this.currentPlayback = {
+      providerId: 'goanime-gui',
+      anime: payload.anime,
+      episode: payload.episode,
+      episodes,
+      episodeIndex,
+      language: payload?.language === 'dub' ? 'dub' : 'sub',
+      quality: String(payload?.quality || settings.defaultQuality || 'auto'),
+      source: result.source || payload?.anime?.source || '',
+      startedAt: new Date().toISOString()
+    };
+    this.lastProgressSaveAt = 0;
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    this.emit('playback-started', { ...result, context: this.currentPlayback });
+    return result;
   }
 
   /**
@@ -310,34 +353,196 @@ class PlayerService {
   }
 
   pause() {
-    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+    return this.goAnimeGui.pause();
   }
 
   resume() {
-    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+    return this.goAnimeGui.resume();
+  }
+
+  togglePause() {
+    return this.goAnimeGui.togglePause();
+  }
+
+  seek(payload) {
+    return this.goAnimeGui.seek(payload?.seconds, payload?.mode);
+  }
+
+  setVolume(payload) {
+    return this.goAnimeGui.setVolume(payload?.volume);
+  }
+
+  playbackState() {
+    return {
+      ...this.goAnimeGui.getPlayerState(),
+      context: this.currentPlayback
+    };
   }
 
   next() {
-    return this.notImplemented('Escolha o proximo episodio diretamente na lista do KitsuneDesk.');
+    return this.playAdjacent(1);
   }
 
   previous() {
-    return this.notImplemented('Escolha o episodio anterior diretamente na lista do KitsuneDesk.');
+    return this.playAdjacent(-1);
   }
 
-  stop() {
-    return this.goAnimeGui.stop();
+  async stop() {
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    const result = await this.goAnimeGui.stop();
+    this.currentPlayback = null;
+    return result;
   }
 
-  /**
-   * @param {string} message
-   * @returns {{available: false, message: string}}
-   */
-  notImplemented(message) {
+  async playAdjacent(direction) {
+    const context = this.currentPlayback;
+    if (!context || !Array.isArray(context.episodes) || context.episodes.length === 0) {
+      throw new AppError(
+        'EPISODE_NAVIGATION_UNAVAILABLE',
+        'A lista de episódios não está disponível para esta reprodução.',
+        { status: 409 }
+      );
+    }
+
+    const currentIndex = Number.isInteger(context.episodeIndex) ? context.episodeIndex : 0;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= context.episodes.length) {
+      return {
+        available: false,
+        message:
+          direction > 0 ? 'Este é o último episódio disponível.' : 'Este é o primeiro episódio.'
+      };
+    }
+
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    await this.goAnimeGui.stop();
+    return this.playEpisode({
+      anime: context.anime,
+      episode: context.episodes[targetIndex],
+      episodes: context.episodes,
+      episodeIndex: targetIndex,
+      language: context.language,
+      quality: context.quality,
+      resumePosition: 0
+    });
+  }
+
+  async providerHealth() {
+    const status = this.status();
+    let animeFireOnline = false;
+    let animeFireMessage = 'AnimeFire indisponível';
+    try {
+      await assertAnimeFireReachable();
+      animeFireOnline = true;
+      animeFireMessage = 'Online';
+    } catch (error) {
+      animeFireMessage = error.publicMessage || error.message || animeFireMessage;
+    }
+
     return {
-      available: false,
-      message
+      checkedAt: new Date().toISOString(),
+      providers: [
+        {
+          id: 'goanime-gui',
+          name: 'GoAnime GUI',
+          state: status.providers.goAnime.ready ? 'online' : 'offline',
+          message: status.providers.goAnime.ready ? 'Online' : 'Bridge ou MPV não está pronto'
+        },
+        {
+          id: 'goanime',
+          name: 'GoAnime clássico',
+          state: status.providers.goAnime.classicReady ? 'online' : 'offline',
+          message: status.providers.goAnime.classicReady
+            ? 'Online'
+            : 'GoAnime ou MPV não está pronto'
+        },
+        {
+          id: 'anime-cli-br',
+          name: 'anime-cli-br',
+          state: animeFireOnline && status.providers.animeCliBr.ready ? 'online' : 'offline',
+          message: status.providers.animeCliBr.ready
+            ? animeFireMessage
+            : 'Dependências não instaladas'
+        },
+        {
+          id: 'ani-cli',
+          name: 'ani-cli',
+          state: status.providers.aniCli.ready ? 'unstable' : 'offline',
+          message: status.providers.aniCli.ready
+            ? 'Instável: depende de fontes externas'
+            : 'Dependências não instaladas'
+        }
+      ]
     };
+  }
+
+  getUserSettings() {
+    try {
+      return (
+        this.settingsService?.get() ?? {
+          playerVolume: 80,
+          autoPlayNext: false,
+          rememberPosition: true,
+          defaultQuality: 'auto'
+        }
+      );
+    } catch {
+      return {
+        playerVolume: 80,
+        autoPlayNext: false,
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      };
+    }
+  }
+
+  handlePlayerState(state) {
+    this.emit('state', { ...state, context: this.currentPlayback });
+    const now = Date.now();
+    if (this.currentPlayback && now - this.lastProgressSaveAt >= 10000) {
+      this.lastProgressSaveAt = now;
+      void this.persistPlayback(state);
+    }
+  }
+
+  async handlePlaybackEnded(state) {
+    if (!this.currentPlayback) return;
+    await this.persistPlayback({ ...state, completed: true });
+    const settings = this.getUserSettings();
+    if (!settings.autoPlayNext || this.autoNextInProgress) return;
+    this.autoNextInProgress = true;
+    try {
+      await this.playAdjacent(1);
+    } catch {
+      // O fim da lista não é tratado como falha de reprodução.
+    } finally {
+      this.autoNextInProgress = false;
+    }
+  }
+
+  async persistPlayback(state) {
+    if (!this.libraryService || !this.currentPlayback) return;
+    const context = this.currentPlayback;
+    try {
+      await this.libraryService.savePlayback({
+        providerId: context.providerId,
+        animeId: context.anime?.url,
+        animeTitle: context.anime?.name,
+        animeCover: context.anime?.imageUrl,
+        episodeNumber: context.episode?.num || Number.parseFloat(context.episode?.number) || 1,
+        episodeTitle: context.episode?.title || context.episode?.number || '',
+        language: context.language,
+        quality: context.quality,
+        position: state?.position || 0,
+        duration: state?.duration || context.episode?.duration || 0,
+        source: state?.source || context.source || '',
+        completed: Boolean(state?.completed || state?.ended),
+        animePayload: context.anime || {},
+        episodePayload: context.episode || {}
+      });
+    } catch {
+      // A reprodução não deve ser interrompida por uma falha de histórico.
+    }
   }
 }
 
@@ -542,7 +747,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.5.2', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.6.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

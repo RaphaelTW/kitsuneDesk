@@ -21,12 +21,6 @@ try {
   process.exitCode = 1;
 }
 
-/**
- * @param {import('better-sqlite3').Database} database
- * @param {string} action
- * @param {Record<string, unknown>} payload
- * @returns {unknown}
- */
 function executeAction(database, action, payload) {
   if (action === 'initialize') {
     runMigrations(database);
@@ -34,28 +28,37 @@ function executeAction(database, action, payload) {
     return { ok: true };
   }
 
-  if (action === 'findUserByUsername') {
-    return database.prepare('SELECT * FROM users WHERE username = ?').get(payload.username);
+  if (action === 'get') {
+    return database.prepare(assertSql(payload.sql)).get(normalizeParams(payload.params));
   }
 
-  if (action === 'findUserById') {
-    return database.prepare('SELECT * FROM users WHERE id = ?').get(payload.userId);
+  if (action === 'all') {
+    return database.prepare(assertSql(payload.sql)).all(normalizeParams(payload.params));
   }
 
-  if (action === 'updateUserPassword') {
-    database
-      .prepare(
-        `
-        UPDATE users
-        SET password_hash = ?,
-            must_change_password = 0,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `
-      )
-      .run(payload.passwordHash, payload.userId);
+  if (action === 'run') {
+    const result = database.prepare(assertSql(payload.sql)).run(normalizeParams(payload.params));
+    return {
+      changes: result.changes,
+      lastInsertRowid: Number(result.lastInsertRowid)
+    };
+  }
+
+  if (action === 'exec') {
+    database.exec(assertSql(payload.sql));
     return { ok: true };
   }
 
-  throw new Error(`Acao de banco desconhecida: ${action}`);
+  throw new Error(`Ação de banco desconhecida: ${action}`);
+}
+
+function assertSql(sql) {
+  if (typeof sql !== 'string' || !sql.trim()) {
+    throw new Error('SQL inválido.');
+  }
+  return sql;
+}
+
+function normalizeParams(params) {
+  return Array.isArray(params) ? params : (params ?? []);
 }

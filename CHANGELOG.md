@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.6.1] - 2026-07-08
+
+### Corrigido
+
+- Removidas referências acidentais a um registro npm interno do arquivo `package-lock.json`.
+- Todas as dependências agora são baixadas pelo registro público oficial `registry.npmjs.org`.
+- Adicionado `.npmrc` com tentativas automáticas e tempo limite ampliado para conexões instáveis.
+- Corrigido o erro `ETIMEDOUT` ao instalar `electron-updater`, `builder-util-runtime`, `lodash.escaperegexp`, `lodash.isequal` e `tiny-typed-emitter`.
+
+## [0.6.0] - 2026-07-08
+
+### Adicionado
+
+- Biblioteca individual por usuário com **Continuar assistindo**, favoritos, lista “Quero assistir”, histórico, estatísticas e marcação de episódios concluídos.
+- Persistência do episódio, posição, duração, idioma, qualidade, fonte e dados do anime para retomada posterior.
+- Configurações persistentes de provedor, idioma, resolução, áudio, volume, reprodução automática, posição, tema, pasta de downloads e atualização automática.
+- Controles do MPV no KitsuneDesk: pausar, continuar, avançar, retroceder, volume, barra de progresso, episódio anterior, próximo episódio e encerramento.
+- Reprodução automática do próximo episódio e retomada na posição salva.
+- Painel de saúde dos provedores e registro local de episódios com problema.
+- Área de diagnóstico com verificação do GoAnime, bridge, MPV, banco, cache, componentes e exportação de relatório JSON.
+- Reparação do `better-sqlite3`, limpeza de cache e restauração dos componentes sem apagar histórico ou configurações.
+- Perfis separados, administração de usuários, primeiro administrador criado no primeiro acesso e bloqueio persistente depois de cinco tentativas inválidas.
+- Controle parental por perfil, PIN de 4 a 8 números e liberação temporária de conteúdo protegido.
+- FAST Anime VSR movido definitivamente para **Ferramentas**, fora do seletor de provedores.
+- Atualização automática do aplicativo por releases do GitHub usando `electron-updater`.
+- Workflow do GitHub Actions para lint, formatação, testes, instalador do Windows, artefatos e publicação por tag.
+- Suíte inicial de testes para autenticação, configurações, bridge, fallback, instalação, reprodução e migrações.
+
+### Corrigido
+
+- Bridge GoAnime atualizado para `1.4.0`, com IPC do MPV, volume inicial, posição de retomada e manutenção do proxy durante a reprodução.
+- Eventos tardios de um MPV anterior não interrompem mais o próximo episódio.
+- Episódios concluídos deixam de aparecer em “Continuar assistindo”.
+- O desenvolvimento prepara automaticamente o `better-sqlite3` para a versão instalada do Electron, mantendo o modo de compatibilidade caso o reparo falhe.
+- User-Agent dos instaladores e verificações atualizado para a versão 0.6.0.
+
+### Segurança
+
+- Removida a conta padrão `admin/admin123`.
+- Senhas armazenadas com bcrypt e exigência mínima de oito caracteres, uma letra e um número.
+- Proteção contra desativar ou rebaixar o último administrador ativo.
+
 Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo.
 
 ## [0.5.2] - 2026-07-08

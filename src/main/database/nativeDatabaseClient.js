@@ -19,43 +19,51 @@ class NativeDatabaseClient {
     seedInitialData(this.database);
   }
 
-  /**
-   * @param {string} username
-   * @returns {object | undefined}
-   */
+  get(sql, params = []) {
+    return this.database.prepare(sql).get(normalizeParams(params));
+  }
+
+  all(sql, params = []) {
+    return this.database.prepare(sql).all(normalizeParams(params));
+  }
+
+  run(sql, params = []) {
+    const result = this.database.prepare(sql).run(normalizeParams(params));
+    return {
+      changes: result.changes,
+      lastInsertRowid: Number(result.lastInsertRowid)
+    };
+  }
+
+  exec(sql) {
+    this.database.exec(sql);
+    return { ok: true };
+  }
+
   findUserByUsername(username) {
-    return this.database.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    return this.get('SELECT * FROM users WHERE username = ?', [username]);
   }
 
-  /**
-   * @param {number} userId
-   * @returns {object | undefined}
-   */
   findUserById(userId) {
-    return this.database.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    return this.get('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
-  /**
-   * @param {number} userId
-   * @param {string} passwordHash
-   */
   updateUserPassword(userId, passwordHash) {
-    this.database
-      .prepare(
-        `
-        UPDATE users
-        SET password_hash = ?,
-            must_change_password = 0,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `
-      )
-      .run(passwordHash, userId);
+    return this.run(
+      `UPDATE users
+       SET password_hash = ?, must_change_password = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [passwordHash, userId]
+    );
   }
 
   close() {
     this.database.close();
   }
+}
+
+function normalizeParams(params) {
+  return Array.isArray(params) ? params : (params ?? []);
 }
 
 module.exports = NativeDatabaseClient;

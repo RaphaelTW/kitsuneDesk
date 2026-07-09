@@ -15,18 +15,82 @@
   </head>
   <body class="auth-page">
     <main class="auth-shell">
-      <section class="auth-card" aria-labelledby="login-title">
+      <section class="auth-card" aria-labelledby="auth-title">
         <div class="auth-brand">
           <img src="../../../assets/kitsunedesk-logo.svg" alt="" width="48" height="48" />
           <div>
             <p>KitsuneDesk</p>
-            <h1 id="login-title">Entrar</h1>
+            <h1 id="auth-title">Carregando</h1>
           </div>
         </div>
 
-        <form id="login-form" novalidate>
+        <form id="setup-form" class="d-none" novalidate>
+          <div class="auth-hint auth-hint-success">
+            <i class="bi bi-shield-check"></i>
+            <span>Primeiro acesso: crie seu administrador. Não existe senha padrão.</span>
+          </div>
+
           <div class="mb-3">
-            <label class="form-label" for="username">Usuario</label>
+            <label class="form-label" for="setup-name">Nome</label>
+            <input class="form-control" id="setup-name" name="name" required minlength="2" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="setup-username">Usuário</label>
+            <input
+              class="form-control"
+              id="setup-username"
+              name="username"
+              autocomplete="username"
+              required
+              minlength="3"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="setup-password">Senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input
+                class="form-control"
+                id="setup-password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="8"
+              />
+              <button
+                class="btn btn-outline-light password-toggle"
+                data-target="setup-password"
+                type="button"
+              >
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="setup-password-confirm">Confirmar senha</label>
+            <input
+              class="form-control"
+              id="setup-password-confirm"
+              type="password"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+
+          <div id="setup-alert" class="visual-alert d-none" role="status"></div>
+          <button class="btn btn-primary w-100 auth-submit" id="setup-button" type="submit">
+            <span class="button-label">Criar administrador</span>
+            <span class="spinner-border spinner-border-sm d-none"></span>
+          </button>
+        </form>
+
+        <form id="login-form" class="d-none" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="username">Usuário</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-person"></i></span>
               <input
@@ -35,7 +99,6 @@
                 name="username"
                 autocomplete="username"
                 required
-                value="admin"
               />
             </div>
           </div>
@@ -54,11 +117,8 @@
               />
               <button
                 class="btn btn-outline-light password-toggle"
-                id="toggle-password"
+                data-target="password"
                 type="button"
-                data-bs-toggle="tooltip"
-                data-bs-title="Mostrar senha"
-                aria-label="Mostrar senha"
               >
                 <i class="bi bi-eye"></i>
               </button>
@@ -66,21 +126,18 @@
           </div>
 
           <div class="auth-hint">
-            <i class="bi bi-key"></i>
-            <span>Primeiro acesso: admin / admin123</span>
+            <i class="bi bi-person-lock"></i>
+            <span>O bloqueio após tentativas inválidas permanece ativo mesmo após reiniciar.</span>
           </div>
 
           <div id="login-alert" class="visual-alert d-none" role="status"></div>
-
           <button class="btn btn-primary w-100 auth-submit" id="login-button" type="submit">
             <span class="button-label">Entrar</span>
-            <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+            <span class="spinner-border spinner-border-sm d-none"></span>
           </button>
         </form>
       </section>
     </main>
-
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
 
     <script src="../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="../js/login.js"></script>

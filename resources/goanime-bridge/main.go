@@ -20,15 +20,18 @@ import (
 	"github.com/alvarorichard/Goanime/internal/util"
 )
 
-const bridgeVersion = "1.3.0"
+const bridgeVersion = "1.4.0"
 
 type request struct {
-	Query    string     `json:"query"`
-	Language string     `json:"language"`
-	Quality  string     `json:"quality"`
-	MpvPath  string     `json:"mpvPath"`
-	Anime    animeDTO   `json:"anime"`
-	Episode  episodeDTO `json:"episode"`
+	Query         string     `json:"query"`
+	Language      string     `json:"language"`
+	Quality       string     `json:"quality"`
+	MpvPath       string     `json:"mpvPath"`
+	IPCPath       string     `json:"ipcPath"`
+	StartPosition float64    `json:"startPosition"`
+	Volume        int        `json:"volume"`
+	Anime         animeDTO   `json:"anime"`
+	Episode       episodeDTO `json:"episode"`
 }
 
 type response struct {
@@ -321,6 +324,7 @@ func resolveStream(manager *scraper.ScraperManager, req request) (streamDTO, err
 	}
 
 	if primaryErr != nil || strings.TrimSpace(streamURL) == "" {
+		writeProgress("fallback", "Fonte principal indisponível. Tentando fontes alternativas...", 2, 3)
 		fallbackURL, fallbackMetadata, fallbackErr := resolveAlternateSource(
 			manager,
 			req,
@@ -466,6 +470,7 @@ func resolveAlternateSource(
 			}
 
 			candidate.Source = sourceDisplayName(sourceType)
+			writeProgress("fallback", "Tentando fonte alternativa: "+candidate.Source, 2, 3)
 			util.SetGlobalAnimeSource(candidate.Source)
 			if sourceType == scraper.AllAnimeType {
 				streamURL, metadata, streamErr := resolveAllAnimeStream(
@@ -666,17 +671,17 @@ func playEpisode(req request) error {
 		return fmt.Errorf("MPV nao encontrado em: %s", mpvPath)
 	}
 
-	resolved, err := runSilenced(func() (any, error) {
-		return resolveStream(scraper.NewScraperManager(), req)
-	})
+	writeProgress("primary", "Consultando a fonte principal...", 1, 3)
+	resolved, err := resolveStream(scraper.NewScraperManager(), req)
 	if err != nil {
 		return err
 	}
-	stream, ok := resolved.(streamDTO)
-	if !ok || strings.TrimSpace(stream.URL) == "" {
+	stream := resolved
+	if strings.TrimSpace(stream.URL) == "" {
 		return errors.New("o resolvedor nao retornou um stream valido")
 	}
 
+	writeProgress("player", "Stream encontrado. Iniciando o MPV...", 3, 3)
 	defer player.StopBloggerProxy()
 	args := buildMpvArgs(req, stream)
 	cmd := exec.Command(mpvPath, args...)
@@ -706,6 +711,7 @@ func playEpisode(req request) error {
 		writeResponse(response{OK: true, Data: map[string]any{
 			"launched":         true,
 			"pid":              cmd.Process.Pid,
+			"ipcPath":          req.IPCPath,
 			"source":           stream.Metadata["resolvedSource"],
 			"requestedSource":  stream.Metadata["requestedSource"],
 			"quality":          stream.Metadata["resolvedQuality"],
@@ -730,6 +736,16 @@ func buildMpvArgs(req request, stream streamDTO) []string {
 		"--save-position-on-quit",
 		"--msg-level=all=warn",
 		fmt.Sprintf("--title=KitsuneDesk - %s - Episodio %s", sanitizeTitle(req.Anime.Name), episodeNumber),
+	}
+
+	if ipcPath := strings.TrimSpace(req.IPCPath); ipcPath != "" {
+		args = append(args, "--input-ipc-server="+ipcPath)
+	}
+	if req.StartPosition > 0 {
+		args = append(args, fmt.Sprintf("--start=%.3f", req.StartPosition))
+	}
+	if req.Volume >= 0 && req.Volume <= 100 {
+		args = append(args, fmt.Sprintf("--volume=%d", req.Volume))
 	}
 
 	var headers []string
@@ -947,6 +963,19 @@ func classifyError(err error) (string, string) {
 	default:
 		return "GOANIME_ERROR", "O GoAnime nao conseguiu concluir esta operacao."
 	}
+}
+
+func writeProgress(stage, message string, attempt, total int) {
+	payload := map[string]any{
+		"type":    "progress",
+		"stage":   stage,
+		"message": message,
+		"attempt": attempt,
+		"total":   total,
+	}
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(payload)
 }
 
 func writeResponse(value response) {

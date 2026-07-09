@@ -1,31 +1,90 @@
+const DEFAULTS = Object.freeze({
+  default_provider: 'goanime-gui',
+  default_language: 'sub',
+  default_quality: 'auto',
+  auto_play_next: 0,
+  player_volume: 80,
+  theme: 'dark',
+  downloads_path: '',
+  audio_preference: 'sub',
+  parental_control_enabled: 0,
+  parental_pin_hash: null,
+  max_content_rating: '18',
+  remember_position: 1,
+  check_updates: 1
+});
+
 class SettingsRepository {
-  /**
-   * @param {import('better-sqlite3').Database} database
-   */
   constructor(database) {
     this.database = database;
   }
 
-  /**
-   * @param {number} userId
-   * @returns {object | undefined}
-   */
   findByUserId(userId) {
-    return this.database.prepare('SELECT * FROM settings WHERE user_id = ?').get(userId);
+    return this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId]);
   }
 
-  /**
-   * @param {number} userId
-   */
   createDefaultForUser(userId) {
-    this.database
-      .prepare(
-        `
-        INSERT INTO settings (user_id, default_language, default_quality, auto_play_next, player_volume, theme)
-        VALUES (?, 'sub', 'auto', 0, 80, 'dark')
-      `
-      )
-      .run(userId);
+    this.database.run(
+      `INSERT OR IGNORE INTO settings (
+         user_id, default_language, default_quality, auto_play_next,
+         player_volume, theme, default_provider, downloads_path,
+         audio_preference, parental_control_enabled, max_content_rating,
+         remember_position, check_updates
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        DEFAULTS.default_language,
+        DEFAULTS.default_quality,
+        DEFAULTS.auto_play_next,
+        DEFAULTS.player_volume,
+        DEFAULTS.theme,
+        DEFAULTS.default_provider,
+        DEFAULTS.downloads_path,
+        DEFAULTS.audio_preference,
+        DEFAULTS.parental_control_enabled,
+        DEFAULTS.max_content_rating,
+        DEFAULTS.remember_position,
+        DEFAULTS.check_updates
+      ]
+    );
+  }
+
+  update(userId, settings) {
+    this.createDefaultForUser(userId);
+    return this.database.run(
+      `UPDATE settings SET
+         default_provider = ?, default_language = ?, default_quality = ?,
+         auto_play_next = ?, player_volume = ?, theme = ?, downloads_path = ?,
+         audio_preference = ?, parental_control_enabled = ?, max_content_rating = ?,
+         remember_position = ?, check_updates = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [
+        settings.defaultProvider,
+        settings.defaultLanguage,
+        settings.defaultQuality,
+        settings.autoPlayNext ? 1 : 0,
+        settings.playerVolume,
+        settings.theme,
+        settings.downloadsPath,
+        settings.audioPreference,
+        settings.parentalControlEnabled ? 1 : 0,
+        settings.maxContentRating,
+        settings.rememberPosition ? 1 : 0,
+        settings.checkUpdates ? 1 : 0,
+        userId
+      ]
+    );
+  }
+
+  updateParentalPin(userId, pinHash) {
+    this.createDefaultForUser(userId);
+    return this.database.run(
+      `UPDATE settings
+       SET parental_pin_hash = ?, parental_control_enabled = 1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [pinHash, userId]
+    );
   }
 }
 

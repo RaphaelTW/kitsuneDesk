@@ -1,35 +1,59 @@
 # Ferramentas e projetos externos
 
-O KitsuneDesk não hospeda conteúdo. A integração depende de projetos externos e de suas respectivas fontes.
+O KitsuneDesk não hospeda conteúdo. Pesquisa, episódios e reprodução dependem de projetos externos e das fontes consultadas por eles.
 
 ## GoAnime
 
 - Repositório: `https://github.com/alvarorichard/GoAnime`
 - Licença: MIT
-- Uso: pesquisa, episódios, resolução de streams e MPV.
-- Integração gráfica: o KitsuneDesk inclui um pequeno bridge próprio em Go. O assistente baixa a versão oficial compatível do GoAnime e compila o bridge localmente no computador do usuário.
+- Uso: pesquisa, episódios, resolução de streams e integração com MPV.
+- O bridge próprio do KitsuneDesk é compilado localmente sobre uma versão compatível do projeto oficial.
 - Cópia da licença: `resources/licenses/GoAnime-LICENSE.txt`.
 
 ## ani-cli
 
 - Repositório: `https://github.com/pystardust/ani-cli`
-- Uso: alternativa experimental executada pelo Git Bash.
-- O código do ani-cli não é redistribuído no pacote do KitsuneDesk; o assistente usa o Scoop.
+- Uso: provedor alternativo experimental executado pelo Git Bash.
+- O código não é incorporado ao pacote; a instalação ocorre no computador do usuário.
 
 ## anime-cli-br
 
 - Repositório: `https://github.com/MtywX/anime-cli-br`
-- Uso: alternativa legada baseada em AnimeFire e VLC.
-- O código é clonado no computador do usuário pelo assistente e instalado em ambiente Python isolado.
-- O repositório consultado não apresenta arquivo de licença explícito; o KitsuneDesk não incorpora seu código-fonte no pacote.
+- Uso: alternativa brasileira baseada em AnimeFire e VLC.
+- O projeto é instalado em ambiente Python isolado no computador do usuário.
+- O repositório consultado não apresentava arquivo de licença explícito; seu código-fonte não é redistribuído dentro do KitsuneDesk.
 
 ## FAST Anime VSR
 
 - Repositório: `https://github.com/Kiteretsu77/FAST_Anime_VSR`
-- Uso: preparação opcional para super-resolução de vídeos locais.
+- Uso: super-resolução opcional de arquivos de vídeo locais.
 - Não é um provedor de streaming.
-- O repositório é clonado no computador do usuário e não é redistribuído no pacote do KitsuneDesk.
+- O projeto e suas dependências são instalados separadamente no computador do usuário.
+
+## Electron e electron-builder
+
+- Electron: `https://github.com/electron/electron`
+- electron-builder: `https://github.com/electron-userland/electron-builder`
+- Uso: aplicação desktop e geração do instalador NSIS.
+
+## electron-updater
+
+- Projeto: parte do ecossistema electron-builder.
+- Uso: consulta, download e instalação de versões publicadas no GitHub Releases.
+
+## better-sqlite3
+
+- Repositório: `https://github.com/WiseLibs/better-sqlite3`
+- Uso: armazenamento SQLite local de usuários, biblioteca, histórico e configurações.
+
+## bcryptjs
+
+- Repositório: `https://github.com/dcodeIO/bcrypt.js`
+- Uso: hash e validação de senhas e PIN parental.
 
 ## Bootstrap e Bootstrap Icons
 
-As licenças ficam em `resources/licenses/`.
+- Bootstrap: `https://github.com/twbs/bootstrap`
+- Bootstrap Icons: `https://github.com/twbs/icons`
+- Uso: componentes visuais e ícones da interface.
+- Cópias das licenças ficam em `resources/licenses/`.

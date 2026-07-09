@@ -2,1508 +2,1495 @@ import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
 
-const platformNames = Object.freeze({
-  win32: 'Windows',
-  darwin: 'macOS',
-  linux: 'Linux'
-});
-
 const fallbackCover = '../../../assets/kitsunedesk-logo.svg';
-
-const providerCatalog = Object.freeze({
-  'goanime-gui': Object.freeze({
-    title: 'GoAnime com interface gráfica',
-    description:
-      'Recomendado. Busca, resultados e episódios aparecem dentro do aplicativo; apenas o MPV abre.',
-    help: 'Pesquisa e episódios dentro do KitsuneDesk; somente o MPV abre para reproduzir.',
-    icon: 'bi-window-stack',
-    submitLabel: 'Buscar na interface',
-    installTarget: 'goanime-gui',
-    installLabel: 'Instalar automaticamente',
-    kind: 'gui'
-  }),
-  goanime: Object.freeze({
-    title: 'GoAnime clássico',
-    description:
-      'Abre o GoAnime no terminal com o fluxo original de pesquisa, seleção de episódio e reprodução.',
-    help: 'Mantém o funcionamento clássico do GoAnime em uma janela de terminal.',
-    icon: 'bi-terminal',
-    submitLabel: 'Abrir GoAnime clássico',
-    installTarget: 'goanime',
-    installLabel: 'Instalar automaticamente',
-    kind: 'legacy'
-  }),
-  'anime-cli-br': Object.freeze({
-    title: 'anime-cli-br',
-    description:
-      'Alternativa brasileira baseada em AnimeFire. A seleção final ocorre dentro do terminal.',
-    help: 'A fonte AnimeFire pode ficar indisponível por DNS; o KitsuneDesk testa antes de abrir.',
-    icon: 'bi-translate',
-    submitLabel: 'Abrir anime-cli-br',
-    installTarget: 'anime-cli-br',
-    installLabel: 'Verificar e instalar',
-    kind: 'legacy'
-  }),
-  'fast-anime-vsr': Object.freeze({
-    title: 'FAST Anime VSR',
-    description:
-      'Ferramenta de super-resolução para vídeos locais com GPU NVIDIA. Não é um provedor de streaming.',
-    help: 'Usa arquivos locais e um ambiente Python/CUDA próprio; idioma e resolução não se aplicam.',
-    icon: 'bi-gpu-card',
-    submitLabel: 'Abrir FAST Anime VSR',
-    installTarget: 'fast-anime-vsr',
-    installLabel: 'Preparar automaticamente',
-    kind: 'tool'
-  }),
-  'ani-cli': Object.freeze({
-    title: 'ani-cli experimental',
-    description:
-      'Mantido como alternativa experimental. A origem externa pode não entregar links válidos.',
-    help: 'Executa no Git Bash e pode falhar mesmo quando o episódio é encontrado.',
-    icon: 'bi-exclamation-triangle',
-    submitLabel: 'Abrir ani-cli experimental',
-    installTarget: 'ani-cli',
-    installLabel: 'Verificar e instalar',
-    kind: 'legacy'
-  })
+const viewMeta = Object.freeze({
+  home: ['Biblioteca pessoal', 'Início'],
+  search: ['Catálogo e provedores', 'Pesquisar'],
+  continue: ['Progresso salvo', 'Continuar assistindo'],
+  lists: ['Sua coleção', 'Minha lista'],
+  history: ['Atividade do perfil', 'Histórico'],
+  tools: ['Componentes locais', 'Ferramentas'],
+  settings: ['Preferências do perfil', 'Configurações'],
+  diagnostics: ['Estabilidade e manutenção', 'Diagnóstico'],
+  admin: ['Administração', 'Usuários']
 });
 
-const installationCatalog = Object.freeze({
-  goanime: Object.freeze({
-    title: 'GoAnime completo',
-    subtitle: 'Instala o modo clássico, MPV e a interface gráfica sem abrir terminal.',
-    components: Object.freeze([
-      {
-        id: 'goanime',
-        icon: 'bi-play-btn',
-        name: 'GoAnime clássico',
-        purpose: 'Motor principal de pesquisa, episódios e fontes.'
-      },
-      {
-        id: 'mpv',
-        icon: 'bi-display',
-        name: 'MPV',
-        purpose: 'Reprodutor usado pelo modo clássico e pela interface gráfica.'
-      },
-      {
-        id: 'scoop',
-        icon: 'bi-box-seam',
-        name: 'Scoop',
-        purpose: 'Gerencia ferramentas portáteis sem depender do Winget.'
-      },
-      {
-        id: 'go-runtime',
-        icon: 'bi-braces',
-        name: 'Runtime Go portátil',
-        purpose: 'Compila localmente o conector gráfico quando necessário.'
-      },
-      {
-        id: 'goanime-source',
-        icon: 'bi-github',
-        name: 'Biblioteca GoAnime',
-        purpose: 'Código oficial utilizado pelo conector gráfico.'
-      },
-      {
-        id: 'goanime-bridge',
-        icon: 'bi-window-stack',
-        name: 'Bridge GoAnime GUI',
-        purpose: 'Conecta pesquisa, episódios e reprodução à interface.'
-      },
-      {
-        id: 'verification',
-        icon: 'bi-shield-check',
-        name: 'Verificação final',
-        purpose: 'Confirma que os modos clássico e gráfico estão prontos.'
-      }
-    ])
-  }),
-  'anime-cli-br': Object.freeze({
-    title: 'anime-cli-br',
-    subtitle: 'Prepara um ambiente isolado com Python e VLC.',
-    components: Object.freeze([
-      {
-        id: 'python-312',
-        icon: 'bi-filetype-py',
-        name: 'Python 3.12',
-        purpose: 'Executa o cliente em uma versão compatível e isolada.'
-      },
-      {
-        id: 'scoop',
-        icon: 'bi-box-seam',
-        name: 'Scoop',
-        purpose: 'Instala ferramentas portáteis sem terminal externo.'
-      },
-      {
-        id: 'vlc',
-        icon: 'bi-play-circle',
-        name: 'VLC Media Player',
-        purpose: 'Reproduz os episódios encontrados pelo anime-cli-br.'
-      },
-      {
-        id: 'anime-cli-br-source',
-        icon: 'bi-github',
-        name: 'Código anime-cli-br',
-        purpose: 'Cliente brasileiro que consulta a fonte AnimeFire.'
-      },
-      {
-        id: 'anime-cli-br-env',
-        icon: 'bi-box',
-        name: 'Ambiente virtual',
-        purpose: 'Evita conflitos com outras versões do Python.'
-      },
-      {
-        id: 'anime-cli-br-dependencies',
-        icon: 'bi-diagram-3',
-        name: 'Bibliotecas Python',
-        purpose: 'Instala Click, Requests, BeautifulSoup e Colorama.'
-      },
-      {
-        id: 'animefire-source',
-        icon: 'bi-globe2',
-        name: 'Fonte AnimeFire',
-        purpose: 'Fonte externa; sua disponibilidade depende do DNS do site.'
-      }
-    ])
-  }),
-  'ani-cli': Object.freeze({
-    title: 'ani-cli experimental',
-    subtitle: 'Instala o cliente e todas as ferramentas exigidas no Windows.',
-    components: Object.freeze([
-      {
-        id: 'scoop',
-        icon: 'bi-box-seam',
-        name: 'Scoop',
-        purpose: 'Gerencia a instalação local das dependências.'
-      },
-      {
-        id: 'git-bash',
-        icon: 'bi-terminal',
-        name: 'Git Bash',
-        purpose: 'Shell necessário para executar o script ani-cli.'
-      },
-      {
-        id: 'fzf',
-        icon: 'bi-list-check',
-        name: 'fzf',
-        purpose: 'Exibe os menus interativos de anime e episódios.'
-      },
-      {
-        id: 'ffmpeg',
-        icon: 'bi-film',
-        name: 'FFmpeg',
-        purpose: 'Processa e identifica fluxos de áudio e vídeo.'
-      },
-      {
-        id: 'mpv',
-        icon: 'bi-display',
-        name: 'MPV',
-        purpose: 'Reproduz os episódios selecionados.'
-      },
-      {
-        id: 'openssl',
-        icon: 'bi-key',
-        name: 'OpenSSL',
-        purpose: 'Descriptografa respostas usadas pelas fontes.'
-      },
-      {
-        id: 'ani-cli',
-        icon: 'bi-code-slash',
-        name: 'ani-cli',
-        purpose: 'Cliente experimental executado no Git Bash.'
-      },
-      {
-        id: 'ani-cli-source',
-        icon: 'bi-exclamation-triangle',
-        name: 'Fontes externas',
-        purpose: 'Podem falhar mesmo quando o episódio é encontrado.'
-      }
-    ])
-  }),
-  'fast-anime-vsr': Object.freeze({
-    title: 'FAST Anime VSR',
-    subtitle: 'Prepara o processamento local de vídeos e verifica a aceleração por GPU.',
-    components: Object.freeze([
-      {
-        id: 'python-310',
-        icon: 'bi-filetype-py',
-        name: 'Python 3.10',
-        purpose: 'Versão compatível com o pipeline de super-resolução.'
-      },
-      {
-        id: 'scoop',
-        icon: 'bi-box-seam',
-        name: 'Scoop',
-        purpose: 'Gerencia ferramentas portáteis do ambiente.'
-      },
-      {
-        id: 'ffmpeg',
-        icon: 'bi-film',
-        name: 'FFmpeg',
-        purpose: 'Lê, converte e grava os arquivos processados.'
-      },
-      {
-        id: 'fast-vsr-source',
-        icon: 'bi-github',
-        name: 'FAST Anime VSR',
-        purpose: 'Código de super-resolução para arquivos locais.'
-      },
-      {
-        id: 'fast-vsr-env',
-        icon: 'bi-box',
-        name: 'Ambiente virtual',
-        purpose: 'Isola as bibliotecas Python do sistema.'
-      },
-      {
-        id: 'fast-vsr-dependencies',
-        icon: 'bi-diagram-3',
-        name: 'Bibliotecas de vídeo',
-        purpose: 'Instala OpenCV, MoviePy, NumPy e dependências.'
-      },
-      {
-        id: 'pytorch',
-        icon: 'bi-cpu',
-        name: 'PyTorch',
-        purpose: 'Executa os modelos de super-resolução.'
-      },
-      {
-        id: 'gpu',
-        icon: 'bi-gpu-card',
-        name: 'NVIDIA / CUDA',
-        purpose: 'Acelera o processamento quando disponível e compatível.'
-      }
-    ])
-  })
+const installationDefinitions = Object.freeze({
+  goanime: ['GoAnime clássico', 'MPV', 'Runtime Go', 'Código GoAnime', 'Bridge gráfico'],
+  'goanime-gui': ['GoAnime clássico', 'MPV', 'Runtime Go', 'Código GoAnime', 'Bridge gráfico'],
+  'anime-cli-br': ['Python 3.12', 'VLC', 'Código anime-cli-br', 'Ambiente virtual'],
+  'ani-cli': ['Git Bash', 'fzf', 'FFmpeg', 'MPV', 'OpenSSL', 'ani-cli'],
+  'fast-anime-vsr': ['Python 3.10', 'FFmpeg', 'FAST Anime VSR', 'PyTorch', 'GPU/CUDA']
 });
 
 const state = {
-  status: null,
-  view: 'home',
-  query: '',
-  language: 'sub',
-  quality: 'auto',
-  provider: 'goanime-gui',
+  session: null,
+  settings: null,
+  playerStatus: null,
+  dashboard: null,
   results: [],
   selectedAnime: null,
   episodes: [],
-  installation: {
-    jobId: null,
-    provider: null,
-    active: false,
-    finished: false,
-    percent: 0,
-    componentStates: {}
-  }
+  playback: null,
+  lastIssue: null,
+  parentalUnlockedUntil: 0,
+  pendingParentalAction: null,
+  activeInstallationJob: null,
+  installationProvider: null,
+  currentListTab: 'favorites',
+  users: []
 };
 
-const elements = {};
+const modals = {};
 
-document.addEventListener('DOMContentLoaded', () => {
-  const session = requireSession();
-  if (!session) return;
+const $ = (id) => document.getElementById(id);
 
-  cacheElements();
-  enableTooltips();
-  hydrateSession(session);
+window.addEventListener('DOMContentLoaded', async () => {
+  state.session = requireSession();
+  if (!state.session || !hasAnimeDeskApi()) return;
+
+  modals.parental = new bootstrap.Modal($('parental-pin-modal'));
+  modals.report = new bootstrap.Modal($('report-modal'));
+  modals.user = new bootstrap.Modal($('user-modal'));
+
+  hydrateProfile();
   bindNavigation();
-  bindProviderSelection();
   bindSearch();
-  bindEpisodeFilter();
-  bindInstallationMonitor();
-  bindInstallers();
-  bindLegacyTools();
-  bindHealthCheck();
-  bindLogout();
-  hydrateAppInfo();
-  hydratePlayerStatus();
+  bindPlayer();
+  bindCollections();
+  bindTools();
+  bindSettings();
+  bindDiagnostics();
+  bindAdmin();
+  bindModals();
+  bindInstallation();
+  subscribeEvents();
+
+  await Promise.all([
+    hydrateAppInfo(),
+    hydrateSettings(),
+    hydratePlayerStatus(),
+    hydrateDashboard(),
+    hydrateProviderHealth(),
+    hydratePlaybackState()
+  ]);
+
+  if (state.session.user.role === 'ADMIN') {
+    $('admin-nav-button').classList.remove('d-none');
+  }
+
+  if (state.settings?.checkUpdates) void checkUpdates(false);
 });
 
-function cacheElements() {
-  const ids = [
-    'home-view',
-    'results-view',
-    'episodes-view',
-    'top-home-button',
-    'brand-home-button',
-    'results-home-button',
-    'results-new-search-button',
-    'episodes-back-button',
-    'episodes-home-button',
-    'episodes-new-search-button',
-    'anime-search-form',
-    'anime-search',
-    'anime-search-submit',
-    'anime-search-submit-label',
-    'anime-search-submit-icon',
-    'provider-filter',
-    'provider-help',
-    'language-filter',
-    'quality-filter',
-    'selected-provider-summary',
-    'selected-provider-title',
-    'selected-provider-description',
-    'selected-provider-readiness',
-    'provider-gate',
-    'provider-gate-title',
-    'provider-gate-message',
-    'provider-action-button',
-    'provider-action-label',
-    'gui-status-card',
-    'goanime-gui-status',
-    'goanime-classic-status',
-    'mpv-status',
-    'goanime-tool-status',
-    'animeclibr-status',
-    'anicli-status',
-    'fast-vsr-status',
-    'refresh-dependencies-button',
-    'install-goanime-button',
-    'install-animeclibr-button',
-    'install-anicli-button',
-    'prepare-fast-vsr-button',
-    'installation-overlay',
-    'installation-title',
-    'installation-subtitle',
-    'installation-current-step',
-    'installation-percent',
-    'installation-progress-bar',
-    'installation-components',
-    'installation-live-badge',
-    'installation-log',
-    'installation-footer-message',
-    'installation-hide-button',
-    'installation-cancel-button',
-    'installation-close-button',
-    'open-goanime-classic',
-    'open-animeclibr',
-    'open-anicli',
-    'results-title',
-    'results-description',
-    'result-count',
-    'anime-results',
-    'selected-anime-image',
-    'selected-anime-badges',
-    'episodes-title',
-    'selected-anime-description',
-    'selected-anime-meta',
-    'episodes-count',
-    'episode-filter',
-    'episode-grid',
-    'loading-overlay',
-    'loading-title',
-    'loading-message',
-    'app-version',
-    'app-platform',
-    'current-user',
-    'health-check-button',
-    'logout-button'
-  ];
+function hydrateProfile() {
+  const user = state.session.user;
+  $('current-user').textContent = user.name;
+  $('current-role').textContent = user.role === 'ADMIN' ? 'Administrador' : 'Usuário';
+  $('profile-avatar').textContent = user.name?.trim()?.[0]?.toUpperCase() || 'U';
+  $('profile-avatar').style.backgroundColor = user.profileColor || '#6f5cff';
+}
 
-  ids.forEach((id) => {
-    elements[id] = document.getElementById(id);
+function bindNavigation() {
+  document.querySelectorAll('[data-view]').forEach((button) => {
+    button.addEventListener('click', () => showView(button.dataset.view));
+  });
+  document.querySelectorAll('[data-go-view]').forEach((button) => {
+    button.addEventListener('click', () => showView(button.dataset.goView));
+  });
+  $('brand-home-button').addEventListener('click', () => showView('home'));
+  $('logout-button').addEventListener('click', async () => {
+    await animeDesk.auth.logout();
+    clearSession();
+    window.location.href = './login.html';
   });
 }
 
-/** @param {object} session */
-function hydrateSession(session) {
-  elements['current-user'].textContent = session.user.name;
-}
-
-function enableTooltips() {
-  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((element) => {
-    new bootstrap.Tooltip(element);
+async function showView(view) {
+  if (!viewMeta[view]) return;
+  document.querySelectorAll('[data-view-panel]').forEach((panel) => {
+    panel.classList.toggle('d-none', panel.dataset.viewPanel !== view);
   });
+  document.querySelectorAll('.nav-item[data-view]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.view === view);
+  });
+  $('view-eyebrow').textContent = viewMeta[view][0];
+  $('view-title').textContent = viewMeta[view][1];
+
+  if (view === 'home') await hydrateDashboard();
+  if (view === 'continue') await renderContinueView();
+  if (view === 'lists') await renderLists();
+  if (view === 'history') await renderHistory();
+  if (view === 'tools') await hydratePlayerStatus();
+  if (view === 'settings') await hydrateSettings();
+  if (view === 'diagnostics') await runDiagnostics();
+  if (view === 'admin' && state.session.user.role === 'ADMIN') await renderUsers();
 }
 
 async function hydrateAppInfo() {
-  if (!hasAnimeDeskApi()) {
-    elements['health-check-button'].disabled = true;
+  const info = await animeDesk.app.getInfo();
+  $('app-version').textContent = `v${info.version}`;
+}
+
+async function hydrateDashboard() {
+  const result = await animeDesk.library.dashboard();
+  if (!result.ok) return;
+  state.dashboard = result.data;
+  renderStats(result.data.stats || {});
+  renderContinueCards($('home-continue-list'), result.data.continueWatching || [], 8);
+  renderCollectionCards($('home-favorites-list'), result.data.favorites || [], 'favorites', 8);
+  renderHistoryPreview($('home-recent-list'), result.data.recent || [], 8);
+}
+
+function renderStats(stats) {
+  const cards = $('dashboard-stats').querySelectorAll('.stat-card strong');
+  cards[0].textContent = Number(stats.total_plays || 0).toLocaleString('pt-BR');
+  cards[1].textContent = Number(stats.distinct_animes || 0).toLocaleString('pt-BR');
+  cards[2].textContent = Number(stats.completed_episodes || 0).toLocaleString('pt-BR');
+  cards[3].textContent = formatHours(Number(stats.seconds_watched || 0));
+}
+
+function renderContinueCards(container, items, limit = 50) {
+  container.replaceChildren();
+  const rows = items.slice(0, limit);
+  if (!rows.length) {
+    container.append(emptyState('bi-play-circle', 'Nenhum episódio para continuar.'));
+    return;
+  }
+  rows.forEach((row) => container.append(createContinueCard(row)));
+}
+
+function createContinueCard(row) {
+  const button = document.createElement('button');
+  button.className = 'media-card';
+  button.type = 'button';
+  const image = createImage(row.anime_cover, row.anime_title);
+  const body = document.createElement('span');
+  body.className = 'media-card-body';
+  const title = document.createElement('strong');
+  title.textContent = row.anime_title;
+  const subtitle = document.createElement('small');
+  subtitle.textContent = `Episódio ${cleanEpisode(row.current_episode)} · ${Math.round(row.progress_percent || 0)}%`;
+  const progress = document.createElement('span');
+  progress.className = 'card-progress';
+  const fill = document.createElement('span');
+  fill.style.width = `${Math.max(0, Math.min(100, row.progress_percent || 0))}%`;
+  progress.append(fill);
+  body.append(title, subtitle, progress);
+  button.append(image, body);
+  button.addEventListener('click', () => resumePlayback(row));
+  return button;
+}
+
+async function resumePlayback(row) {
+  const anime = parseJson(row.anime_payload) || {
+    name: row.anime_title,
+    url: row.anime_id,
+    imageUrl: row.anime_cover,
+    source: row.source || 'AllAnime',
+    mediaType: 'anime'
+  };
+  const savedEpisode = parseJson(row.episode_payload) || {
+    number: String(row.current_episode),
+    num: Number(row.current_episode),
+    title: row.episode_title || ''
+  };
+
+  showLoading('Preparando episódio', 'Recuperando a lista e a posição salva...');
+  try {
+    const episodesResult = await animeDesk.animes.episodes({ anime, language: row.language });
+    const episodes = unwrap(episodesResult);
+    const index = findEpisodeIndex(episodes, savedEpisode);
+    const episode = episodes[index] || savedEpisode;
+    await launchEpisode({
+      anime,
+      episode,
+      episodes,
+      episodeIndex: Math.max(0, index),
+      language: row.language,
+      quality: row.quality,
+      resumePosition: row.playback_position
+    });
+  } catch (error) {
+    notifyError(error);
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderCollectionCards(container, items, type, limit = 100) {
+  container.replaceChildren();
+  const rows = items.slice(0, limit);
+  if (!rows.length) {
+    container.append(
+      emptyState(
+        type === 'favorites' ? 'bi-heart' : 'bi-bookmark',
+        type === 'favorites' ? 'Nenhum favorito ainda.' : 'Sua lista está vazia.'
+      )
+    );
+    return;
+  }
+  rows.forEach((row) => {
+    const card = document.createElement('article');
+    card.className = 'library-card';
+    const image = createImage(row.anime_cover, row.anime_title);
+    const body = document.createElement('div');
+    body.className = 'library-card-body';
+    const title = document.createElement('strong');
+    title.textContent = row.anime_title;
+    const source = document.createElement('small');
+    source.textContent = row.provider_id === 'goanime-gui' ? 'GoAnime GUI' : row.provider_id;
+    body.append(title, source);
+    const actions = document.createElement('div');
+    actions.className = 'card-overlay-actions';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.title = 'Remover';
+    remove.innerHTML = '<i class="bi bi-x-lg"></i>';
+    remove.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const payload = collectionPayload(parseJson(row.anime_payload) || {}, row);
+      const result =
+        type === 'favorites'
+          ? await animeDesk.favorites.toggle(payload)
+          : await animeDesk.watchlist.toggle(payload);
+      if (result.ok) {
+        await renderLists();
+        await hydrateDashboard();
+      }
+    });
+    actions.append(remove);
+    card.append(image, body, actions);
+    card.addEventListener('click', () => openCollectionAnime(row));
+    container.append(card);
+  });
+}
+
+async function openCollectionAnime(row) {
+  const anime = parseJson(row.anime_payload);
+  if (!anime?.url) {
     showToast({
-      title: 'Preload',
-      message: 'A API segura não foi encontrada no renderer.',
-      variant: 'error'
+      title: 'Dados incompletos',
+      message: 'Pesquise o anime novamente.',
+      variant: 'warning'
     });
     return;
   }
+  showView('search');
+  await selectAnime(anime);
+}
 
-  try {
-    const appInfo = await animeDesk.app.getInfo();
-    elements['app-version'].textContent = `v${appInfo.version}`;
-    elements['app-platform'].textContent = platformNames[appInfo.platform] ?? appInfo.platform;
-  } catch (error) {
-    showToast({
-      title: 'Aplicação',
-      message: error.message || 'Não foi possível ler as informações da aplicação.',
-      variant: 'error'
-    });
+function renderHistoryPreview(container, items, limit = 100) {
+  container.replaceChildren();
+  const rows = items.slice(0, limit);
+  if (!rows.length) {
+    container.append(emptyState('bi-clock-history', 'Nenhuma reprodução registrada.'));
+    return;
   }
+  rows.forEach((row) => container.append(createHistoryItem(row, false)));
 }
 
-async function hydratePlayerStatus() {
-  const refreshButton = elements['refresh-dependencies-button'];
-  refreshButton.disabled = true;
-  elements['goanime-gui-status'].textContent = 'Verificando...';
-
-  try {
-    const result = await animeDesk.player.status();
-    if (!result.ok) throw new Error(result.error?.message ?? 'Falha ao verificar o sistema.');
-
-    state.status = result.data;
-    renderStatus(result.data);
-  } catch (error) {
-    elements['goanime-gui-status'].textContent = 'Status indisponível';
-    showToast({
-      title: 'Status',
-      message: error.message || 'Não foi possível verificar os componentes locais.',
-      variant: 'error'
-    });
-  } finally {
-    refreshButton.disabled = false;
-  }
-}
-
-/** @param {object} status */
-function renderStatus(status) {
-  const guiReady = Boolean(status.providers.goAnime.ready);
-  const classicReady = Boolean(status.providers.goAnime.classicReady);
-  const mpvReady = Boolean(status.dependencies.mpv.available);
-  const animeCliBrReady = Boolean(status.providers.animeCliBr.ready);
-  const aniCliReady = Boolean(status.providers.aniCli.ready);
-  const fast = status.tools.fastAnimeVsr;
-
-  elements['gui-status-card'].classList.toggle('is-ready', guiReady);
-  elements['goanime-gui-status'].textContent = guiReady
-    ? `Pronto${status.dependencies.goAnimeBridge.version ? ` · v${status.dependencies.goAnimeBridge.version}` : ''}`
-    : 'Bridge gráfico não instalado';
-  elements['goanime-classic-status'].textContent = classicReady
-    ? 'Instalado'
-    : status.dependencies.goAnime.available
-      ? 'MPV pendente'
-      : 'Não instalado';
-  elements['mpv-status'].textContent = mpvReady
-    ? shortPath(status.dependencies.mpv.path)
-    : 'Não encontrado';
-
-  elements['goanime-tool-status'].textContent = classicReady ? 'Pronto' : 'Não configurado';
-  elements['animeclibr-status'].textContent = animeCliBrReady
-    ? 'Pronto; fonte sujeita a DNS'
-    : 'Não configurado';
-  elements['anicli-status'].textContent = aniCliReady
-    ? 'Instalado; origem instável'
-    : 'Não configurado';
-  elements['fast-vsr-status'].textContent = fast.accelerated
-    ? 'Runtime CUDA pronto'
-    : fast.ready
-      ? fast.runtime.message
-      : fast.installed
-        ? fast.runtime.message
-        : status.dependencies.python.available
-          ? 'Python 3.10 encontrado; ambiente pendente'
-          : 'Python 3.10 / ambiente pendente';
-
-  elements['open-goanime-classic'].disabled = !classicReady;
-  elements['open-animeclibr'].disabled = !animeCliBrReady;
-  elements['open-anicli'].disabled = !aniCliReady;
-
-  elements['install-goanime-button'].textContent =
-    classicReady && guiReady ? 'Verificar / reparar' : 'Instalar automaticamente';
-  elements['install-animeclibr-button'].textContent = animeCliBrReady
-    ? 'Verificar / reparar'
-    : 'Instalar automaticamente';
-  elements['install-anicli-button'].textContent = aniCliReady
-    ? 'Verificar / reparar'
-    : 'Instalar automaticamente';
-  elements['prepare-fast-vsr-button'].textContent = fast.installed
-    ? 'Verificar / reparar'
-    : 'Preparar automaticamente';
-
-  updateProviderUi();
-}
-
-function bindProviderSelection() {
-  elements['provider-filter'].value = state.provider;
-  elements['quality-filter'].value = 'auto';
-
-  elements['provider-filter'].addEventListener('change', () => {
-    state.provider = elements['provider-filter'].value;
-    updateProviderUi();
-  });
-
-  elements['language-filter'].addEventListener('change', () => {
-    state.language = elements['language-filter'].value === 'dub' ? 'dub' : 'sub';
-  });
-
-  elements['quality-filter'].addEventListener('change', () => {
-    state.quality = elements['quality-filter'].value || 'auto';
-  });
-
-  elements['provider-action-button'].addEventListener('click', async () => {
-    const definition = getSelectedProviderDefinition();
-    await launchInstaller(
-      elements['provider-action-button'],
-      definition.installTarget,
-      definition.title
+function createHistoryItem(row, full = true) {
+  const item = document.createElement('article');
+  item.className = 'history-item';
+  item.append(createImage(row.anime_cover, row.anime_title));
+  const meta = document.createElement('div');
+  meta.className = 'history-item-meta';
+  const title = document.createElement('strong');
+  title.textContent = row.anime_title;
+  const subtitle = document.createElement('span');
+  subtitle.textContent = `Episódio ${cleanEpisode(row.episode_number)} · ${row.completed ? 'Concluído' : `${Math.round(row.progress_percent || 0)}%`}`;
+  meta.append(title, subtitle);
+  const actions = document.createElement('div');
+  actions.className = 'history-item-actions';
+  const resume = iconButton('bi-play-fill', 'Assistir');
+  resume.addEventListener('click', () => resumeHistory(row));
+  actions.append(resume);
+  if (full) {
+    const complete = iconButton(
+      row.completed ? 'bi-arrow-counterclockwise' : 'bi-check2',
+      row.completed ? 'Marcar não concluído' : 'Marcar concluído'
     );
+    complete.addEventListener('click', async () => {
+      await animeDesk.history.markCompleted(row.id, !row.completed);
+      await renderHistory();
+      await hydrateDashboard();
+    });
+    const remove = iconButton('bi-trash', 'Remover');
+    remove.addEventListener('click', async () => {
+      await animeDesk.history.remove(row.id);
+      await renderHistory();
+      await hydrateDashboard();
+    });
+    actions.append(complete, remove);
+  }
+  item.append(meta, actions);
+  return item;
+}
+
+async function resumeHistory(row) {
+  await resumePlayback({
+    ...row,
+    current_episode: row.episode_number,
+    updated_at: row.watched_at
   });
-
-  updateProviderUi();
-}
-
-function updateProviderUi() {
-  const provider = elements['provider-filter']?.value || state.provider || 'goanime-gui';
-  const definition = providerCatalog[provider] ?? providerCatalog['goanime-gui'];
-  const availability = getProviderAvailability(provider, state.status);
-  const isFastTool = provider === 'fast-anime-vsr';
-  const controlsApply = !['anime-cli-br', 'fast-anime-vsr'].includes(provider);
-
-  state.provider = provider;
-  elements['provider-help'].textContent = definition.help;
-  elements['selected-provider-title'].textContent = definition.title;
-  elements['selected-provider-description'].textContent = definition.description;
-  elements['selected-provider-readiness'].textContent = availability.label;
-  elements['selected-provider-summary'].classList.toggle('is-ready', availability.ready);
-  elements['selected-provider-summary'].classList.toggle('is-warning', availability.warning);
-
-  const icon = elements['selected-provider-summary'].querySelector('.provider-summary-icon i');
-  icon.className = `bi ${definition.icon}`;
-
-  elements['anime-search-submit-label'].textContent = definition.submitLabel;
-  elements['anime-search-submit-icon'].className = isFastTool
-    ? 'bi bi-folder2-open'
-    : definition.kind === 'gui'
-      ? 'bi bi-arrow-right'
-      : 'bi bi-box-arrow-up-right';
-
-  elements['anime-search'].disabled = isFastTool;
-  elements['anime-search'].required = !isFastTool;
-  elements['anime-search'].placeholder = isFastTool
-    ? 'FAST Anime VSR trabalha com arquivos locais'
-    : 'Ex.: Naruto, Sonic X, Dragon Ball...';
-  elements['language-filter'].disabled = !controlsApply;
-  elements['quality-filter'].disabled = !controlsApply;
-
-  elements['anime-search-submit'].disabled = !availability.ready;
-  elements['provider-gate'].classList.toggle('d-none', availability.ready);
-  elements['provider-gate-title'].textContent = availability.gateTitle;
-  elements['provider-gate-message'].textContent = availability.gateMessage;
-  elements['provider-action-label'].textContent = definition.installLabel;
-}
-
-function getSelectedProviderDefinition() {
-  return providerCatalog[elements['provider-filter'].value] ?? providerCatalog['goanime-gui'];
-}
-
-function getProviderAvailability(provider, status) {
-  if (!status) {
-    return {
-      ready: false,
-      warning: false,
-      label: 'Verificando',
-      gateTitle: 'Verificando componentes',
-      gateMessage: 'Aguarde a leitura do ambiente local.'
-    };
-  }
-
-  if (provider === 'goanime-gui') {
-    const bridge = status.providers.goAnime.bridge ?? {};
-    const ready = Boolean(status.providers.goAnime.ready);
-    const needsUpdate = Boolean(bridge.needsUpdate);
-    return {
-      ready,
-      warning: needsUpdate,
-      label: ready
-        ? 'Principal · pronto'
-        : needsUpdate
-          ? 'Atualização necessária'
-          : 'Não instalado',
-      gateTitle: needsUpdate
-        ? 'GoAnime GUI precisa ser atualizado'
-        : 'GoAnime GUI ainda não está ativo',
-      gateMessage: needsUpdate
-        ? `Atualize o motor gráfico da versão ${bridge.version ?? 'antiga'} para ${bridge.expectedVersion ?? 'a atual'} e depois clique em Atualizar status.`
-        : 'O KitsuneDesk instalará automaticamente apenas o que estiver faltando.'
-    };
-  }
-
-  if (provider === 'goanime') {
-    const ready = Boolean(status.providers.goAnime.classicReady);
-    return {
-      ready,
-      warning: false,
-      label: ready ? 'Pronto' : 'Não configurado',
-      gateTitle: 'GoAnime clássico não está pronto',
-      gateMessage: 'Instale automaticamente GoAnime, MPV e os componentes gráficos.'
-    };
-  }
-
-  if (provider === 'anime-cli-br') {
-    const ready = Boolean(status.providers.animeCliBr.ready);
-    return {
-      ready,
-      warning: ready,
-      label: ready ? 'Pronto · fonte instável' : 'Não configurado',
-      gateTitle: 'anime-cli-br não está pronto',
-      gateMessage: 'O KitsuneDesk instalará automaticamente Python, VLC e o cliente.'
-    };
-  }
-
-  if (provider === 'ani-cli') {
-    const ready = Boolean(status.providers.aniCli.ready);
-    return {
-      ready,
-      warning: true,
-      label: ready ? 'Experimental' : 'Não configurado',
-      gateTitle: 'ani-cli não está pronto',
-      gateMessage: 'O KitsuneDesk instalará automaticamente o ani-cli e todas as dependências.'
-    };
-  }
-
-  const fast = status.tools.fastAnimeVsr;
-  const ready = Boolean(fast.ready);
-  return {
-    ready,
-    warning: !fast.accelerated,
-    label: fast.accelerated
-      ? 'Runtime CUDA pronto'
-      : ready
-        ? 'Ambiente base pronto'
-        : fast.installed
-          ? 'Ambiente incompleto'
-          : 'Não preparado',
-    gateTitle: fast.installed
-      ? 'FAST Anime VSR precisa de reparo'
-      : 'FAST Anime VSR não está preparado',
-    gateMessage: fast.installed
-      ? fast.runtime.message
-      : 'Prepare automaticamente Python, FFmpeg, PyTorch e verifique a GPU.'
-  };
 }
 
 function bindSearch() {
-  elements['anime-search-form'].addEventListener('submit', async (event) => {
+  $('anime-search-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-
-    const provider = elements['provider-filter'].value || 'goanime-gui';
-    const query = elements['anime-search'].value.trim();
-    const language = elements['language-filter'].value === 'dub' ? 'dub' : 'sub';
-    const quality = elements['quality-filter'].value || 'auto';
-
-    state.provider = provider;
-    state.language = language;
-    state.quality = quality;
-
-    if (provider === 'fast-anime-vsr') {
-      await openFastAnimeVsr();
-      return;
-    }
-
-    if (query.length < 2) {
-      showToast({
-        title: 'Pesquisa',
-        message: 'Digite pelo menos dois caracteres.',
-        variant: 'warning'
-      });
-      return;
-    }
-
-    state.query = query;
+    const query = $('anime-search').value.trim();
+    const provider = $('provider-filter').value;
+    if (query.length < 2) return;
 
     if (provider !== 'goanime-gui') {
-      await openLegacy(provider);
-      return;
-    }
-
-    if (!state.status?.providers?.goAnime?.ready) {
-      showToast({
-        title: 'GoAnime GUI',
-        message: 'Ative o motor gráfico antes de pesquisar.',
-        variant: 'warning'
-      });
-      return;
-    }
-
-    setBusy(true, 'Pesquisando animes', 'Consultando as fontes ativas do GoAnime...');
-    try {
-      const result = await animeDesk.animes.search({ query, language });
-      if (!result.ok) {
-        throw new Error(result.error?.message ?? 'Não foi possível concluir a pesquisa.');
+      showLoading('Abrindo provedor', 'A seleção continuará no terminal do provedor escolhido...');
+      try {
+        unwrap(
+          await animeDesk.player.openLegacy({
+            query,
+            provider,
+            language: $('language-filter').value,
+            quality: $('quality-filter').value
+          })
+        );
+      } catch (error) {
+        notifyError(error);
+      } finally {
+        hideLoading();
       }
+      return;
+    }
 
-      state.results = Array.isArray(result.data) ? result.data : [];
-      renderResults();
-      showView('results');
+    showLoading('Pesquisando', 'Consultando as fontes do GoAnime...');
+    try {
+      state.results = unwrap(
+        await animeDesk.animes.search({ query, language: $('language-filter').value })
+      );
+      renderSearchResults();
     } catch (error) {
-      showToast({
-        title: 'Pesquisa',
-        message: error.message || 'Não foi possível pesquisar agora.',
-        variant: 'error'
-      });
+      notifyError(error);
     } finally {
-      setBusy(false);
+      hideLoading();
     }
   });
+
+  $('provider-filter').addEventListener('change', updateSelectedProviderStatus);
+  $('back-to-results-button').addEventListener('click', () => {
+    $('episodes-section').classList.add('d-none');
+    $('search-results-section').classList.remove('d-none');
+  });
+  $('episode-filter').addEventListener('input', renderEpisodes);
 }
 
-function renderResults() {
-  const container = elements['anime-results'];
+function renderSearchResults() {
+  const container = $('anime-results');
   container.replaceChildren();
-  elements['results-title'].textContent = `Resultados para “${state.query}”`;
-  elements['results-description'].textContent =
-    state.language === 'dub'
-      ? 'Resultados em português aparecem primeiro quando estão disponíveis.'
-      : 'Selecione um título para carregar a lista de episódios.';
-  elements['result-count'].textContent =
-    `${state.results.length} ${state.results.length === 1 ? 'resultado' : 'resultados'}`;
+  $('search-results-title').textContent = `Resultados para “${$('anime-search').value.trim()}”`;
+  $('result-count').textContent = `${state.results.length} resultado(s)`;
+  $('search-results-section').classList.remove('d-none');
+  $('episodes-section').classList.add('d-none');
 
-  if (state.results.length === 0) {
-    container.append(createEmptyState('bi-search', 'Nenhum resultado encontrado.'));
+  if (!state.results.length) {
+    container.append(emptyState('bi-search', 'Nenhum anime foi encontrado.'));
     return;
   }
 
   state.results.forEach((anime) => container.append(createAnimeCard(anime)));
 }
 
-/** @param {object} anime */
 function createAnimeCard(anime) {
-  const article = document.createElement('article');
-  article.className = 'anime-result-card';
-
-  const coverWrap = document.createElement('div');
-  coverWrap.className = 'anime-cover-wrap';
-
-  const image = document.createElement('img');
-  image.src = safeImageUrl(anime.imageUrl);
-  image.alt = `Capa de ${anime.name || 'anime'}`;
-  image.loading = 'lazy';
-  image.addEventListener(
-    'error',
-    () => {
-      image.src = fallbackCover;
-      image.classList.add('is-fallback');
-    },
-    { once: true }
-  );
-
-  const source = document.createElement('span');
-  source.className = 'source-badge';
-  source.textContent = anime.source || 'GoAnime';
-  coverWrap.append(image, source);
-
+  const card = document.createElement('article');
+  card.className = 'anime-card';
+  card.append(createImage(anime.imageUrl, anime.name));
   const body = document.createElement('div');
   body.className = 'anime-card-body';
+  const title = document.createElement('strong');
+  title.textContent = anime.name;
+  const badges = document.createElement('div');
+  badges.className = 'anime-card-badges';
+  [anime.source, anime.year, anime.averageScore ? `${anime.averageScore}%` : '']
+    .filter(Boolean)
+    .forEach((text) => badges.append(badge(text)));
+  body.append(title, badges);
+  card.append(body);
 
-  const title = document.createElement('h3');
-  title.textContent = anime.name || 'Título sem nome';
-
-  const meta = document.createElement('div');
-  meta.className = 'anime-card-meta';
-  appendMeta(meta, anime.year);
-  appendMeta(meta, anime.averageScore ? `★ ${anime.averageScore}` : '');
-  appendMeta(meta, anime.totalEpisodes ? `${anime.totalEpisodes} eps.` : '');
-  if (Array.isArray(anime.genres))
-    anime.genres.slice(0, 2).forEach((genre) => appendMeta(meta, genre));
-
-  const description = document.createElement('p');
-  description.className = 'anime-card-description';
-  description.textContent = anime.description || 'Sem descrição disponível para este resultado.';
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'btn btn-primary';
-  button.textContent = 'Ver episódios';
-  button.addEventListener('click', () => selectAnime(anime));
-
-  body.append(title, meta, description, button);
-  article.append(coverWrap, body);
-  return article;
+  const action = () => selectAnime(anime);
+  if (isProtectedAnime(anime) && !parentalUnlocked()) {
+    const lock = document.createElement('div');
+    lock.className = 'content-lock';
+    lock.innerHTML = '<i class="bi bi-lock-fill me-2"></i> Protegido';
+    card.append(lock);
+    card.addEventListener('click', () => requestParentalUnlock(action));
+  } else {
+    card.addEventListener('click', action);
+  }
+  return card;
 }
 
-/** @param {object} anime */
 async function selectAnime(anime) {
-  setBusy(true, 'Carregando episódios', `Buscando episódios de ${anime.name}...`);
+  state.selectedAnime = anime;
+  showLoading('Carregando episódios', 'Consultando a fonte selecionada...');
   try {
-    const result = await animeDesk.animes.episodes({ anime, language: state.language });
-    if (!result.ok) {
-      throw new Error(result.error?.message ?? 'Não foi possível carregar os episódios.');
-    }
-
-    state.selectedAnime = anime;
-    state.episodes = Array.isArray(result.data) ? result.data : [];
-    elements['episode-filter'].value = '';
+    state.episodes = unwrap(
+      await animeDesk.animes.episodes({ anime, language: $('language-filter').value })
+    );
+    $('search-results-section').classList.add('d-none');
+    $('episodes-section').classList.remove('d-none');
     renderSelectedAnime();
-    renderEpisodes(state.episodes);
-    showView('episodes');
+    renderEpisodes();
+    await hydrateCollectionButtons();
   } catch (error) {
-    showToast({
-      title: 'Episódios',
-      message: error.message || 'Não foi possível carregar os episódios.',
-      variant: 'error'
-    });
+    state.lastIssue = {
+      anime,
+      episode: { number: 1, num: 1 },
+      errorCode: error.code,
+      technicalError: error.technicalMessage || error.message
+    };
+    notifyError(error);
   } finally {
-    setBusy(false);
+    hideLoading();
   }
 }
 
 function renderSelectedAnime() {
   const anime = state.selectedAnime;
-  if (!anime) return;
-
-  elements['selected-anime-image'].src = safeImageUrl(anime.imageUrl);
-  elements['selected-anime-image'].alt = `Capa de ${anime.name}`;
-  elements['selected-anime-image'].onerror = () => {
-    elements['selected-anime-image'].src = fallbackCover;
-  };
-  elements['episodes-title'].textContent = anime.name;
-  elements['selected-anime-description'].textContent =
-    anime.description || 'Sem descrição disponível para este título.';
-
-  const badges = elements['selected-anime-badges'];
+  $('selected-anime-image').src = anime.imageUrl || fallbackCover;
+  $('selected-anime-image').alt = anime.name;
+  $('selected-anime-title').textContent = anime.name;
+  $('selected-anime-description').textContent =
+    stripHtml(anime.description) || 'Sem sinopse disponível.';
+  const badges = $('selected-anime-badges');
   badges.replaceChildren();
-  appendMeta(badges, anime.source || 'GoAnime');
-  appendMeta(badges, state.language === 'dub' ? 'Dublado / PT-BR' : 'Legendado');
-  appendMeta(badges, formatQuality(state.quality));
-
-  const meta = elements['selected-anime-meta'];
-  meta.replaceChildren();
-  appendMeta(meta, anime.year);
-  appendMeta(meta, anime.averageScore ? `★ ${anime.averageScore}` : '');
-  appendMeta(meta, anime.status);
-  if (Array.isArray(anime.genres))
-    anime.genres.slice(0, 4).forEach((genre) => appendMeta(meta, genre));
+  [anime.source, anime.year, ...(anime.genres || []).slice(0, 4)]
+    .filter(Boolean)
+    .forEach((text) => badges.append(badge(text)));
 }
 
-/** @param {object[]} episodes */
-function renderEpisodes(episodes) {
-  const container = elements['episode-grid'];
+function renderEpisodes() {
+  const query = $('episode-filter').value.trim().toLowerCase();
+  const rows = state.episodes.filter((episode) => {
+    const text = `${episode.number} ${episode.title}`.toLowerCase();
+    return !query || text.includes(query);
+  });
+  $('episodes-count').textContent = `${state.episodes.length} episódio(s)`;
+  const container = $('episode-grid');
   container.replaceChildren();
-  elements['episodes-count'].textContent =
-    `${episodes.length} ${episodes.length === 1 ? 'episódio' : 'episódios'}`;
+  rows.forEach((episode) => {
+    const index = state.episodes.indexOf(episode);
+    const button = document.createElement('button');
+    button.className = 'episode-card';
+    button.type = 'button';
+    const label = document.createElement('span');
+    label.textContent = `Episódio ${cleanEpisode(episode.number)}`;
+    const title = document.createElement('strong');
+    title.textContent = episode.title || `Episódio ${cleanEpisode(episode.number)}`;
+    const meta = document.createElement('small');
+    meta.textContent = [episode.isFiller ? 'Filler' : '', episode.aired || '']
+      .filter(Boolean)
+      .join(' · ');
+    button.append(label, title, meta);
+    button.addEventListener('click', () =>
+      launchEpisode({
+        anime: state.selectedAnime,
+        episode,
+        episodes: state.episodes,
+        episodeIndex: index,
+        language: $('language-filter').value,
+        quality: $('quality-filter').value,
+        resumePosition: 0
+      })
+    );
+    container.append(button);
+  });
+  if (!rows.length)
+    container.append(emptyState('bi-list-ol', 'Nenhum episódio corresponde ao filtro.'));
+}
 
-  if (episodes.length === 0) {
-    container.append(createEmptyState('bi-collection', 'Nenhum episódio corresponde ao filtro.'));
+async function launchEpisode(payload) {
+  showLoading('Preparando reprodução', 'Resolvendo a melhor fonte disponível...');
+  state.lastIssue = null;
+  try {
+    const result = unwrap(await animeDesk.player.playEpisode(payload));
+    state.playback = {
+      ...result,
+      context: {
+        anime: payload.anime,
+        episode: payload.episode,
+        episodes: payload.episodes,
+        episodeIndex: payload.episodeIndex,
+        language: payload.language,
+        quality: payload.quality
+      }
+    };
+    if (result.fallbackUsed) {
+      showToast({
+        title: 'Fonte alternativa utilizada',
+        message: `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`,
+        variant: 'warning'
+      });
+    } else {
+      showToast({
+        title: 'Reprodução iniciada',
+        message: 'O MPV foi aberto e está sob controle do KitsuneDesk.',
+        variant: 'success'
+      });
+    }
+  } catch (error) {
+    state.lastIssue = {
+      anime: payload.anime,
+      episode: payload.episode,
+      language: payload.language,
+      quality: payload.quality,
+      source: payload.anime?.source,
+      errorCode: error.code,
+      technicalError: error.technicalMessage || error.message
+    };
+    notifyError(error);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function hydrateCollectionButtons() {
+  const payload = collectionPayload(state.selectedAnime);
+  const result = await animeDesk.library.collectionState(payload);
+  if (!result.ok) return;
+  setCollectionButton($('favorite-button'), result.data.favorite, 'favorite');
+  setCollectionButton($('watchlist-button'), result.data.watchlist, 'watchlist');
+}
+
+function bindCollections() {
+  $('favorite-button').addEventListener('click', async () => {
+    if (!state.selectedAnime) return;
+    const result = await animeDesk.favorites.toggle(collectionPayload(state.selectedAnime));
+    if (result.ok) {
+      setCollectionButton($('favorite-button'), result.data.active, 'favorite');
+      await hydrateDashboard();
+    }
+  });
+  $('watchlist-button').addEventListener('click', async () => {
+    if (!state.selectedAnime) return;
+    const result = await animeDesk.watchlist.toggle(collectionPayload(state.selectedAnime));
+    if (result.ok) {
+      setCollectionButton($('watchlist-button'), result.data.active, 'watchlist');
+      await hydrateDashboard();
+    }
+  });
+  document.querySelectorAll('[data-list-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.currentListTab = button.dataset.listTab;
+      document
+        .querySelectorAll('[data-list-tab]')
+        .forEach((item) => item.classList.toggle('is-active', item === button));
+      $('favorites-list').classList.toggle('d-none', state.currentListTab !== 'favorites');
+      $('watchlist-list').classList.toggle('d-none', state.currentListTab !== 'watchlist');
+    });
+  });
+  $('history-search').addEventListener('input', debounce(renderHistory, 250));
+  $('clear-history-button').addEventListener('click', async () => {
+    if (
+      !window.confirm(
+        'Limpar todo o histórico deste usuário? Favoritos e configurações serão preservados.'
+      )
+    )
+      return;
+    await animeDesk.history.clear();
+    await renderHistory();
+    await hydrateDashboard();
+  });
+}
+
+async function renderContinueView() {
+  const result = await animeDesk.library.continueWatching();
+  if (result.ok) renderContinueCards($('continue-list'), result.data, 100);
+}
+
+async function renderLists() {
+  const [favorites, watchlist] = await Promise.all([
+    animeDesk.favorites.list(),
+    animeDesk.watchlist.list()
+  ]);
+  if (favorites.ok) renderCollectionCards($('favorites-list'), favorites.data, 'favorites');
+  if (watchlist.ok) renderCollectionCards($('watchlist-list'), watchlist.data, 'watchlist');
+}
+
+async function renderHistory() {
+  const result = await animeDesk.history.list({ query: $('history-search').value, limit: 300 });
+  if (!result.ok) return;
+  const container = $('history-list');
+  container.replaceChildren();
+  if (!result.data.length) {
+    container.append(emptyState('bi-clock-history', 'Nenhum item no histórico.'));
     return;
   }
-
-  episodes.forEach((episode) => container.append(createEpisodeCard(episode)));
+  result.data.forEach((row) => container.append(createHistoryItem(row, true)));
 }
 
-/** @param {object} episode */
-function createEpisodeCard(episode) {
-  const article = document.createElement('article');
-  article.className = 'episode-card';
-
-  const number = document.createElement('span');
-  number.className = 'episode-number';
-  number.textContent = formatEpisodeLabel(episode.number);
-
-  const title = document.createElement('h4');
-  title.textContent = episode.title || formatEpisodeLabel(episode.number);
-
-  const flags = document.createElement('div');
-  flags.className = 'episode-flags';
-  if (episode.isFiller) appendMeta(flags, 'Filler');
-  if (episode.isRecap) appendMeta(flags, 'Recap');
-  if (episode.duration) appendMeta(flags, formatDuration(episode.duration));
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'btn btn-sm btn-primary';
-  const icon = document.createElement('i');
-  icon.className = 'bi bi-play-fill';
-  const label = document.createElement('span');
-  label.textContent = 'Assistir';
-  button.append(icon, label);
-  button.addEventListener('click', () => playEpisode(episode, button));
-
-  article.append(number, title, flags, button);
-  return article;
+function bindPlayer() {
+  $('player-toggle').addEventListener('click', async () => {
+    const result = await animeDesk.player.togglePause();
+    if (!result.ok) notifyResultError(result);
+  });
+  $('player-previous').addEventListener('click', async () =>
+    notifyResult(await animeDesk.player.previous())
+  );
+  $('player-next').addEventListener('click', async () =>
+    notifyResult(await animeDesk.player.next())
+  );
+  $('player-stop').addEventListener('click', async () =>
+    notifyResult(await animeDesk.player.stop())
+  );
+  $('player-progress').addEventListener('change', async () => {
+    const duration = Number(state.playback?.duration || 0);
+    if (duration <= 0) return;
+    await animeDesk.player.seek((Number($('player-progress').value) / 100) * duration, 'absolute');
+  });
+  $('player-volume').addEventListener(
+    'input',
+    debounce(async () => {
+      await animeDesk.player.setVolume(Number($('player-volume').value));
+    }, 100)
+  );
+  $('report-episode-button').addEventListener('click', openReportModal);
 }
 
-/** @param {object} episode @param {HTMLButtonElement} button */
-async function playEpisode(episode, button) {
-  if (!state.selectedAnime) return;
+function subscribeEvents() {
+  animeDesk.player.onStateChanged((playerState) => renderPlayerState(playerState));
+  animeDesk.player.onPlaybackStarted((payload) => {
+    state.playback = payload;
+    void hydrateDashboard();
+  });
+  animeDesk.player.onSourceProgress(handleSourceProgress);
+  animeDesk.player.onInstallationProgress(handleInstallationProgress);
+  animeDesk.diagnostics.onProgress((event) => appendDiagnosticLog(event.message));
+  animeDesk.updates.onStateChanged(handleUpdateState);
+}
 
-  const label = button.querySelector('span');
-  const originalLabel = label?.textContent ?? 'Assistir';
-  button.disabled = true;
-  if (label) label.textContent = 'Abrindo...';
+function handleSourceProgress(progress) {
+  const message = progress?.message || 'Consultando fontes...';
+  if (!$('loading-overlay').classList.contains('d-none')) {
+    $('loading-message').textContent = message;
+  }
+  const status = $('selected-provider-status');
+  status.querySelector('.status-dot').className = 'status-dot is-checking';
+  status.querySelector('span:last-child').textContent = message;
+}
 
-  try {
-    const result = await animeDesk.player.playEpisode({
-      anime: state.selectedAnime,
-      episode,
-      language: state.language,
-      quality: state.quality
+async function hydratePlaybackState() {
+  const result = await animeDesk.player.playbackState();
+  if (result.ok) renderPlayerState(result.data);
+}
+
+function renderPlayerState(playerState) {
+  state.playback = { ...(state.playback || {}), ...playerState };
+  const active = Boolean(playerState.active || playerState.paused);
+  $('mini-player').classList.toggle('is-hidden', !active);
+  if (!active) return;
+  const context = playerState.context || state.playback?.context || {};
+  const anime = context.anime || {};
+  const episode = context.episode || {};
+  $('player-cover').src = anime.imageUrl || fallbackCover;
+  $('player-title').textContent = anime.name || playerState.animeTitle || 'Reproduzindo';
+  $('player-subtitle').textContent =
+    `Episódio ${cleanEpisode(episode.number || playerState.episodeNumber)} · ${playerState.quality || context.quality || ''}`;
+  $('player-source').textContent = playerState.source || anime.source || 'GoAnime';
+  $('player-current-time').textContent = formatTime(playerState.position);
+  $('player-duration').textContent = formatTime(playerState.duration);
+  $('player-progress').value =
+    playerState.duration > 0 ? (playerState.position / playerState.duration) * 100 : 0;
+  $('player-volume').value = Number(playerState.volume ?? 80);
+  $('player-toggle').querySelector('i').className = playerState.paused
+    ? 'bi bi-play-fill'
+    : 'bi bi-pause-fill';
+}
+
+function bindTools() {
+  document.querySelectorAll('.install-provider-button').forEach((button) => {
+    button.addEventListener('click', () => startInstallation(button.dataset.provider));
+  });
+  document.querySelectorAll('.open-provider-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      showView('search');
+      $('provider-filter').value = button.dataset.provider;
+      updateSelectedProviderStatus();
+      $('anime-search').focus();
     });
+  });
+  $('open-fast-vsr-button').addEventListener('click', async () =>
+    notifyResult(await animeDesk.player.openTool({ tool: 'fast-anime-vsr' }))
+  );
+}
 
-    if (!result.ok || !result.data?.launched || !result.data?.pid) {
-      throw new Error(result.error?.message ?? 'O MPV não confirmou o início da reprodução.');
+async function hydratePlayerStatus() {
+  const result = await animeDesk.player.status();
+  if (!result.ok) return;
+  state.playerStatus = result.data;
+  const cards = {
+    'goanime-gui': [
+      result.data.providers.goAnime.ready,
+      result.data.providers.goAnime.bridge?.needsUpdate ? 'Atualização necessária' : 'Pronto'
+    ],
+    goanime: [
+      result.data.providers.goAnime.classicReady,
+      result.data.providers.goAnime.classicReady ? 'Pronto' : 'Não instalado'
+    ],
+    'anime-cli-br': [
+      result.data.providers.animeCliBr.ready,
+      result.data.providers.animeCliBr.ready ? 'Pronto' : 'Não instalado'
+    ],
+    'ani-cli': [
+      result.data.providers.aniCli.ready,
+      result.data.providers.aniCli.ready ? 'Pronto · experimental' : 'Não instalado'
+    ],
+    'fast-anime-vsr': [
+      result.data.tools.fastAnimeVsr.ready,
+      result.data.tools.fastAnimeVsr.ready
+        ? 'Pronto'
+        : result.data.tools.fastAnimeVsr.runtime?.message || 'Não preparado'
+    ]
+  };
+  document.querySelectorAll('[data-tool]').forEach((card) => {
+    const [ready, message] = cards[card.dataset.tool] || [false, 'Indisponível'];
+    const status = card.querySelector('.tool-status');
+    status.textContent = message;
+    status.classList.toggle('text-success', ready);
+  });
+  updateSelectedProviderStatus();
+}
+
+function updateSelectedProviderStatus() {
+  const provider = $('provider-filter').value;
+  const line = $('selected-provider-status');
+  const dot = line.querySelector('.status-dot');
+  let ready = false;
+  let message = 'Verificando...';
+  if (state.playerStatus) {
+    if (provider === 'goanime-gui') {
+      ready = state.playerStatus.providers.goAnime.ready;
+      message = ready
+        ? 'GoAnime GUI pronto · principal'
+        : 'GoAnime GUI precisa ser instalado ou reparado';
+    } else if (provider === 'goanime') {
+      ready = state.playerStatus.providers.goAnime.classicReady;
+      message = ready ? 'GoAnime clássico pronto' : 'GoAnime clássico não está pronto';
+    } else if (provider === 'anime-cli-br') {
+      ready = state.playerStatus.providers.animeCliBr.ready;
+      message = ready ? 'anime-cli-br pronto' : 'anime-cli-br não está pronto';
+    } else {
+      ready = state.playerStatus.providers.aniCli.ready;
+      message = ready ? 'ani-cli pronto, mas experimental' : 'ani-cli não está pronto';
     }
+  }
+  dot.className = `status-dot ${ready ? 'is-online' : 'is-offline'}`;
+  line.querySelector('span:last-child').textContent = message;
+}
 
-    const playbackDetails = [];
-    if (result.data.fallbackUsed) {
-      if (result.data.source && result.data.source !== result.data.requestedSource) {
-        playbackDetails.push(`fonte alternativa: ${result.data.source}`);
-      }
-      if (result.data.mode && result.data.mode !== result.data.requestedMode) {
-        playbackDetails.push(
-          result.data.mode === 'dub' ? 'áudio dublado disponível' : 'aberto legendado'
-        );
-      }
-      if (result.data.quality && result.data.quality !== result.data.requestedQuality) {
-        playbackDetails.push(`qualidade: ${formatQuality(result.data.quality)}`);
-      }
+function bindInstallation() {
+  $('installation-hide-button').addEventListener('click', () =>
+    $('installation-overlay').classList.add('d-none')
+  );
+  $('installation-close-button').addEventListener('click', () =>
+    $('installation-overlay').classList.add('d-none')
+  );
+  $('installation-cancel-button').addEventListener('click', async () => {
+    if (state.activeInstallationJob)
+      await animeDesk.player.cancelInstallation(state.activeInstallationJob);
+  });
+}
+
+async function startInstallation(provider) {
+  state.installationProvider = provider;
+  $('installation-title').textContent = `Preparando ${providerLabel(provider)}`;
+  $('installation-message').textContent =
+    'O PowerShell executa oculto; acompanhe tudo por esta barra.';
+  $('installation-step').textContent = 'Lendo o estado atual da máquina...';
+  $('installation-percent').textContent = '0%';
+  $('installation-progress-bar').style.width = '0%';
+  $('installation-log').replaceChildren();
+  $('installation-close-button').classList.add('d-none');
+  $('installation-cancel-button').classList.remove('d-none');
+  renderInstallationComponents(provider);
+  $('installation-overlay').classList.remove('d-none');
+  const result = await animeDesk.player.installDependencies(provider);
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
+  }
+  state.activeInstallationJob = result.data.jobId;
+}
+
+function renderInstallationComponents(provider) {
+  const container = $('installation-components');
+  container.replaceChildren();
+  (installationDefinitions[provider] || []).forEach((name) => {
+    const item = document.createElement('div');
+    item.className = 'installation-component';
+    item.dataset.name = name.toLowerCase();
+    item.innerHTML = `<i class="bi bi-circle"></i><span>${escapeHtml(name)}</span>`;
+    container.append(item);
+  });
+}
+
+function handleInstallationProgress(event) {
+  if (state.activeInstallationJob && event.jobId !== state.activeInstallationJob) return;
+  state.activeInstallationJob = event.jobId;
+  const percent = Math.max(0, Math.min(100, Number(event.percent || 0)));
+  $('installation-percent').textContent = `${percent}%`;
+  $('installation-progress-bar').style.width = `${percent}%`;
+  $('installation-step').textContent = event.message || 'Processando...';
+  appendInstallationLog(event.message, event.state);
+  markInstallationComponent(event.component, event.state);
+
+  if (['complete', 'error', 'cancelled'].includes(event.type)) {
+    $('installation-close-button').classList.remove('d-none');
+    $('installation-cancel-button').classList.add('d-none');
+    state.activeInstallationJob = null;
+    void hydratePlayerStatus();
+    if (event.type === 'complete') {
+      showToast({ title: 'Instalação concluída', message: event.message, variant: 'success' });
     }
-
-    showToast({
-      title: result.data.fallbackUsed ? 'MPV aberto com alternativa' : 'MPV aberto',
-      message: `${state.selectedAnime.name} · ${formatEpisodeLabel(episode.number)}${
-        playbackDetails.length ? ` · ${playbackDetails.join(' · ')}` : ''
-      }`,
-      variant: 'success'
-    });
-  } catch (error) {
-    showToast({
-      title: 'Reprodução',
-      message: error.message || 'Não foi possível abrir o episódio.',
-      variant: 'error'
-    });
-  } finally {
-    button.disabled = false;
-    if (label) label.textContent = originalLabel;
   }
 }
 
-function formatEpisodeLabel(value) {
-  const raw = String(value ?? '').trim();
-  if (!raw) return 'Episódio';
-  if (/^(epis[oó]dio|episode|ep\.?)[\s:-]/i.test(raw)) return raw;
-  return `Episódio ${raw}`;
+function markInstallationComponent(component, status) {
+  if (!component) return;
+  const normalized = component.toLowerCase().replaceAll('-', ' ');
+  const item = [...$('installation-components').children].find((element) => {
+    const name = element.dataset.name || '';
+    return name.includes(normalized) || normalized.includes(name.split(' ')[0]);
+  });
+  if (!item) return;
+  item.classList.toggle('is-installed', ['installed', 'ready', 'success'].includes(status));
+  item.classList.toggle('is-error', status === 'error');
+  item.querySelector('i').className =
+    status === 'error' ? 'bi bi-x-circle-fill' : 'bi bi-check-circle-fill';
 }
 
-function bindEpisodeFilter() {
-  elements['episode-filter'].addEventListener('input', () => {
-    const term = elements['episode-filter'].value.trim().toLowerCase();
-    if (!term) {
-      renderEpisodes(state.episodes);
+function appendInstallationLog(message, status = '') {
+  if (!message) return;
+  const line = document.createElement('p');
+  line.textContent = `${new Date().toLocaleTimeString('pt-BR')}  ${message}`;
+  if (status === 'error') line.classList.add('text-danger');
+  $('installation-log').append(line);
+  $('installation-log').scrollTop = $('installation-log').scrollHeight;
+}
+
+function bindSettings() {
+  $('setting-volume').addEventListener('input', () => {
+    $('setting-volume-label').textContent = `${$('setting-volume').value}%`;
+  });
+  $('settings-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const result = await animeDesk.settings.update(readSettingsForm());
+    if (!result.ok) {
+      notifyResultError(result);
       return;
     }
-
-    const filtered = state.episodes.filter((episode) =>
-      `${episode.number} ${episode.title ?? ''}`.toLowerCase().includes(term)
-    );
-    renderEpisodes(filtered);
-  });
-}
-
-function bindNavigation() {
-  const homeButtons = [
-    elements['brand-home-button'],
-    elements['top-home-button'],
-    elements['results-home-button'],
-    elements['episodes-home-button']
-  ];
-  homeButtons.forEach((button) => button.addEventListener('click', () => showView('home')));
-
-  elements['results-new-search-button'].addEventListener('click', startNewSearch);
-  elements['episodes-new-search-button'].addEventListener('click', startNewSearch);
-  elements['episodes-back-button'].addEventListener('click', () => showView('results'));
-}
-
-function startNewSearch() {
-  showView('home');
-  elements['anime-search'].value = '';
-  window.setTimeout(() => elements['anime-search'].focus(), 80);
-}
-
-/** @param {'home'|'results'|'episodes'} view */
-function showView(view) {
-  state.view = view;
-  elements['home-view'].classList.toggle('d-none', view !== 'home');
-  elements['results-view'].classList.toggle('d-none', view !== 'results');
-  elements['episodes-view'].classList.toggle('d-none', view !== 'episodes');
-  elements['top-home-button'].classList.toggle('d-none', view === 'home');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function bindInstallationMonitor() {
-  animeDesk.player.onInstallationProgress(handleInstallationProgress);
-
-  elements['installation-hide-button'].addEventListener('click', () => {
-    elements['installation-overlay'].classList.add('d-none');
-  });
-
-  elements['installation-close-button'].addEventListener('click', () => {
-    elements['installation-overlay'].classList.add('d-none');
-  });
-
-  elements['installation-cancel-button'].addEventListener('click', async () => {
-    if (!state.installation.jobId || !state.installation.active) return;
-    elements['installation-cancel-button'].disabled = true;
-    try {
-      const result = await animeDesk.player.cancelInstallation(state.installation.jobId);
-      if (!result.ok) throw new Error(result.error?.message ?? 'Não foi possível cancelar.');
-    } catch (error) {
-      showToast({
-        title: 'Instalação',
-        message: error.message || 'Não foi possível cancelar a instalação.',
-        variant: 'error'
-      });
-      elements['installation-cancel-button'].disabled = false;
-    }
-  });
-}
-
-function bindInstallers() {
-  bindInstaller(elements['install-goanime-button'], 'goanime', 'GoAnime completo');
-  bindInstaller(elements['install-animeclibr-button'], 'anime-cli-br', 'anime-cli-br');
-  bindInstaller(elements['install-anicli-button'], 'ani-cli', 'ani-cli');
-  bindInstaller(elements['prepare-fast-vsr-button'], 'fast-anime-vsr', 'FAST Anime VSR');
-
-  elements['refresh-dependencies-button'].addEventListener('click', hydratePlayerStatus);
-}
-
-/** @param {HTMLButtonElement} button @param {string} provider @param {string} label */
-function bindInstaller(button, provider, label) {
-  button.addEventListener('click', () => launchInstaller(button, provider, label));
-}
-
-/** @param {HTMLButtonElement} button @param {string} provider @param {string} label */
-async function launchInstaller(button, provider, label) {
-  const normalizedProvider = provider === 'goanime-gui' ? 'goanime' : provider;
-
-  if (state.installation.active && !state.installation.finished) {
-    elements['installation-overlay'].classList.remove('d-none');
+    state.settings = result.data;
+    applyTheme(result.data.theme);
+    applySettingsToSearch();
     showToast({
-      title: 'Instalação em andamento',
-      message:
-        state.installation.provider === normalizedProvider
-          ? 'Este componente já está sendo configurado.'
-          : 'Aguarde a instalação atual terminar antes de iniciar outra.',
+      title: 'Configurações salvas',
+      message: 'As preferências já estão ativas.',
+      variant: 'success'
+    });
+  });
+  $('save-parental-pin-button').addEventListener('click', async () => {
+    const pin = $('parental-pin-input').value;
+    const result = await animeDesk.settings.setParentalPin(pin);
+    if (!result.ok) {
+      $('parental-pin-status').textContent = result.error?.message || 'PIN inválido';
+      return;
+    }
+    $('parental-pin-input').value = '';
+    $('parental-pin-status').textContent = 'PIN configurado';
+    await hydrateSettings();
+  });
+}
+
+async function hydrateSettings() {
+  const result = await animeDesk.settings.get();
+  if (!result.ok) return;
+  state.settings = result.data;
+  $('setting-provider').value = result.data.defaultProvider;
+  $('setting-language').value = result.data.defaultLanguage;
+  $('setting-quality').value = result.data.defaultQuality;
+  $('setting-audio').value = result.data.audioPreference;
+  $('setting-volume').value = result.data.playerVolume;
+  $('setting-volume-label').textContent = `${result.data.playerVolume}%`;
+  $('setting-downloads').value = result.data.downloadsPath;
+  $('setting-autoplay').checked = result.data.autoPlayNext;
+  $('setting-remember').checked = result.data.rememberPosition;
+  $('setting-theme').value = result.data.theme;
+  $('setting-updates').checked = result.data.checkUpdates;
+  $('setting-parental').checked = result.data.parentalControlEnabled;
+  $('setting-rating').value = result.data.maxContentRating;
+  $('parental-pin-status').textContent = result.data.parentalPinConfigured
+    ? 'PIN configurado'
+    : 'PIN não configurado';
+  applyTheme(result.data.theme);
+  applySettingsToSearch();
+}
+
+function readSettingsForm() {
+  return {
+    defaultProvider: $('setting-provider').value,
+    defaultLanguage: $('setting-language').value,
+    defaultQuality: $('setting-quality').value,
+    audioPreference: $('setting-audio').value,
+    playerVolume: Number($('setting-volume').value),
+    downloadsPath: $('setting-downloads').value,
+    autoPlayNext: $('setting-autoplay').checked,
+    rememberPosition: $('setting-remember').checked,
+    theme: $('setting-theme').value,
+    checkUpdates: $('setting-updates').checked,
+    parentalControlEnabled: $('setting-parental').checked,
+    maxContentRating: $('setting-rating').value
+  };
+}
+
+function applySettingsToSearch() {
+  if (!state.settings) return;
+  $('provider-filter').value = state.settings.defaultProvider || 'goanime-gui';
+  $('language-filter').value = state.settings.defaultLanguage || 'sub';
+  $('quality-filter').value = state.settings.defaultQuality || 'auto';
+  updateSelectedProviderStatus();
+}
+
+function applyTheme(theme) {
+  const resolved =
+    theme === 'system'
+      ? window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark'
+      : theme;
+  document.body.dataset.theme = resolved || 'dark';
+}
+
+function bindDiagnostics() {
+  $('provider-health-button').addEventListener('click', hydrateProviderHealth);
+  $('run-diagnostics-button').addEventListener('click', runDiagnostics);
+  $('export-diagnostics-button').addEventListener('click', async () =>
+    notifyResult(await animeDesk.diagnostics.export())
+  );
+  $('check-updates-button').addEventListener('click', () => checkUpdates(true));
+  $('updates-button').addEventListener('click', () => checkUpdates(true));
+  $('repair-native-button').addEventListener('click', async () => {
+    appendDiagnosticLog('Iniciando reconstrução do better-sqlite3...');
+    notifyResult(await animeDesk.diagnostics.repairNative());
+    await runDiagnostics();
+  });
+  $('clear-cache-button').addEventListener('click', async () => {
+    notifyResult(await animeDesk.diagnostics.clearCache());
+    await runDiagnostics();
+  });
+  $('restore-components-button').addEventListener('click', async () => {
+    if (
+      !window.confirm(
+        'Restaurar os componentes locais? Histórico e configurações serão preservados.'
+      )
+    )
+      return;
+    notifyResult(await animeDesk.diagnostics.restoreComponents());
+    await hydratePlayerStatus();
+    await runDiagnostics();
+  });
+  document.querySelectorAll('[data-repair-provider]').forEach((button) => {
+    button.addEventListener('click', () => startInstallation(button.dataset.repairProvider));
+  });
+}
+
+async function hydrateProviderHealth() {
+  const dot = $('provider-health-dot');
+  dot.className = 'status-dot is-checking';
+  $('provider-health-summary').textContent = 'Verificando provedores';
+  const result = await animeDesk.providers.health();
+  if (!result.ok) {
+    dot.className = 'status-dot is-offline';
+    $('provider-health-summary').textContent = 'Falha na verificação';
+    return;
+  }
+  const online = result.data.providers.filter((provider) => provider.state === 'online').length;
+  const unstable = result.data.providers.filter((provider) => provider.state === 'unstable').length;
+  dot.className = `status-dot ${online >= 2 ? 'is-online' : online ? 'is-warning' : 'is-offline'}`;
+  $('provider-health-summary').textContent =
+    `${online} online${unstable ? ` · ${unstable} instável` : ''}`;
+  showToast({
+    title: 'Saúde dos provedores',
+    message: result.data.providers
+      .map((provider) => `${provider.name}: ${provider.message}`)
+      .join(' | '),
+    variant: online ? 'info' : 'warning'
+  });
+}
+
+async function runDiagnostics() {
+  const result = await animeDesk.diagnostics.run();
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
+  }
+  const report = result.data;
+  const container = $('diagnostic-grid');
+  container.replaceChildren();
+  container.append(
+    diagnosticCard('Aplicativo', [
+      ['Versão', report.app.version],
+      ['Electron', report.app.electron],
+      ['Node', report.app.node],
+      ['Modo', report.app.packaged ? 'Instalado' : 'Desenvolvimento']
+    ]),
+    diagnosticCard('Banco local', [
+      ['Modo', report.database.mode],
+      ['Módulo nativo', report.database.nativeModule],
+      ['Arquivo', report.database.exists ? 'Encontrado' : 'Ausente']
+    ]),
+    diagnosticCard('GoAnime', [
+      ['GUI', report.providers.goAnime.ready ? 'Pronto' : 'Reparo necessário'],
+      ['Clássico', report.providers.goAnime.classicReady ? 'Pronto' : 'Indisponível'],
+      ['Bridge', report.providers.goAnime.bridge?.version || 'Não instalado'],
+      ['MPV', report.dependencies.mpv.available ? 'Encontrado' : 'Ausente']
+    ]),
+    diagnosticCard('Ferramentas', [
+      ['anime-cli-br', report.providers.animeCliBr.ready ? 'Pronto' : 'Indisponível'],
+      ['ani-cli', report.providers.aniCli.ready ? 'Experimental' : 'Indisponível'],
+      ['FAST Anime VSR', report.tools.fastAnimeVsr.ready ? 'Pronto' : 'Não preparado']
+    ])
+  );
+  appendDiagnosticLog(
+    `Verificação concluída em ${new Date(report.checkedAt).toLocaleString('pt-BR')}.`
+  );
+}
+
+function diagnosticCard(title, rows) {
+  const card = document.createElement('article');
+  card.className = 'diagnostic-card';
+  const header = document.createElement('header');
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  header.append(heading);
+  const list = document.createElement('dl');
+  rows.forEach(([term, value]) => {
+    const row = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = term;
+    const dd = document.createElement('dd');
+    dd.textContent = String(value);
+    row.append(dt, dd);
+    list.append(row);
+  });
+  card.append(header, list);
+  return card;
+}
+
+function appendDiagnosticLog(message) {
+  if (!message) return;
+  const current =
+    $('diagnostic-log').textContent === 'Aguardando verificação...'
+      ? ''
+      : $('diagnostic-log').textContent;
+  $('diagnostic-log').textContent =
+    `${current}${current ? '\n' : ''}${new Date().toLocaleTimeString('pt-BR')}  ${message}`;
+  $('diagnostic-log').scrollTop = $('diagnostic-log').scrollHeight;
+}
+
+async function checkUpdates(showFeedback) {
+  const result = await animeDesk.updates.check();
+  if (!result.ok) {
+    if (showFeedback) notifyResultError(result);
+    return;
+  }
+  handleUpdateState(result.data, showFeedback);
+}
+
+function handleUpdateState(update, showFeedback = false) {
+  const available = ['available', 'downloading', 'downloaded'].includes(update.state);
+  $('update-notification').classList.toggle('d-none', !available);
+  if (!showFeedback && update.state !== 'downloaded') return;
+  const messages = {
+    development: update.message,
+    checking: 'Procurando uma nova versão...',
+    available: 'Nova versão encontrada. O download foi iniciado.',
+    downloading: `Baixando atualização: ${Math.round(update.progress?.percent || 0)}%`,
+    downloaded: 'Atualização baixada. Ela será instalada ao sair.',
+    'not-available': 'Você já está usando a versão mais recente.',
+    error: update.message || 'Não foi possível verificar atualizações.'
+  };
+  showToast({
+    title: 'Atualizações',
+    message: messages[update.state] || 'Estado de atualização recebido.',
+    variant: update.state === 'error' ? 'error' : update.state === 'downloaded' ? 'success' : 'info'
+  });
+}
+
+function bindAdmin() {
+  $('new-user-button').addEventListener('click', () => openUserModal());
+  $('save-user-button').addEventListener('click', saveUser);
+}
+
+async function renderUsers() {
+  const result = await animeDesk.users.list();
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
+  }
+  state.users = result.data;
+  const container = $('users-list');
+  container.replaceChildren();
+  result.data.forEach((user) => {
+    const card = document.createElement('article');
+    card.className = 'user-card';
+    const header = document.createElement('div');
+    header.className = 'user-card-header';
+    const avatar = document.createElement('span');
+    avatar.className = 'profile-avatar';
+    avatar.style.backgroundColor = user.profileColor;
+    avatar.textContent = user.name[0]?.toUpperCase() || 'U';
+    const text = document.createElement('div');
+    text.innerHTML = `<strong>${escapeHtml(user.name)}</strong><div class="text-secondary">@${escapeHtml(user.username)} · ${user.role}</div>`;
+    header.append(avatar, text);
+    const status = document.createElement('span');
+    status.className = user.active ? 'text-success' : 'text-danger';
+    status.textContent = user.active ? 'Ativo' : 'Desativado';
+    const actions = document.createElement('div');
+    actions.className = 'user-card-actions';
+    const edit = document.createElement('button');
+    edit.className = 'btn btn-outline-light btn-sm';
+    edit.type = 'button';
+    edit.innerHTML = '<i class="bi bi-pencil"></i> Editar';
+    edit.addEventListener('click', () => openUserModal(user));
+    actions.append(edit);
+    card.append(header, status, actions);
+    container.append(card);
+  });
+}
+
+function openUserModal(user = null) {
+  $('user-modal-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
+  $('user-id').value = user?.id || '';
+  $('user-name').value = user?.name || '';
+  $('user-username').value = user?.username || '';
+  $('user-username').disabled = Boolean(user);
+  $('user-password').value = '';
+  $('user-password-field').querySelector('label').textContent = user
+    ? 'Nova senha (opcional)'
+    : 'Senha inicial';
+  $('user-role').value = user?.role || 'USER';
+  $('user-parental-level').value = user?.parentalLevel || 'ADULT';
+  $('user-color').value = user?.profileColor || '#6f5cff';
+  $('user-active').checked = user?.active ?? true;
+  setVisualAlert($('user-form-alert'), '');
+  modals.user.show();
+}
+
+async function saveUser() {
+  const id = Number($('user-id').value || 0);
+  const payload = {
+    id,
+    name: $('user-name').value,
+    username: $('user-username').value,
+    password: $('user-password').value,
+    role: $('user-role').value,
+    parentalLevel: $('user-parental-level').value,
+    profileColor: $('user-color').value,
+    active: $('user-active').checked
+  };
+  let result;
+  if (id) {
+    result = await animeDesk.users.update(payload);
+    if (result.ok && payload.password) {
+      result = await animeDesk.users.resetPassword({
+        id,
+        password: payload.password,
+        mustChangePassword: false
+      });
+    }
+  } else {
+    result = await animeDesk.users.create(payload);
+  }
+  if (!result.ok) {
+    setVisualAlert($('user-form-alert'), result.error?.message || 'Não foi possível salvar.');
+    return;
+  }
+  modals.user.hide();
+  await renderUsers();
+  showToast({
+    title: 'Usuário salvo',
+    message: 'As permissões foram atualizadas.',
+    variant: 'success'
+  });
+}
+
+function bindModals() {
+  $('parental-unlock-button').addEventListener('click', async () => {
+    const result = await animeDesk.settings.verifyParentalPin($('parental-unlock-pin').value);
+    if (!result.ok) {
+      setVisualAlert($('parental-unlock-alert'), result.error?.message || 'PIN incorreto.');
+      return;
+    }
+    state.parentalUnlockedUntil = Date.now() + 30 * 60 * 1000;
+    $('parental-unlock-pin').value = '';
+    setVisualAlert($('parental-unlock-alert'), '');
+    modals.parental.hide();
+    const action = state.pendingParentalAction;
+    state.pendingParentalAction = null;
+    if (action) action();
+  });
+  $('submit-report-button').addEventListener('click', submitReport);
+}
+
+function requestParentalUnlock(action) {
+  if (!state.settings?.parentalPinConfigured) {
+    showToast({
+      title: 'PIN não configurado',
+      message: 'Configure o PIN em Configurações.',
+      variant: 'warning'
+    });
+    showView('settings');
+    return;
+  }
+  state.pendingParentalAction = action;
+  modals.parental.show();
+}
+
+function parentalUnlocked() {
+  return Date.now() < state.parentalUnlockedUntil;
+}
+
+function isProtectedAnime(anime) {
+  if (!state.settings?.parentalControlEnabled) return false;
+  const userLevel = state.session.user.parentalLevel || 'ADULT';
+  if (userLevel === 'ADULT' && state.settings.maxContentRating === '18') return false;
+  const text = `${anime.name} ${(anime.genres || []).join(' ')}`.toLowerCase();
+  const explicit = ['hentai', 'adult', 'erotica', 'ecchi'].some((term) => text.includes(term));
+  if (explicit) return true;
+  if (userLevel === 'CHILD') {
+    return ['horror', 'psychological', 'violence', 'gore'].some((term) => text.includes(term));
+  }
+  return false;
+}
+
+function openReportModal() {
+  const context = state.playback?.context || state.lastIssue;
+  if (!context?.anime) {
+    showToast({
+      title: 'Nada para reportar',
+      message: 'Abra ou tente abrir um episódio primeiro.',
       variant: 'warning'
     });
     return;
   }
+  const episode = context.episode || {};
+  $('report-summary').textContent =
+    `${context.anime.name} · Episódio ${cleanEpisode(episode.number || episode.num || 1)}`;
+  $('report-details').value = state.lastIssue?.technicalError || '';
+  modals.report.show();
+}
 
-  openInstallationDialog(normalizedProvider);
-  button.disabled = true;
-
-  try {
-    const result = await animeDesk.player.installDependencies(normalizedProvider);
-    if (!result.ok) throw new Error(result.error?.message ?? `Falha ao instalar ${label}.`);
-
-    state.installation.jobId = result.data.jobId;
-    state.installation.provider = normalizedProvider;
-    state.installation.active = true;
-    state.installation.finished = false;
-    elements['installation-live-badge'].textContent = result.data.started
-      ? 'Instalando'
-      : 'Já em andamento';
-    appendInstallationLog(
-      result.data.started
-        ? 'Instalação iniciada em segundo plano, sem abrir terminal.'
-        : 'A instalação deste componente já estava em andamento.',
-      'running'
-    );
-  } catch (error) {
-    finishInstallation(false, error.message || `Não foi possível instalar ${label}.`);
-  } finally {
-    button.disabled = false;
+async function submitReport() {
+  const context = state.playback?.context || state.lastIssue;
+  if (!context?.anime) return;
+  const episode = context.episode || {};
+  const result = await animeDesk.reports.create({
+    animeId: context.anime.url,
+    animeTitle: context.anime.name,
+    episodeNumber: episode.num || Number.parseFloat(episode.number) || 1,
+    language: context.language || state.lastIssue?.language || 'sub',
+    providerId: 'goanime-gui',
+    source: state.playback?.source || context.anime.source,
+    errorCode: state.lastIssue?.errorCode || '',
+    technicalError: $('report-details').value || state.lastIssue?.technicalError || ''
+  });
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
   }
-}
-
-function openInstallationDialog(provider) {
-  const definition = installationCatalog[provider] ?? installationCatalog.goanime;
-  state.installation = {
-    jobId: null,
-    provider,
-    active: true,
-    finished: false,
-    percent: 0,
-    componentStates: {}
-  };
-
-  elements['installation-title'].textContent = definition.title;
-  elements['installation-subtitle'].textContent = definition.subtitle;
-  elements['installation-current-step'].textContent = 'Verificando componentes instalados...';
-  elements['installation-percent'].textContent = '0%';
-  elements['installation-progress-bar'].style.width = '0%';
-  elements['installation-progress-bar'].parentElement.setAttribute('aria-valuenow', '0');
-  elements['installation-progress-bar'].classList.add('progress-bar-animated');
-  elements['installation-live-badge'].textContent = 'Verificando';
-  elements['installation-live-badge'].className = 'installation-live-badge';
-  elements['installation-footer-message'].textContent =
-    'Você pode ocultar esta janela; o processo continuará dentro do KitsuneDesk.';
-  elements['installation-cancel-button'].disabled = false;
-  elements['installation-cancel-button'].classList.remove('d-none');
-  elements['installation-close-button'].classList.add('d-none');
-  elements['installation-log'].replaceChildren();
-  renderInstallationComponents(definition.components);
-  appendInstallationLog('Lendo o estado atual da máquina...', 'running');
-  elements['installation-overlay'].classList.remove('d-none');
-}
-
-/** @param {readonly object[]} components */
-function renderInstallationComponents(components) {
-  elements['installation-components'].replaceChildren();
-  components.forEach((component) => {
-    const article = document.createElement('article');
-    article.className = 'installation-component';
-    article.dataset.component = component.id;
-
-    const icon = document.createElement('span');
-    icon.className = 'installation-component-icon';
-    const iconElement = document.createElement('i');
-    iconElement.className = `bi ${component.icon}`;
-    icon.append(iconElement);
-
-    const copy = document.createElement('div');
-    const name = document.createElement('strong');
-    name.textContent = component.name;
-    const purpose = document.createElement('small');
-    purpose.textContent = component.purpose;
-    copy.append(name, purpose);
-
-    const status = document.createElement('span');
-    status.className = 'installation-component-state';
-    status.textContent = 'Aguardando';
-
-    article.append(icon, copy, status);
-    elements['installation-components'].append(article);
+  modals.report.hide();
+  showToast({
+    title: 'Relatório salvo',
+    message: 'O problema foi registrado no banco local.',
+    variant: 'success'
   });
 }
 
-/** @param {object} event */
-function handleInstallationProgress(event) {
-  if (!event || typeof event !== 'object') return;
-
-  const normalizedProvider = event.provider === 'goanime-gui' ? 'goanime' : event.provider;
-  if (!state.installation.provider) {
-    openInstallationDialog(normalizedProvider);
-  }
-  if (state.installation.provider !== normalizedProvider) return;
-  if (state.installation.jobId && event.jobId !== state.installation.jobId) return;
-  if (!state.installation.jobId) state.installation.jobId = event.jobId;
-
-  const percent = Math.max(state.installation.percent, Math.min(100, Number(event.percent) || 0));
-  state.installation.percent = percent;
-  elements['installation-percent'].textContent = `${percent}%`;
-  elements['installation-progress-bar'].style.width = `${percent}%`;
-  elements['installation-progress-bar'].parentElement.setAttribute(
-    'aria-valuenow',
-    String(percent)
-  );
-
-  if (event.message) {
-    elements['installation-current-step'].textContent = event.message;
-  }
-
-  if (event.component && event.component !== 'installer') {
-    updateInstallationComponent(event.component, event.state, event.message, event.purpose);
-  }
-
-  if (event.type !== 'started' || event.message) {
-    appendInstallationLog(event.message || event.detail, event.state, event.timestamp);
-  }
-  if (event.detail && event.detail !== event.message) {
-    appendInstallationLog(
-      event.detail,
-      event.state === 'error' ? 'error' : 'warning',
-      event.timestamp
-    );
-  }
-
-  if (event.type === 'complete') {
-    finishInstallation(true, event.message || 'Instalação concluída.');
-  } else if (event.type === 'error') {
-    finishInstallation(false, event.detail || event.message || 'A instalação falhou.');
-  } else if (event.type === 'cancelled') {
-    finishInstallation(false, 'Instalação cancelada.', true);
-  }
+function collectionPayload(anime, row = null) {
+  return {
+    providerId: row?.provider_id || 'goanime-gui',
+    animeId: row?.anime_id || anime.url,
+    animeTitle: row?.anime_title || anime.name,
+    animeCover: row?.anime_cover || anime.imageUrl,
+    animePayload: anime
+  };
 }
 
-function updateInstallationComponent(componentId, status, message, purpose) {
-  const card = elements['installation-components'].querySelector(
-    `[data-component="${CSS.escape(componentId)}"]`
-  );
-  if (!card) return;
-
-  const normalizedState = normalizeInstallationState(status);
-  card.className = `installation-component is-${normalizedState}`;
-  const badge = card.querySelector('.installation-component-state');
-  badge.textContent = installationStateLabel(normalizedState);
-  if (purpose) card.querySelector('small').textContent = purpose;
-  if (message) card.title = message;
-  state.installation.componentStates[componentId] = normalizedState;
+function setCollectionButton(button, active, type) {
+  const isFavorite = type === 'favorite';
+  button.classList.toggle('btn-primary', active);
+  button.classList.toggle('btn-outline-light', !active);
+  button.innerHTML = isFavorite
+    ? `<i class="bi ${active ? 'bi-heart-fill' : 'bi-heart'}"></i> ${active ? 'Favorito' : 'Favoritar'}`
+    : `<i class="bi ${active ? 'bi-bookmark-fill' : 'bi-bookmark-plus'}"></i> ${active ? 'Na lista' : 'Quero assistir'}`;
 }
 
-function normalizeInstallationState(value) {
-  const stateValue = String(value ?? '').toLowerCase();
-  if (['downloading', 'installing', 'checking', 'running'].includes(stateValue)) {
-    return 'installing';
-  }
-  if (['installed', 'skipped', 'warning', 'error', 'cancelled'].includes(stateValue)) {
-    return stateValue;
-  }
-  return 'installing';
-}
-
-function installationStateLabel(value) {
+function providerLabel(provider) {
   return (
     {
-      installing: 'Em andamento',
-      installed: 'Instalado',
-      skipped: 'Já instalado',
-      warning: 'Atenção',
-      error: 'Erro',
-      cancelled: 'Cancelado'
-    }[value] ?? 'Aguardando'
+      'goanime-gui': 'GoAnime completo',
+      goanime: 'GoAnime completo',
+      'anime-cli-br': 'anime-cli-br',
+      'ani-cli': 'ani-cli',
+      'fast-anime-vsr': 'FAST Anime VSR'
+    }[provider] || provider
   );
 }
 
-function appendInstallationLog(
-  message,
-  stateValue = 'running',
-  timestamp = new Date().toISOString()
-) {
-  const text = String(message ?? '').trim();
-  if (!text) return;
-
-  const row = document.createElement('div');
-  const normalizedState = normalizeLogState(stateValue);
-  row.className = `installation-log-line is-${normalizedState}`;
-
-  const time = document.createElement('span');
-  time.className = 'installation-log-time';
-  time.textContent = formatTime(timestamp);
-
-  const copy = document.createElement('span');
-  copy.className = 'installation-log-message';
-  copy.textContent = text;
-
-  row.append(time, copy);
-  elements['installation-log'].append(row);
-  while (elements['installation-log'].children.length > 120) {
-    elements['installation-log'].firstElementChild.remove();
-  }
-  elements['installation-log'].scrollTop = elements['installation-log'].scrollHeight;
+function unwrap(result) {
+  if (result?.ok) return result.data;
+  const error = new Error(result?.error?.message || 'Não foi possível concluir a operação.');
+  error.code = result?.error?.code;
+  error.technicalMessage = result?.error?.technicalMessage;
+  throw error;
 }
 
-function normalizeLogState(value) {
-  const normalized = String(value ?? '').toLowerCase();
-  if (normalized === 'error') return 'error';
-  if (normalized === 'warning') return 'warning';
-  if (['installed', 'skipped', 'complete'].includes(normalized)) return 'success';
-  return 'running';
-}
-
-async function finishInstallation(success, message, cancelled = false) {
-  if (state.installation.finished) return;
-  state.installation.finished = true;
-  state.installation.active = false;
-
-  elements['installation-progress-bar'].classList.remove('progress-bar-animated');
-  elements['installation-cancel-button'].classList.add('d-none');
-  elements['installation-close-button'].classList.remove('d-none');
-  elements['installation-close-button'].textContent = success ? 'Concluir' : 'Fechar';
-  elements['installation-live-badge'].textContent = success
-    ? 'Concluído'
-    : cancelled
-      ? 'Cancelado'
-      : 'Falha';
-  elements['installation-live-badge'].classList.toggle('is-success', success);
-  elements['installation-live-badge'].classList.toggle('is-error', !success);
-  elements['installation-footer-message'].textContent = message;
-  elements['installation-current-step'].textContent = message;
-
-  if (success) {
-    state.installation.percent = 100;
-    elements['installation-percent'].textContent = '100%';
-    elements['installation-progress-bar'].style.width = '100%';
-    elements['installation-progress-bar'].parentElement.setAttribute('aria-valuenow', '100');
-    appendInstallationLog('Status local atualizado após a instalação.', 'installed');
-    await hydratePlayerStatus();
-    showToast({
-      title: 'Instalação concluída',
-      message,
-      variant: 'success'
-    });
-  } else {
-    appendInstallationLog(message, cancelled ? 'warning' : 'error');
-    showToast({
-      title: cancelled ? 'Instalação cancelada' : 'Falha na instalação',
-      message,
-      variant: cancelled ? 'warning' : 'error'
-    });
-  }
-}
-
-function bindLegacyTools() {
-  elements['open-goanime-classic'].addEventListener('click', () => openLegacy('goanime'));
-  elements['open-animeclibr'].addEventListener('click', () => openLegacy('anime-cli-br'));
-  elements['open-anicli'].addEventListener('click', () => openLegacy('ani-cli'));
-}
-
-/** @param {'goanime'|'anime-cli-br'|'ani-cli'} provider */
-async function openLegacy(provider) {
-  const query = elements['anime-search'].value.trim() || state.query;
-  if (query.length < 2) {
-    showToast({
-      title: 'Provedor legado',
-      message: 'Digite um anime no campo de busca antes de abrir o provedor.',
-      variant: 'warning'
-    });
-    showView('home');
-    elements['anime-search'].focus();
+function notifyResult(result) {
+  if (!result?.ok) {
+    notifyResultError(result);
     return;
   }
-
-  try {
-    const result = await animeDesk.player.openLegacy({
-      query,
-      provider,
-      language: elements['language-filter'].value,
-      quality: elements['quality-filter'].value
-    });
-    if (!result.ok) throw new Error(result.error?.message ?? 'Não foi possível abrir o provedor.');
-
-    showToast({
-      title: result.data.providerName,
-      message: `Aberto no ${result.data.terminal}.`,
-      variant: 'success'
-    });
-  } catch (error) {
-    showToast({
-      title: 'Provedor legado',
-      message: error.message || 'Não foi possível abrir o provedor.',
-      variant: 'error'
-    });
-  }
+  const message =
+    result.data?.message ||
+    (result.data?.stopped ? 'Reprodução encerrada.' : 'Operação concluída.');
+  showToast({ title: 'KitsuneDesk', message, variant: 'success' });
 }
 
-async function openFastAnimeVsr() {
-  try {
-    const result = await animeDesk.player.openTool({ tool: 'fast-anime-vsr' });
-    if (!result.ok) {
-      throw new Error(result.error?.message ?? 'Não foi possível abrir o FAST Anime VSR.');
-    }
-
-    showToast({
-      title: 'FAST Anime VSR',
-      message: `Ambiente aberto no ${result.data.terminal}.`,
-      variant: 'success'
-    });
-  } catch (error) {
-    showToast({
-      title: 'FAST Anime VSR',
-      message: error.message || 'Não foi possível abrir a ferramenta.',
-      variant: 'error'
-    });
-  }
-}
-
-function bindHealthCheck() {
-  elements['health-check-button'].addEventListener('click', async () => {
-    elements['health-check-button'].disabled = true;
-    try {
-      const result = await animeDesk.app.ping();
-      showToast({
-        title: 'Comunicação local',
-        message: result.ok
-          ? `Resposta recebida às ${formatTime(result.checkedAt)}.`
-          : 'Sem resposta.',
-        variant: result.ok ? 'success' : 'warning'
-      });
-    } catch (error) {
-      showToast({
-        title: 'Comunicação local',
-        message: error.message || 'Não foi possível consultar o processo principal.',
-        variant: 'error'
-      });
-    } finally {
-      elements['health-check-button'].disabled = false;
-    }
+function notifyResultError(result) {
+  showToast({
+    title: 'Não foi possível concluir',
+    message: result?.error?.message || 'Erro inesperado.',
+    variant: 'error'
   });
 }
 
-function bindLogout() {
-  elements['logout-button'].addEventListener('click', async () => {
-    elements['logout-button'].disabled = true;
-    try {
-      await animeDesk.auth.logout();
-    } finally {
-      clearSession();
-      window.location.href = './login.html';
-    }
+function notifyError(error) {
+  showToast({
+    title: 'Não foi possível concluir',
+    message: error.message || 'Erro inesperado.',
+    variant: 'error'
   });
 }
 
-/** @param {boolean} busy @param {string} [title] @param {string} [message] */
-function setBusy(busy, title = 'Carregando', message = 'Aguarde um momento...') {
-  elements['loading-title'].textContent = title;
-  elements['loading-message'].textContent = message;
-  elements['loading-overlay'].classList.toggle('d-none', !busy);
+function showLoading(title, message) {
+  $('loading-title').textContent = title;
+  $('loading-message').textContent = message;
+  $('loading-overlay').classList.remove('d-none');
 }
 
-/** @param {HTMLElement} container @param {unknown} value */
-function appendMeta(container, value) {
-  const text = String(value ?? '').trim();
-  if (!text) return;
-  const chip = document.createElement('span');
-  chip.className = 'meta-chip';
-  chip.textContent = text;
-  container.append(chip);
+function hideLoading() {
+  $('loading-overlay').classList.add('d-none');
 }
 
-/** @param {string} icon @param {string} message */
-function createEmptyState(icon, message) {
+function createImage(src, alt) {
+  const image = document.createElement('img');
+  image.src = src || fallbackCover;
+  image.alt = alt || '';
+  image.addEventListener(
+    'error',
+    () => {
+      image.src = fallbackCover;
+    },
+    { once: true }
+  );
+  return image;
+}
+
+function badge(text) {
+  const element = document.createElement('span');
+  element.className = 'badge-soft';
+  element.textContent = text;
+  return element;
+}
+
+function iconButton(icon, title) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'card-icon-button';
+  button.title = title;
+  button.innerHTML = `<i class="bi ${icon}"></i>`;
+  return button;
+}
+
+function emptyState(icon, message) {
   const element = document.createElement('div');
   element.className = 'empty-state';
   const iconElement = document.createElement('i');
   iconElement.className = `bi ${icon}`;
-  const text = document.createElement('p');
+  const text = document.createElement('span');
   text.textContent = message;
   element.append(iconElement, text);
   return element;
 }
 
-/** @param {unknown} value */
-function safeImageUrl(value) {
-  const raw = String(value ?? '').trim();
-  if (!raw) return fallbackCover;
+function setVisualAlert(element, message) {
+  element.textContent = message;
+  element.classList.toggle('d-none', !message);
+}
+
+function parseJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
   try {
-    const url = new URL(raw);
-    return ['http:', 'https:'].includes(url.protocol) ? raw : fallbackCover;
+    return JSON.parse(value);
   } catch {
-    return fallbackCover;
+    return null;
   }
 }
 
-/** @param {string | null} value */
-function shortPath(value) {
-  if (!value) return 'Não encontrado';
-  const parts = value.split(/[\\/]/).filter(Boolean);
-  return parts.slice(-3).join('\\');
+function findEpisodeIndex(episodes, savedEpisode) {
+  const wanted = Number(savedEpisode.num || Number.parseFloat(savedEpisode.number));
+  const index = episodes.findIndex(
+    (episode) => Number(episode.num || Number.parseFloat(episode.number)) === wanted
+  );
+  return index >= 0 ? index : 0;
 }
 
-/** @param {string} value */
-function formatQuality(value) {
-  const normalized = String(value ?? 'auto').toLowerCase();
-  if (normalized === 'auto' || normalized === 'best') return 'Melhor disponível';
-  if (normalized === 'worst') return 'Menor disponível';
-  return normalized.endsWith('p') ? normalized : `${normalized}p`;
+function cleanEpisode(value) {
+  const text = String(value ?? '1')
+    .replace(/epis[oó]dio/gi, '')
+    .trim();
+  return text || '1';
 }
 
-/** @param {number} seconds */
-function formatDuration(seconds) {
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  return `${minutes} min`;
+function formatTime(value) {
+  const total = Math.max(0, Math.floor(Number(value || 0)));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-/** @param {string} isoDate */
-function formatTime(isoDate) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }).format(new Date(isoDate));
+function formatHours(seconds) {
+  const hours = Number(seconds || 0) / 3600;
+  return hours < 1 ? `${Math.round(hours * 60)}min` : `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
+}
+
+function stripHtml(value) {
+  const container = document.createElement('div');
+  container.innerHTML = String(value || '');
+  return container.textContent.trim();
+}
+
+function escapeHtml(value) {
+  const span = document.createElement('span');
+  span.textContent = String(value ?? '');
+  return span.innerHTML;
+}
+
+function debounce(fn, wait) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
 }

@@ -25,10 +25,16 @@ win:
 
 nsis:
   oneClick: false
-  license: build/installer-terms.txt
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: KitsuneDesk
   runAfterFinish: true
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: RaphaelTW
+  repo: kitsuneDesk
+  releaseType: release

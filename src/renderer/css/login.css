@@ -125,3 +125,8 @@
 .password-rules li.is-valid i {
   color: var(--app-green);
 }
+
+.auth-hint-success {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #bbf7d0;
+}
