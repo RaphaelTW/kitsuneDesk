@@ -280,11 +280,11 @@ tests/                testes unitários, integração e E2E Electron
 
 ## Melhorias recomendadas para as próximas versões
 
-- cache local de resultados e capas com expiração;
-- backup e restauração da biblioteca em JSON;
-- backup criptografado opcional dos perfis locais;
-- gerenciamento visual dos registros de telemetria local;
-- cache offline dos avatares selecionados.
+- assinatura digital do instalador Windows para reduzir alertas de editor desconhecido;
+- player embutido opcional, mantendo MPV externo como modo estável;
+- importação/exportação completa das preferências de temas, perfis e provedores;
+- testes automatizados de atualização via GitHub Release em instalação real;
+- empacotamento assistido dos provedores opcionais para instalação offline.
 
 ## Limitações conhecidas
 

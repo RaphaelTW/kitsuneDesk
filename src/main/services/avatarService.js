@@ -7,17 +7,32 @@ const AVATAR_STYLES = Object.freeze([
   'shapes',
   'rings',
   'adventurer',
+  'adventurer-neutral',
   'avataaars',
+  'avataaars-neutral',
+  'big-ears',
+  'big-ears-neutral',
+  'big-smile',
   'bottts',
+  'bottts-neutral',
+  'croodles',
+  'croodles-neutral',
+  'dylan',
   'fun-emoji',
   'glass',
   'lorelei',
+  'lorelei-neutral',
   'micah',
+  'miniavs',
   'notionists',
+  'notionists-neutral',
   'open-peeps',
   'personas',
-  'pixel-art'
+  'pixel-art',
+  'pixel-art-neutral'
 ]);
+
+const DICEBEAR_API_VERSIONS = Object.freeze(['10.x', '9.x']);
 
 class AvatarService {
   constructor({ cacheService }) {
@@ -34,9 +49,11 @@ class AvatarService {
       String(payload?.seed || 'user')
         .trim()
         .slice(0, 80) || 'user';
-    const remoteUrl = `https://api.dicebear.com/10.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear`;
-    const cached = await this.cacheService.cacheImage(remoteUrl, 'avatars');
-    if (cached.cached) return { ...cached, style, seed, source: 'dicebear-cache' };
+    for (const version of DICEBEAR_API_VERSIONS) {
+      const remoteUrl = diceBearUrl(version, style, seed);
+      const cached = await this.cacheService.cacheImage(remoteUrl, 'avatars');
+      if (cached.cached) return { ...cached, style, seed, source: `dicebear-${version}-cache` };
+    }
     return {
       url: localAvatarDataUrl(style, seed),
       cached: true,
@@ -46,6 +63,10 @@ class AvatarService {
       source: 'local-fallback'
     };
   }
+}
+
+function diceBearUrl(version, style, seed) {
+  return `https://api.dicebear.com/${version}/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear`;
 }
 
 function localAvatarDataUrl(style, seed) {

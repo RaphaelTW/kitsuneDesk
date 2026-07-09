@@ -76,6 +76,7 @@ window.addEventListener('DOMContentLoaded', () => {
   bindBackup();
   bindTelemetry();
   bindAdmin();
+  void hydrateAvatarStyles();
   bindModals();
   bindInstallation();
   bindFailureTelemetry();
@@ -1634,6 +1635,23 @@ function bindAdmin() {
   $('user-color').addEventListener('input', updateUserAvatarPreview);
 }
 
+async function hydrateAvatarStyles() {
+  if (!animeDesk.avatars?.styles) return;
+  const select = $('user-avatar-style');
+  const current = select.value || 'thumbs';
+  try {
+    const result = await animeDesk.avatars.styles();
+    if (!result?.ok || !Array.isArray(result.data) || !result.data.length) return;
+    select.replaceChildren();
+    for (const style of result.data) {
+      select.append(new Option(`DiceBear ${style.name}`, style.id));
+    }
+    select.value = result.data.some((style) => style.id === current) ? current : 'thumbs';
+  } catch {
+    // A lista estatica do HTML continua disponivel se o IPC falhar.
+  }
+}
+
 async function renderUsers() {
   const result = await animeDesk.users.list();
   if (!result.ok) {
@@ -1986,12 +2004,19 @@ function setVisualAlert(element, message) {
 async function setCachedAvatar(image, user) {
   if (!image) return;
   const cached = readAvatarSnapshot(user);
-  image.src = cached?.url || fallbackCover;
+  image.src = isUsableAvatarSource(cached?.url) ? cached.url : fallbackCover;
+  image.addEventListener(
+    'error',
+    () => {
+      image.src = fallbackCover;
+    },
+    { once: true }
+  );
   const result = await animeDesk.avatars.get({
     style: user?.avatarStyle || 'thumbs',
     seed: user?.avatarSeed || user?.username || user?.name || 'user'
   });
-  const avatarSource = result?.data?.fileUrl || result?.data?.url;
+  const avatarSource = preferredAvatarSource(result?.data);
   if (result?.ok && avatarSource) {
     image.src = avatarSource;
     rememberAvatarSnapshot(user, avatarSource);
@@ -2017,11 +2042,12 @@ function avatarSnapshotKey(user) {
 
 function readAvatarSnapshot(user) {
   const cache = readJsonStorage(AVATAR_SNAPSHOT_KEY) || {};
-  return cache[avatarSnapshotKey(user)] || null;
+  const cached = cache[avatarSnapshotKey(user)] || null;
+  return isUsableAvatarSource(cached?.url) ? cached : null;
 }
 
 function rememberAvatarSnapshot(user, url) {
-  if (!url) return;
+  if (!isUsableAvatarSource(url)) return;
   const cache = readJsonStorage(AVATAR_SNAPSHOT_KEY) || {};
   cache[avatarSnapshotKey(user)] = { url, savedAt: Date.now() };
   const entries = Object.entries(cache).sort(
@@ -2031,6 +2057,21 @@ function rememberAvatarSnapshot(user, url) {
     AVATAR_SNAPSHOT_KEY,
     Object.fromEntries(entries.slice(0, AVATAR_SNAPSHOT_LIMIT))
   );
+}
+
+function preferredAvatarSource(data) {
+  if (isUsableAvatarSource(data?.url)) return data.url;
+  if (isUsableAvatarSource(data?.fileUrl)) return data.fileUrl;
+  return '';
+}
+
+function isUsableAvatarSource(url) {
+  const value = String(url || '');
+  if (!value) return false;
+  if (/^file:\/\//i.test(value) && /\/avatars\/[^/]+\.bin$/i.test(value.replace(/\\/g, '/'))) {
+    return false;
+  }
+  return /^(data:image\/|file:\/\/|https?:\/\/)/i.test(value);
 }
 
 function readJsonStorage(key) {

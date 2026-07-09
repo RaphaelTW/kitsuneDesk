@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.1] - 2026-07-09
+
+### Corrigido
+
+- Avatares voltam a carregar no renderer usando `data:image` como fonte preferencial, evitando snapshots locais quebrados salvos como `.bin`.
+- Serviço de avatares tenta DiceBear `10.x` e retorna automaticamente para `9.x` antes do fallback SVG local.
+
+### Adicionado
+
+- Mais estilos gratuitos do DiceBear para perfis, incluindo Adventurer Neutral, Avataaars Neutral, Big Ears, Big Smile, Croodles, Dylan, Miniavs e variantes Neutral.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.11.1`.
+
 ## [0.11.0] - 2026-07-09
 
 ### Adicionado
