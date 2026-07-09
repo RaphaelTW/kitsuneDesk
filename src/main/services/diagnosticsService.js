@@ -11,13 +11,15 @@ class DiagnosticsService {
     database,
     playerService,
     telemetryRepository = null,
-    sessionRepository = null
+    sessionRepository = null,
+    cacheService = null
   }) {
     this.app = app;
     this.database = database;
     this.playerService = playerService;
     this.telemetryRepository = telemetryRepository;
     this.sessionRepository = sessionRepository;
+    this.cacheService = cacheService;
   }
 
   run() {
@@ -56,8 +58,9 @@ class DiagnosticsService {
       },
       telemetry: {
         enabled: this.telemetryRepository?.enabledForUser(userId) ?? false,
-        recentFailures: this.telemetryRepository?.list(userId, 10) ?? []
-      }
+        recentFailures: this.telemetryRepository?.list(userId, { pageSize: 10 })?.items ?? []
+      },
+      cache: this.cacheService?.stats() ?? { entries: [], disk: [] }
     };
   }
 
@@ -70,6 +73,32 @@ class DiagnosticsService {
         message: payload?.message || '',
         metadata: payload?.metadata || {}
       }) ?? { recorded: false, reason: 'unavailable' }
+    );
+  }
+
+  listFailureTelemetry(filters) {
+    return (
+      this.telemetryRepository?.list(this.currentUserId(), filters) ?? {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 25,
+        pages: 1,
+        facets: { scopes: [], events: [] }
+      }
+    );
+  }
+
+  removeFailureTelemetry(payload) {
+    return this.telemetryRepository?.remove(this.currentUserId(), payload?.ids) ?? { removed: 0 };
+  }
+
+  exportFailureTelemetry(format, filters) {
+    return (
+      this.telemetryRepository?.export(this.currentUserId(), format, filters) ?? {
+        content: '[]',
+        extension: 'json'
+      }
     );
   }
 
@@ -127,7 +156,9 @@ class DiagnosticsService {
       }
     }
 
-    return { cleared: true, removed };
+    const appCache = this.cacheService?.clear();
+    if (Array.isArray(appCache?.removed)) removed.push(...appCache.removed);
+    return { cleared: true, removed, appCache };
   }
 
   restoreComponents() {

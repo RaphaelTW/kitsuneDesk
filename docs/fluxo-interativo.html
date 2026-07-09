@@ -215,7 +215,7 @@
   </head>
   <body>
     <header>
-      <h1>Fluxo do KitsuneDesk <small>v0.8.1 Stable</small></h1>
+      <h1>Fluxo do KitsuneDesk <small>v0.10.0 Stable</small></h1>
       <p>
         Clique em cada etapa para entender o que acontece no aplicativo. Use os filtros para
         visualizar reprodução, administração ou manutenção.
@@ -250,19 +250,19 @@
           group: 'admin',
           tag: 'Acesso',
           title: 'Primeira execução',
-          text: 'O aplicativo verifica se já existe um administrador local.',
+          text: 'O aplicativo prepara o banco e cria o administrador temporário local quando necessário.',
           steps: [
             'Banco e migrações são preparados',
-            'Nenhuma senha padrão é criada',
-            'A tela correta é escolhida automaticamente'
+            'Administrador temporário admin / admin123',
+            'Troca obrigatória para uma senha forte'
           ]
         },
         {
           group: 'admin',
           tag: 'Segurança',
           title: 'Criar administrador',
-          text: 'O primeiro usuário define suas próprias credenciais e recebe a função ADMIN.',
-          steps: ['Nome e usuário', 'Senha forte', 'Sessão individual']
+          text: 'O primeiro login exige a substituição imediata da senha temporária por uma senha forte.',
+          steps: ['Login temporário', 'Senha forte obrigatória', 'Sessão individual']
         },
         {
           group: 'admin',
@@ -276,14 +276,18 @@
           tag: 'Descoberta',
           title: 'Pesquisar anime',
           text: 'O usuário escolhe provedor, idioma e resolução antes da busca.',
-          steps: ['GoAnime GUI principal', 'PT-BR ou legendado', 'Melhor qualidade por padrão']
+          steps: [
+            'GoAnime GUI principal',
+            'Cache de resultados com expiração',
+            'Fallback offline quando disponível'
+          ]
         },
         {
           group: 'play',
           tag: 'Catálogo',
           title: 'Resultados e episódios',
           text: 'Cards, capas e episódios são exibidos dentro do KitsuneDesk.',
-          steps: ['Escolher resultado', 'Filtrar episódios', 'Favoritar ou adicionar à lista']
+          steps: ['Escolher resultado', 'Capas em cache local', 'Favoritar ou adicionar à lista']
         },
         {
           group: 'play',
@@ -319,6 +323,35 @@
           title: 'Instalação gráfica',
           text: 'Dependências são verificadas e instaladas em segundo plano.',
           steps: ['Barra neon', 'Visor de componentes', 'Sem terminal visível']
+        },
+        {
+          group: 'admin',
+          tag: 'Dados',
+          title: 'Backup e restauração',
+          text: 'A biblioteca pode ser exportada em JSON e os perfis podem usar backup criptografado.',
+          steps: [
+            'Mesclar ou substituir biblioteca',
+            'AES-256-GCM para perfis',
+            'Senha nunca armazenada'
+          ]
+        },
+        {
+          group: 'system',
+          tag: 'Personalização',
+          title: 'Temas e avatares offline',
+          text: 'Temas adicionais e avatares em cache tornam a interface mais pessoal e resiliente.',
+          steps: [
+            'Dracula e Classic 98',
+            'Frutiger Aero e Dark Fantasy',
+            'Avatares DiceBear em cache'
+          ]
+        },
+        {
+          group: 'system',
+          tag: 'Telemetria local',
+          title: 'Gerenciar falhas',
+          text: 'Registros locais podem ser filtrados, copiados, excluídos e exportados sem envio externo.',
+          steps: ['Desativada por padrão', 'Filtros e paginação', 'Exportação JSON ou CSV']
         },
         {
           group: 'system',

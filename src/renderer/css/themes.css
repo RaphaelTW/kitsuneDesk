@@ -1,0 +1,269 @@
+/* Temas do KitsuneDesk v0.10.0. Os componentes usam os mesmos tokens para manter consistência. */
+body {
+  background-image: var(--theme-background-image, none);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+body[data-theme='dracula'] {
+  color-scheme: dark;
+  --app-bg: #282a36;
+  --app-surface: #303241;
+  --app-surface-soft: #383a4b;
+  --app-border: #535568;
+  --app-text: #f8f8f2;
+  --app-muted: #b7b7c8;
+  --app-purple: #bd93f9;
+  --app-cyan: #8be9fd;
+  --app-rose: #ff79c6;
+  --app-green: #50fa7b;
+  --app-shadow: 0 18px 42px rgba(15, 16, 24, 0.38);
+  --theme-background-image: radial-gradient(
+    circle at 85% 10%,
+    rgba(189, 147, 249, 0.13),
+    transparent 30%
+  );
+}
+
+body[data-theme='classic-98'] {
+  color-scheme: light;
+  --app-bg: #008080;
+  --app-surface: #c0c0c0;
+  --app-surface-soft: #d4d0c8;
+  --app-border: #808080;
+  --app-text: #000000;
+  --app-muted: #3f3f3f;
+  --app-purple: #000080;
+  --app-cyan: #000080;
+  --app-rose: #800000;
+  --app-green: #008000;
+  --app-shadow: 2px 2px 0 #000;
+  --theme-background-image: linear-gradient(#008080, #008080);
+}
+
+body[data-theme='classic-98'] .panel,
+body[data-theme='classic-98'] .settings-card,
+body[data-theme='classic-98'] .modal-content,
+body[data-theme='classic-98'] .sidebar,
+body[data-theme='classic-98'] .topbar {
+  border-radius: 0;
+  box-shadow:
+    inset 2px 2px #fff,
+    inset -2px -2px #404040;
+}
+
+body[data-theme='classic-98'] button,
+body[data-theme='classic-98'] .btn,
+body[data-theme='classic-98'] input,
+body[data-theme='classic-98'] select {
+  border-radius: 0 !important;
+}
+
+body[data-theme='frutiger-aero'] {
+  color-scheme: light;
+  --app-bg: #dff5ff;
+  --app-surface: rgba(255, 255, 255, 0.78);
+  --app-surface-soft: rgba(232, 250, 255, 0.86);
+  --app-border: rgba(51, 151, 210, 0.42);
+  --app-text: #123b50;
+  --app-muted: #47758a;
+  --app-purple: #2f9fe8;
+  --app-cyan: #14b8d4;
+  --app-rose: #ff5da2;
+  --app-green: #42b83f;
+  --app-shadow: 0 18px 44px rgba(44, 139, 190, 0.2);
+  --theme-background-image:
+    radial-gradient(circle at 16% 13%, rgba(255, 255, 255, 0.95), transparent 18%),
+    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.75), transparent 16%),
+    linear-gradient(180deg, #78d7ff 0%, #dff8ff 55%, #8dd66a 100%);
+}
+
+body[data-theme='frutiger-aero'] .panel,
+body[data-theme='frutiger-aero'] .sidebar,
+body[data-theme='frutiger-aero'] .topbar {
+  backdrop-filter: blur(16px) saturate(1.25);
+}
+
+body[data-theme='dark-fantasy'] {
+  color-scheme: dark;
+  --app-bg: #0d090d;
+  --app-surface: #171016;
+  --app-surface-soft: #21151d;
+  --app-border: #4c2c38;
+  --app-text: #f2e8dc;
+  --app-muted: #b49c99;
+  --app-purple: #762d55;
+  --app-cyan: #d4af67;
+  --app-rose: #a52b43;
+  --app-green: #788c52;
+  --app-shadow: 0 22px 50px rgba(0, 0, 0, 0.55);
+  --theme-background-image:
+    radial-gradient(circle at 50% -10%, rgba(126, 45, 74, 0.28), transparent 42%),
+    linear-gradient(140deg, #09070a, #181016 55%, #0a080a);
+}
+
+body[data-theme='rachni'] {
+  color-scheme: dark;
+  --app-bg: #080b14;
+  --app-surface: #101726;
+  --app-surface-soft: #17243a;
+  --app-border: #2d4969;
+  --app-text: #eef7ff;
+  --app-muted: #95aac1;
+  --app-purple: #875cff;
+  --app-cyan: #38d7ff;
+  --app-rose: #ff4fa3;
+  --app-green: #58e1b1;
+  --app-shadow: 0 20px 48px rgba(0, 4, 14, 0.48);
+  --theme-background-image:
+    linear-gradient(rgba(56, 215, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(135, 92, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 78% 12%, rgba(255, 79, 163, 0.14), transparent 26%),
+    radial-gradient(circle at 20% 84%, rgba(56, 215, 255, 0.13), transparent 28%);
+  background-size:
+    28px 28px,
+    28px 28px,
+    auto,
+    auto;
+}
+
+/* Hover roxo -> azul. */
+.nav-item:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(39, 184, 255, 0.17));
+  border-color: color-mix(in srgb, var(--app-purple) 48%, var(--app-cyan));
+  color: var(--app-text);
+}
+
+/* Active neon rosa -> azul. */
+.nav-item.is-active {
+  background: linear-gradient(135deg, rgba(255, 60, 172, 0.3), rgba(39, 184, 255, 0.32));
+  border-color: rgba(102, 210, 255, 0.72);
+  box-shadow:
+    0 0 12px rgba(255, 60, 172, 0.22),
+    0 0 18px rgba(39, 184, 255, 0.18),
+    inset 0 0 14px rgba(255, 255, 255, 0.04);
+  color: var(--app-text);
+}
+
+.nav-item.is-active i {
+  color: #72ddff;
+  filter: drop-shadow(0 0 6px rgba(39, 184, 255, 0.8));
+}
+
+body[data-theme='classic-98'] .nav-item:hover,
+body[data-theme='classic-98'] .nav-item.is-active {
+  background: #000080;
+  border-color: #fff;
+  box-shadow: none;
+  color: #fff;
+}
+
+body[data-theme='classic-98'] .nav-item.is-active i {
+  color: #fff;
+  filter: none;
+}
+
+.backup-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.backup-action {
+  align-items: flex-start;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  color: var(--app-text);
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  text-align: left;
+}
+
+.backup-action:hover {
+  border-color: var(--app-cyan);
+  transform: translateY(-1px);
+}
+
+.backup-action i {
+  color: var(--app-cyan);
+  font-size: 1.3rem;
+}
+
+.backup-action span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.backup-action small,
+.cache-summary,
+.telemetry-summary {
+  color: var(--app-muted);
+}
+
+.cache-summary {
+  margin-top: 0.8rem;
+}
+
+.telemetry-toolbar {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(140px, 1fr)) auto;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.telemetry-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.telemetry-item {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.telemetry-item header {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.telemetry-item code {
+  color: var(--app-cyan);
+}
+
+.telemetry-item details {
+  margin-top: 0.7rem;
+}
+
+.telemetry-item pre {
+  background: var(--app-bg);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  color: var(--app-muted);
+  margin-top: 0.5rem;
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.telemetry-pagination {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .telemetry-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}

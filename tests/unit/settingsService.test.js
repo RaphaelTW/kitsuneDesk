@@ -63,7 +63,7 @@ test('normaliza e persiste configurações do usuário', () => {
     autoPlayNext: true,
     playerVolume: 150,
     playerMode: 'embedded',
-    theme: 'light',
+    theme: 'dracula',
     downloadsPath: 'C:/Videos',
     audioPreference: 'dub',
     parentalControlEnabled: true,
@@ -74,6 +74,7 @@ test('normaliza e persiste configurações do usuário', () => {
   });
 
   assert.equal(settings.defaultProvider, 'ani-cli');
+  assert.equal(settings.theme, 'dracula');
   assert.equal(settings.defaultLanguage, 'dub');
   assert.equal(settings.playerVolume, 100);
   assert.equal(settings.playerMode, 'external');

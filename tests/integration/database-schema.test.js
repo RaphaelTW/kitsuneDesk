@@ -27,7 +27,8 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
     'watchlist',
     'episode_reports',
     'login_security',
-    'failure_telemetry'
+    'failure_telemetry',
+    'cache_entries'
   ]) {
     assert.ok(tables.includes(table), `Tabela ausente: ${table}`);
   }

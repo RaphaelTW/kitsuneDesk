@@ -60,13 +60,25 @@ const channels = Object.freeze({
   diagnosticsClearCache: 'diagnostics:clear-cache',
   diagnosticsRestoreComponents: 'diagnostics:restore-components',
   diagnosticsRecordFailure: 'diagnostics:record-failure',
+  diagnosticsListFailures: 'diagnostics:list-failures',
+  diagnosticsRemoveFailures: 'diagnostics:remove-failures',
+  diagnosticsExportFailures: 'diagnostics:export-failures',
   diagnosticsClearFailures: 'diagnostics:clear-failures',
   diagnosticsExport: 'diagnostics:export',
   diagnosticsProgress: 'diagnostics:progress',
   updatesCheck: 'updates:check',
   updatesInstall: 'updates:install',
   updatesStatus: 'updates:status',
-  updatesStateChanged: 'updates:state-changed'
+  updatesStateChanged: 'updates:state-changed',
+  cacheImage: 'cache:image',
+  cacheStats: 'cache:stats',
+  cacheClear: 'cache:clear',
+  avatarsGet: 'avatars:get',
+  avatarsStyles: 'avatars:styles',
+  backupExportLibrary: 'backup:export-library',
+  backupImportLibrary: 'backup:import-library',
+  backupExportProfiles: 'backup:export-profiles',
+  backupImportProfiles: 'backup:import-profiles'
 });
 
 function invoke(channel, payload) {
@@ -166,6 +178,10 @@ const animeDeskApi = Object.freeze({
     clearCache: () => invoke(channels.diagnosticsClearCache),
     restoreComponents: () => invoke(channels.diagnosticsRestoreComponents),
     recordFailure: (payload) => invoke(channels.diagnosticsRecordFailure, payload),
+    listFailures: (filters) => invoke(channels.diagnosticsListFailures, filters),
+    removeFailures: (ids) => invoke(channels.diagnosticsRemoveFailures, { ids }),
+    exportFailures: (format, filters) =>
+      invoke(channels.diagnosticsExportFailures, { format, filters }),
     clearFailures: () => invoke(channels.diagnosticsClearFailures),
     export: () => invoke(channels.diagnosticsExport),
     onProgress: (callback) => subscribe(channels.diagnosticsProgress, callback)
@@ -175,6 +191,21 @@ const animeDeskApi = Object.freeze({
     install: () => invoke(channels.updatesInstall),
     status: () => invoke(channels.updatesStatus),
     onStateChanged: (callback) => subscribe(channels.updatesStateChanged, callback)
+  }),
+  cache: Object.freeze({
+    image: (url, kind = 'covers') => invoke(channels.cacheImage, { url, kind }),
+    stats: () => invoke(channels.cacheStats),
+    clear: () => invoke(channels.cacheClear)
+  }),
+  avatars: Object.freeze({
+    get: (payload) => invoke(channels.avatarsGet, payload),
+    styles: () => invoke(channels.avatarsStyles)
+  }),
+  backup: Object.freeze({
+    exportLibrary: () => invoke(channels.backupExportLibrary),
+    importLibrary: (mode = 'merge') => invoke(channels.backupImportLibrary, { mode }),
+    exportProfiles: (password) => invoke(channels.backupExportProfiles, { password }),
+    importProfiles: (password) => invoke(channels.backupImportProfiles, { password })
   })
 });
 

@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.10.0] - 2026-07-09
+
+### Adicionado
+
+- Cache local de pesquisas e episódios com expiração e uso do último resultado disponível quando a fonte fica temporariamente offline.
+- Cache de capas e avatares no diretório local do aplicativo, com limpeza pela interface e fallback offline.
+- Backup e restauração da biblioteca em JSON, com modos de mesclagem e substituição.
+- Backup criptografado opcional de perfis locais usando `scrypt` e `AES-256-GCM`.
+- Tela de gerenciamento da telemetria local com filtros, paginação, detalhes, cópia, exclusão e exportação em JSON ou CSV.
+- Novos estilos gratuitos de avatar via DiceBear, incluindo Lorelei, Open Peeps, Pixel Art, Bottts, Avataaars e outros.
+- Temas Dracula, Classic 98, Frutiger Aero, Dark Fantasy e Rachni.
+
+### Melhorado
+
+- Inicialização da Home mais rápida: verificações pesadas de provedores e ferramentas deixam de bloquear a abertura do aplicativo.
+- Diagnóstico de componentes e saúde dos provedores com cache temporário em memória.
+- Imagens de listas passam a usar carregamento preguiçoso e decodificação assíncrona.
+- Tema `system` acompanha alterações do tema do Windows em tempo real.
+- Estado ativo dos menus usa brilho neon em degradê rosa para azul; o hover usa roxo para azul.
+- Cache, backups, avatares, telemetria e temas foram integrados ao fluxo seguro de IPC do Electron.
+
+### Segurança
+
+- Backups de perfis nunca armazenam a senha de proteção e utilizam criptografia autenticada.
+- Telemetria continua desativada por padrão e permanece somente no computador do usuário.
+- Metadados sensíveis da telemetria continuam passando por remoção de tokens, senhas, cookies, hashes e secrets.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.10.0`.
+
 ## [0.9.0] - 2026-07-09
 
 ### Adicionado

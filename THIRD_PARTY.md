@@ -39,9 +39,10 @@ O KitsuneDesk não hospeda conteúdo. Pesquisa, episódios e reprodução depend
 ## DiceBear
 
 - Projeto: `https://www.dicebear.com/`
-- Uso: avatares determinísticos de usuário por URL HTTPS.
-- Estilo principal: `thumbs`, licenciado sob CC0 1.0 pelo DiceBear.
-- O KitsuneDesk armazena apenas estilo e semente do avatar, não arquivos de imagem.
+- Uso: avatares determinísticos de usuário por URL HTTPS com cache local e fallback offline.
+- Estilos disponíveis incluem `thumbs`, `initials`, `identicon`, `shapes`, `rings`, `adventurer`, `avataaars`, `bottts`, `fun-emoji`, `glass`, `lorelei`, `micah`, `notionists`, `open-peeps`, `personas` e `pixel-art`.
+- Cada estilo pode possuir licença própria. Consulte a página oficial de licenças do DiceBear antes de redistribuir imagens fora do aplicativo.
+- O KitsuneDesk armazena estilo, semente e uma cópia local em cache para funcionamento offline.
 
 ## Electron e electron-builder
 

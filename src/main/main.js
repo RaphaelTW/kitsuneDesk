@@ -1,6 +1,8 @@
 const fs = require('fs');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const AuthController = require('./controllers/authController');
+const BackupController = require('./controllers/backupController');
+const CacheController = require('./controllers/cacheController');
 const DiagnosticsController = require('./controllers/diagnosticsController');
 const LibraryController = require('./controllers/libraryController');
 const PlayerController = require('./controllers/playerController');
@@ -8,10 +10,13 @@ const SettingsController = require('./controllers/settingsController');
 const { closeDatabase } = require('./database/connection');
 const { configureFailureTelemetry } = require('./ipc/handleRequest');
 const { registerAuthHandlers } = require('./ipc/registerAuthHandlers');
+const { registerBackupHandlers } = require('./ipc/registerBackupHandlers');
+const { registerCacheHandlers } = require('./ipc/registerCacheHandlers');
 const { registerDiagnosticsHandlers } = require('./ipc/registerDiagnosticsHandlers');
 const { registerLibraryHandlers } = require('./ipc/registerLibraryHandlers');
 const { registerPlayerHandlers } = require('./ipc/registerPlayerHandlers');
 const { registerSettingsHandlers } = require('./ipc/registerSettingsHandlers');
+const CacheRepository = require('./repositories/cacheRepository');
 const LibraryRepository = require('./repositories/libraryRepository');
 const SecurityRepository = require('./repositories/securityRepository');
 const SessionRepository = require('./repositories/sessionRepository');
@@ -19,6 +24,9 @@ const SettingsRepository = require('./repositories/settingsRepository');
 const UserRepository = require('./repositories/userRepository');
 const TelemetryRepository = require('./repositories/telemetryRepository');
 const AuthService = require('./services/authService');
+const AvatarService = require('./services/avatarService');
+const BackupService = require('./services/backupService');
+const CacheService = require('./services/cacheService');
 const DiagnosticsService = require('./services/diagnosticsService');
 const { initializeFirstRun } = require('./services/firstRunService');
 const LibraryService = require('./services/libraryService');
@@ -56,6 +64,7 @@ function registerDomainHandlers(database) {
   const settingsRepository = new SettingsRepository(database);
   const libraryRepository = new LibraryRepository(database);
   const telemetryRepository = new TelemetryRepository(database);
+  const cacheRepository = new CacheRepository(database);
 
   const settingsService = new SettingsService({ settingsRepository, sessionRepository });
   const libraryService = new LibraryService({ libraryRepository, sessionRepository });
@@ -65,13 +74,17 @@ function registerDomainHandlers(database) {
     securityRepository,
     settingsRepository
   });
-  const playerService = new PlayerService({ settingsService, libraryService });
+  const cacheService = new CacheService({ app, cacheRepository });
+  const avatarService = new AvatarService({ cacheService });
+  const backupService = new BackupService({ app, database, sessionRepository });
+  const playerService = new PlayerService({ settingsService, libraryService, cacheService });
   const diagnosticsService = new DiagnosticsService({
     app,
     database,
     playerService,
     telemetryRepository,
-    sessionRepository
+    sessionRepository,
+    cacheService
   });
   updateService = new UpdateService({ app, focusApp: focusExistingWindow });
   updateService.configure();
@@ -103,12 +116,16 @@ function registerDomainHandlers(database) {
   });
 
   const authController = new AuthController(authService);
+  const backupController = new BackupController(backupService);
+  const cacheController = new CacheController({ cacheService, avatarService });
   const settingsController = new SettingsController(settingsService);
   const libraryController = new LibraryController(libraryService);
   const playerController = new PlayerController(playerService);
   const diagnosticsController = new DiagnosticsController({ diagnosticsService, updateService });
 
   registerAuthHandlers(ipcMain, authController);
+  registerBackupHandlers(ipcMain, backupController);
+  registerCacheHandlers(ipcMain, cacheController);
   registerSettingsHandlers(ipcMain, settingsController);
   registerLibraryHandlers(ipcMain, libraryController);
   registerPlayerHandlers(ipcMain, playerController);

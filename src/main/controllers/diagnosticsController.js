@@ -24,6 +24,18 @@ class DiagnosticsController {
     return this.diagnosticsService.recordFailure(payload);
   }
 
+  listFailureTelemetry(payload) {
+    return this.diagnosticsService.listFailureTelemetry(payload);
+  }
+
+  removeFailureTelemetry(payload) {
+    return this.diagnosticsService.removeFailureTelemetry(payload);
+  }
+
+  exportFailureTelemetry(format, filters) {
+    return this.diagnosticsService.exportFailureTelemetry(format, filters);
+  }
+
   clearFailureTelemetry() {
     return this.diagnosticsService.clearFailureTelemetry();
   }

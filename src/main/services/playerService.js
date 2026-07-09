@@ -19,14 +19,21 @@ const SUPPORTED_INSTALL_TARGETS = new Set([
 ]);
 const SUPPORTED_QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
 const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
+const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const EPISODE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+const STATUS_CACHE_TTL_MS = 60 * 1000;
+const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 
 class PlayerService extends EventEmitter {
-  constructor({ settingsService = null, libraryService = null } = {}) {
+  constructor({ settingsService = null, libraryService = null, cacheService = null } = {}) {
     super();
     this.goAnimeGui = new GoAnimeGuiService();
     this.installationService = new InstallationService();
     this.settingsService = settingsService;
     this.libraryService = libraryService;
+    this.cacheService = cacheService;
+    this.statusCache = null;
+    this.healthCache = null;
     this.currentPlayback = null;
     this.lastProgressSaveAt = 0;
     this.autoNextInProgress = false;
@@ -42,8 +49,22 @@ class PlayerService extends EventEmitter {
    * @param {unknown} payload
    * @returns {Promise<object[]>}
    */
-  searchAnimes(payload) {
-    return this.goAnimeGui.search(payload);
+  async searchAnimes(payload) {
+    const key = stableCacheKey(payload);
+    const fresh = this.cacheService?.getJson('anime-search', key);
+    if (fresh) return markCached(fresh.payload, fresh);
+    try {
+      const result = await this.goAnimeGui.search(payload);
+      this.cacheService?.setJson('anime-search', key, result, {
+        ttlMs: SEARCH_CACHE_TTL_MS,
+        staleTtlMs: SEARCH_CACHE_TTL_MS * 8
+      });
+      return result;
+    } catch (error) {
+      const stale = this.cacheService?.getJson('anime-search', key, { allowExpired: true });
+      if (stale?.stale) return markCached(stale.payload, stale, true);
+      throw error;
+    }
   }
 
   /**
@@ -52,8 +73,22 @@ class PlayerService extends EventEmitter {
    * @param {unknown} payload
    * @returns {Promise<object[]>}
    */
-  listEpisodes(payload) {
-    return this.goAnimeGui.episodes(payload);
+  async listEpisodes(payload) {
+    const key = stableCacheKey(payload);
+    const fresh = this.cacheService?.getJson('anime-episodes', key);
+    if (fresh) return markCached(fresh.payload, fresh);
+    try {
+      const result = await this.goAnimeGui.episodes(payload);
+      this.cacheService?.setJson('anime-episodes', key, result, {
+        ttlMs: EPISODE_CACHE_TTL_MS,
+        staleTtlMs: EPISODE_CACHE_TTL_MS * 12
+      });
+      return result;
+    } catch (error) {
+      const stale = this.cacheService?.getJson('anime-episodes', key, { allowExpired: true });
+      if (stale?.stale) return markCached(stale.payload, stale, true);
+      throw error;
+    }
   }
 
   /**
@@ -217,7 +252,10 @@ class PlayerService extends EventEmitter {
    *
    * @returns {object}
    */
-  status() {
+  status(force = false) {
+    if (!force && this.statusCache && this.statusCache.expiresAt > Date.now()) {
+      return this.statusCache.value;
+    }
     const goAnime = findGoAnime();
     const goAnimeBridge = this.goAnimeGui.status();
     const mpv = findMpv(goAnime.path);
@@ -247,7 +285,7 @@ class PlayerService extends EventEmitter {
       gitBash.available
     );
 
-    return {
+    const value = {
       ready: goAnimeGuiReady,
       recommendedProvider: goAnimeGuiReady ? 'goanime-gui' : null,
       providers: {
@@ -345,6 +383,13 @@ class PlayerService extends EventEmitter {
         ]
       }
     };
+    this.statusCache = { value, expiresAt: Date.now() + STATUS_CACHE_TTL_MS };
+    return value;
+  }
+
+  invalidateStatusCache() {
+    this.statusCache = null;
+    this.healthCache = null;
   }
 
   /**
@@ -356,6 +401,7 @@ class PlayerService extends EventEmitter {
    */
   installDependencies(payload, webContents) {
     const provider = normalizeInstallProvider(payload);
+    this.invalidateStatusCache();
     return this.installationService.start(provider, webContents);
   }
 
@@ -489,8 +535,11 @@ class PlayerService extends EventEmitter {
     });
   }
 
-  async providerHealth() {
-    const status = this.status();
+  async providerHealth(force = false) {
+    if (!force && this.healthCache && this.healthCache.expiresAt > Date.now()) {
+      return this.healthCache.value;
+    }
+    const status = this.status(force);
     let animeFireOnline = false;
     let animeFireMessage = 'AnimeFire indisponível';
     try {
@@ -501,7 +550,7 @@ class PlayerService extends EventEmitter {
       animeFireMessage = error.publicMessage || error.message || animeFireMessage;
     }
 
-    return {
+    const value = {
       checkedAt: new Date().toISOString(),
       providers: [
         {
@@ -536,6 +585,8 @@ class PlayerService extends EventEmitter {
         }
       ]
     };
+    this.healthCache = { value, expiresAt: Date.now() + HEALTH_CACHE_TTL_MS };
+    return value;
   }
 
   getUserSettings() {
@@ -840,7 +891,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.9.0', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.10.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();
@@ -1611,6 +1662,32 @@ function findPowerShell() {
 /** @param {string} left @param {string} right @returns {boolean} */
 function samePath(left, right) {
   return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function stableCacheKey(payload) {
+  return JSON.stringify(sortObject(payload && typeof payload === 'object' ? payload : {}));
+}
+
+function sortObject(value) {
+  if (Array.isArray(value)) return value.map(sortObject);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortObject(value[key])])
+  );
+}
+
+function markCached(value, entry, offline = false) {
+  if (Array.isArray(value)) {
+    Object.defineProperties(value, {
+      cacheInfo: {
+        value: { cached: true, offline, expiresAt: entry.expiresAt },
+        enumerable: false
+      }
+    });
+  }
+  return value;
 }
 
 module.exports = PlayerService;

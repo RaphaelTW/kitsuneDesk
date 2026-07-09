@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../vendor/bootstrap-icons/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="../css/global.css" />
     <link rel="stylesheet" href="../css/home.css" />
+    <link rel="stylesheet" href="../css/themes.css" />
   </head>
   <body data-theme="dark">
     <a class="skip-link" href="#content-area">Pular para o conteudo</a>
@@ -19,7 +20,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.9.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.10.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -46,6 +47,9 @@
           </button>
           <button class="nav-item" data-view="diagnostics" type="button">
             <i class="bi bi-heart-pulse"></i><span>Diagnóstico</span>
+          </button>
+          <button class="nav-item" data-view="telemetry" type="button">
+            <i class="bi bi-activity"></i><span>Telemetria</span>
           </button>
           <button class="nav-item d-none" id="admin-nav-button" data-view="admin" type="button">
             <i class="bi bi-people"></i><span>Usuários</span>
@@ -592,6 +596,11 @@
                       <option value="dark">Escuro</option>
                       <option value="light">Claro</option>
                       <option value="system">Seguir sistema</option>
+                      <option value="dracula">Dracula</option>
+                      <option value="classic-98">Classic 98</option>
+                      <option value="frutiger-aero">Frutiger Aero</option>
+                      <option value="dark-fantasy">Dark Fantasy</option>
+                      <option value="rachni">Rachni</option>
                     </select></label
                   ><label class="switch-inline"
                     ><input id="setting-updates" type="checkbox" checked /><span
@@ -644,6 +653,64 @@
                     Salvar PIN</button
                   ><span id="parental-pin-status"></span>
                 </div>
+              </section>
+
+              <section class="panel settings-card backup-card">
+                <div class="settings-card-heading">
+                  <i class="bi bi-database-down"></i>
+                  <div>
+                    <h3>Backup, restauração e cache</h3>
+                    <p>Proteja sua biblioteca e seus perfis locais.</p>
+                  </div>
+                </div>
+                <div class="backup-grid">
+                  <button class="backup-action" id="export-library-button" type="button">
+                    <i class="bi bi-file-earmark-arrow-down"></i>
+                    <span
+                      ><strong>Exportar biblioteca</strong
+                      ><small
+                        >Favoritos, lista, histórico, progresso e preferências em JSON.</small
+                      ></span
+                    >
+                  </button>
+                  <button class="backup-action" id="import-library-button" type="button">
+                    <i class="bi bi-file-earmark-arrow-up"></i>
+                    <span
+                      ><strong>Restaurar biblioteca</strong
+                      ><small>Mesclar ou substituir os dados atuais.</small></span
+                    >
+                  </button>
+                  <button
+                    class="backup-action admin-backup-action"
+                    id="export-profiles-button"
+                    type="button"
+                  >
+                    <i class="bi bi-shield-lock"></i>
+                    <span
+                      ><strong>Exportar perfis criptografados</strong
+                      ><small>Acesso restrito ao administrador.</small></span
+                    >
+                  </button>
+                  <button
+                    class="backup-action admin-backup-action"
+                    id="import-profiles-button"
+                    type="button"
+                  >
+                    <i class="bi bi-shield-check"></i>
+                    <span
+                      ><strong>Restaurar perfis criptografados</strong
+                      ><small>Mescla usuários e preferências com AES-256-GCM.</small></span
+                    >
+                  </button>
+                  <button class="backup-action" id="clear-app-cache-button" type="button">
+                    <i class="bi bi-eraser"></i>
+                    <span
+                      ><strong>Limpar cache local</strong
+                      ><small>Remove resultados, capas e avatares armazenados.</small></span
+                    >
+                  </button>
+                </div>
+                <div class="cache-summary" id="cache-summary">Calculando uso do cache...</div>
               </section>
 
               <div class="settings-actions">
@@ -710,6 +777,61 @@
               </div>
               <pre class="diagnostic-log" id="diagnostic-log">Aguardando verificação...</pre>
             </section>
+          </section>
+
+          <section class="app-view d-none" id="view-telemetry" data-view-panel="telemetry">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Falhas locais</p>
+                <h2>Gerenciamento de telemetria</h2>
+              </div>
+              <div class="history-actions">
+                <button class="btn btn-outline-light" id="export-telemetry-json" type="button">
+                  <i class="bi bi-filetype-json"></i> JSON
+                </button>
+                <button class="btn btn-outline-light" id="export-telemetry-csv" type="button">
+                  <i class="bi bi-filetype-csv"></i> CSV
+                </button>
+                <button class="btn btn-outline-danger" id="clear-telemetry-button" type="button">
+                  <i class="bi bi-trash"></i> Limpar tudo
+                </button>
+              </div>
+            </div>
+            <section class="panel telemetry-toolbar">
+              <input
+                class="form-control"
+                id="telemetry-query"
+                type="search"
+                placeholder="Pesquisar mensagem ou detalhe técnico"
+              />
+              <select class="form-select" id="telemetry-scope">
+                <option value="">Todos os contextos</option>
+              </select>
+              <select class="form-select" id="telemetry-event">
+                <option value="">Todos os eventos</option>
+              </select>
+              <input
+                class="form-control"
+                id="telemetry-from"
+                type="date"
+                aria-label="Data inicial"
+              />
+              <input class="form-control" id="telemetry-to" type="date" aria-label="Data final" />
+              <button class="btn btn-primary" id="telemetry-filter-button" type="button">
+                <i class="bi bi-funnel"></i> Filtrar
+              </button>
+            </section>
+            <div class="telemetry-summary" id="telemetry-summary">Nenhum registro carregado.</div>
+            <div class="telemetry-list" id="telemetry-list"></div>
+            <div class="telemetry-pagination">
+              <button class="btn btn-outline-light" id="telemetry-prev" type="button">
+                Anterior
+              </button>
+              <span id="telemetry-page">Página 1</span>
+              <button class="btn btn-outline-light" id="telemetry-next" type="button">
+                Próxima
+              </button>
+            </div>
           </section>
 
           <section class="app-view d-none" id="view-admin" data-view-panel="admin">
@@ -986,6 +1108,17 @@
                       <option value="identicon">DiceBear Identicon</option>
                       <option value="shapes">DiceBear Shapes</option>
                       <option value="rings">DiceBear Rings</option>
+                      <option value="adventurer">DiceBear Adventurer</option>
+                      <option value="avataaars">DiceBear Avataaars</option>
+                      <option value="bottts">DiceBear Bottts</option>
+                      <option value="fun-emoji">DiceBear Fun Emoji</option>
+                      <option value="glass">DiceBear Glass</option>
+                      <option value="lorelei">DiceBear Lorelei</option>
+                      <option value="micah">DiceBear Micah</option>
+                      <option value="notionists">DiceBear Notionists</option>
+                      <option value="open-peeps">DiceBear Open Peeps</option>
+                      <option value="personas">DiceBear Personas</option>
+                      <option value="pixel-art">DiceBear Pixel Art</option>
                     </select></label
                   ><label
                     ><span>Semente</span

@@ -228,6 +228,31 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_failure_telemetry_user_created
         ON failure_telemetry(user_id, created_at DESC);
     `
+  },
+  {
+    id: 8,
+    name: 'cache-and-backup-foundation',
+    sql: `
+      CREATE TABLE IF NOT EXISTS cache_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        namespace TEXT NOT NULL,
+        cache_key TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        stale_until TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_accessed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(namespace, cache_key)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_cache_expiration
+        ON cache_entries(stale_until);
+      CREATE INDEX IF NOT EXISTS idx_cache_access
+        ON cache_entries(last_accessed_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_failure_telemetry_filters
+        ON failure_telemetry(user_id, scope, event, created_at DESC);
+    `
   }
 ];
 

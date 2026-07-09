@@ -9,7 +9,24 @@ const {
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,32}$/;
-const AVATAR_STYLES = new Set(['thumbs', 'initials', 'identicon', 'shapes', 'rings']);
+const AVATAR_STYLES = new Set([
+  'thumbs',
+  'initials',
+  'identicon',
+  'shapes',
+  'rings',
+  'adventurer',
+  'avataaars',
+  'bottts',
+  'fun-emoji',
+  'glass',
+  'lorelei',
+  'micah',
+  'notionists',
+  'open-peeps',
+  'personas',
+  'pixel-art'
+]);
 
 class AuthService {
   constructor({ userRepository, sessionRepository, securityRepository, settingsRepository }) {

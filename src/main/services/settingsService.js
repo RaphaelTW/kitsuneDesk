@@ -6,7 +6,16 @@ const { requireUserId } = require('./authService');
 const PROVIDERS = new Set(['goanime-gui', 'goanime', 'anime-cli-br', 'ani-cli']);
 const LANGUAGES = new Set(['sub', 'dub']);
 const QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
-const THEMES = new Set(['dark', 'light', 'system']);
+const THEMES = new Set([
+  'dark',
+  'light',
+  'system',
+  'dracula',
+  'classic-98',
+  'frutiger-aero',
+  'dark-fantasy',
+  'rachni'
+]);
 
 class SettingsService {
   constructor({ settingsRepository, sessionRepository }) {

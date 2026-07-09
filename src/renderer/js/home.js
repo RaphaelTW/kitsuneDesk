@@ -12,6 +12,7 @@ const viewMeta = Object.freeze({
   tools: ['Componentes locais', 'Ferramentas'],
   settings: ['Preferências do perfil', 'Configurações'],
   diagnostics: ['Estabilidade e manutenção', 'Diagnóstico'],
+  telemetry: ['Falhas registradas localmente', 'Telemetria'],
   admin: ['Administração', 'Usuários']
 });
 
@@ -40,7 +41,10 @@ const state = {
   currentListTab: 'favorites',
   users: [],
   update: null,
-  updateBannerDismissed: false
+  updateBannerDismissed: false,
+  telemetryPage: 1,
+  telemetryPages: 1,
+  telemetryFacetsLoaded: false
 };
 
 const modals = {};
@@ -64,6 +68,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   bindTools();
   bindSettings();
   bindDiagnostics();
+  bindBackup();
+  bindTelemetry();
   bindAdmin();
   bindModals();
   bindInstallation();
@@ -73,15 +79,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([
     hydrateAppInfo(),
     hydrateSettings(),
-    hydratePlayerStatus(),
     hydrateDashboard(),
-    hydrateProviderHealth(),
     hydratePlaybackState(),
     hydrateUpdateStatus()
   ]);
+  $('provider-health-dot').className = 'status-dot is-checking';
+  $('provider-health-summary').textContent = 'Clique para verificar';
 
   if (state.session.user.role === 'ADMIN') {
     $('admin-nav-button').classList.remove('d-none');
+  } else {
+    document
+      .querySelectorAll('.admin-backup-action')
+      .forEach((element) => element.classList.add('d-none'));
   }
 
   if (
@@ -96,7 +106,7 @@ function hydrateProfile() {
   const user = state.session.user;
   $('current-user').textContent = user.name;
   $('current-role').textContent = user.role === 'ADMIN' ? 'Administrador' : 'Usuário';
-  $('profile-avatar').src = avatarUrl(user);
+  void setCachedAvatar($('profile-avatar'), user);
   $('profile-avatar').style.backgroundColor = user.profileColor || '#6f5cff';
 }
 
@@ -135,8 +145,12 @@ async function showView(view) {
   if (view === 'lists') await renderLists();
   if (view === 'history') await renderHistory();
   if (view === 'tools') await hydratePlayerStatus();
-  if (view === 'settings') await hydrateSettings();
+  if (view === 'settings') {
+    await hydrateSettings();
+    await hydrateCacheSummary();
+  }
   if (view === 'diagnostics') await runDiagnostics();
+  if (view === 'telemetry') await renderTelemetry();
   if (view === 'admin' && state.session.user.role === 'ADMIN') await renderUsers();
 }
 
@@ -961,6 +975,7 @@ function appendInstallationLog(message, status = '') {
 }
 
 function bindSettings() {
+  $('setting-theme').addEventListener('change', () => applyTheme($('setting-theme').value));
   $('setting-volume').addEventListener('input', () => {
     $('setting-volume-label').textContent = `${$('setting-volume').value}%`;
   });
@@ -1053,6 +1068,10 @@ function applyTheme(theme) {
       : theme;
   document.body.dataset.theme = resolved || 'dark';
 }
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (state.settings?.theme === 'system') applyTheme('system');
+});
 
 function bindDiagnostics() {
   $('provider-health-button').addEventListener('click', hydrateProviderHealth);
@@ -1307,6 +1326,234 @@ function formatUpdateVersion(update) {
   return version ? `v${version.replace(/^v/i, '')}` : 'mais recente';
 }
 
+function bindBackup() {
+  $('export-library-button').addEventListener('click', async () => {
+    const result = await animeDesk.backup.exportLibrary();
+    if (!result.ok) return notifyResultError(result);
+    if (!result.data?.canceled) {
+      showToast({
+        title: 'Biblioteca exportada',
+        message: formatBackupSummary(result.data.summary),
+        variant: 'success'
+      });
+    }
+  });
+  $('import-library-button').addEventListener('click', async () => {
+    const replace = window.confirm(
+      'Deseja substituir a biblioteca atual? Clique em Cancelar para mesclar os dados.'
+    );
+    const result = await animeDesk.backup.importLibrary(replace ? 'replace' : 'merge');
+    if (!result.ok) return notifyResultError(result);
+    if (!result.data?.canceled) {
+      showToast({
+        title: 'Biblioteca restaurada',
+        message: formatBackupSummary(result.data.summary),
+        variant: 'success'
+      });
+      await hydrateDashboard();
+    }
+  });
+  $('export-profiles-button').addEventListener('click', async () => {
+    const password = window.prompt(
+      'Digite uma senha com pelo menos 8 caracteres para proteger o backup:'
+    );
+    if (!password) return;
+    const result = await animeDesk.backup.exportProfiles(password);
+    if (!result.ok) return notifyResultError(result);
+    if (!result.data?.canceled)
+      showToast({
+        title: 'Perfis protegidos',
+        message: `${result.data.profiles} perfil(is) exportado(s).`,
+        variant: 'success'
+      });
+  });
+  $('import-profiles-button').addEventListener('click', async () => {
+    const password = window.prompt('Digite a senha do backup criptografado:');
+    if (!password) return;
+    const result = await animeDesk.backup.importProfiles(password);
+    if (!result.ok) return notifyResultError(result);
+    if (!result.data?.canceled) {
+      showToast({
+        title: 'Perfis restaurados',
+        message: `${result.data.createdProfiles} criado(s) e ${result.data.updatedProfiles} atualizado(s).`,
+        variant: 'success'
+      });
+    }
+  });
+  $('clear-app-cache-button').addEventListener('click', async () => {
+    if (!window.confirm('Limpar resultados, capas e avatares armazenados localmente?')) return;
+    notifyResult(await animeDesk.cache.clear());
+    await hydrateCacheSummary();
+  });
+}
+
+async function hydrateCacheSummary() {
+  const result = await animeDesk.cache.stats();
+  if (!result.ok) return;
+  const entries = (result.data.entries || []).reduce(
+    (total, item) => total + Number(item.total || 0),
+    0
+  );
+  const bytes = (result.data.disk || []).reduce(
+    (total, item) => total + Number(item.bytes || 0),
+    0
+  );
+  $('cache-summary').textContent =
+    `${entries} resultado(s) em cache · ${formatBytes(bytes)} em capas e avatares.`;
+}
+
+function formatBackupSummary(summary = {}) {
+  return `${summary.favorites || 0} favorito(s), ${summary.watchlist || 0} item(ns) na lista, ${summary.history || 0} registro(s) de histórico e ${summary.playbackSessions || 0} progresso(s).`;
+}
+
+function bindTelemetry() {
+  $('telemetry-filter-button').addEventListener('click', () => {
+    state.telemetryPage = 1;
+    void renderTelemetry();
+  });
+  $('telemetry-query').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      state.telemetryPage = 1;
+      void renderTelemetry();
+    }
+  });
+  $('telemetry-prev').addEventListener('click', () => {
+    if (state.telemetryPage > 1) {
+      state.telemetryPage -= 1;
+      void renderTelemetry();
+    }
+  });
+  $('telemetry-next').addEventListener('click', () => {
+    if (state.telemetryPage < state.telemetryPages) {
+      state.telemetryPage += 1;
+      void renderTelemetry();
+    }
+  });
+  $('clear-telemetry-button').addEventListener('click', async () => {
+    if (!window.confirm('Apagar todos os registros locais de telemetria deste perfil?')) return;
+    notifyResult(await animeDesk.diagnostics.clearFailures());
+    state.telemetryPage = 1;
+    await renderTelemetry();
+  });
+  $('export-telemetry-json').addEventListener('click', () => exportTelemetry('json'));
+  $('export-telemetry-csv').addEventListener('click', () => exportTelemetry('csv'));
+}
+
+function telemetryFilters() {
+  return {
+    page: state.telemetryPage,
+    pageSize: 25,
+    query: $('telemetry-query').value,
+    scope: $('telemetry-scope').value,
+    event: $('telemetry-event').value,
+    from: $('telemetry-from').value,
+    to: $('telemetry-to').value
+  };
+}
+
+async function renderTelemetry() {
+  const result = await animeDesk.diagnostics.listFailures(telemetryFilters());
+  if (!result.ok) return notifyResultError(result);
+  const data = result.data;
+  state.telemetryPages = data.pages || 1;
+  state.telemetryPage = Math.min(data.page || 1, state.telemetryPages);
+  populateTelemetryFacets(data.facets);
+  $('telemetry-summary').textContent =
+    `${data.total || 0} registro(s) encontrado(s). A telemetria fica somente neste computador.`;
+  $('telemetry-page').textContent = `Página ${state.telemetryPage} de ${state.telemetryPages}`;
+  $('telemetry-prev').disabled = state.telemetryPage <= 1;
+  $('telemetry-next').disabled = state.telemetryPage >= state.telemetryPages;
+  const container = $('telemetry-list');
+  container.replaceChildren();
+  if (!data.items?.length) {
+    container.append(emptyState('bi-activity', 'Nenhuma falha registrada com esses filtros.'));
+    return;
+  }
+  data.items.forEach((item) => container.append(createTelemetryItem(item)));
+}
+
+function populateTelemetryFacets(facets = {}) {
+  const fill = (select, rows, label) => {
+    const current = select.value;
+    select.replaceChildren(new Option(label, ''));
+    (rows || []).forEach((row) =>
+      select.append(new Option(`${row.value} (${row.total})`, row.value))
+    );
+    select.value = current;
+  };
+  fill($('telemetry-scope'), facets.scopes, 'Todos os contextos');
+  fill($('telemetry-event'), facets.events, 'Todos os eventos');
+}
+
+function createTelemetryItem(item) {
+  const article = document.createElement('article');
+  article.className = 'telemetry-item';
+  const header = document.createElement('header');
+  const title = document.createElement('div');
+  title.innerHTML = `<code>${escapeHtml(item.scope)}</code> · <strong>${escapeHtml(item.event)}</strong>`;
+  const time = document.createElement('small');
+  time.textContent = new Date(`${item.created_at}Z`).toLocaleString('pt-BR');
+  header.append(title, time);
+  const message = document.createElement('p');
+  message.textContent = item.message || 'Sem mensagem.';
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = 'Detalhes técnicos';
+  const pre = document.createElement('pre');
+  pre.textContent = formatJsonText(item.metadata);
+  details.append(summary, pre);
+  const actions = document.createElement('div');
+  actions.className = 'history-actions';
+  const copy = document.createElement('button');
+  copy.className = 'btn btn-outline-light btn-sm';
+  copy.type = 'button';
+  copy.innerHTML = '<i class="bi bi-copy"></i> Copiar';
+  copy.addEventListener('click', () =>
+    navigator.clipboard.writeText(
+      `${item.scope} · ${item.event}\n${item.message}\n${pre.textContent}`
+    )
+  );
+  const remove = document.createElement('button');
+  remove.className = 'btn btn-outline-danger btn-sm';
+  remove.type = 'button';
+  remove.innerHTML = '<i class="bi bi-trash"></i> Excluir';
+  remove.addEventListener('click', async () => {
+    const result = await animeDesk.diagnostics.removeFailures([item.id]);
+    if (!result.ok) return notifyResultError(result);
+    await renderTelemetry();
+  });
+  actions.append(copy, remove);
+  article.append(header, message, details, actions);
+  return article;
+}
+
+async function exportTelemetry(format) {
+  const result = await animeDesk.diagnostics.exportFailures(format, telemetryFilters());
+  if (!result.ok) return notifyResultError(result);
+  if (!result.data?.canceled)
+    showToast({
+      title: 'Telemetria exportada',
+      message: 'O arquivo foi salvo com os filtros atuais.',
+      variant: 'success'
+    });
+}
+
+function formatJsonText(value) {
+  try {
+    return JSON.stringify(JSON.parse(value || '{}'), null, 2);
+  } catch {
+    return String(value || '');
+  }
+}
+
+function formatBytes(value) {
+  const bytes = Math.max(0, Number(value || 0));
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function bindAdmin() {
   $('new-user-button').addEventListener('click', () => openUserModal());
   $('save-user-button').addEventListener('click', saveUser);
@@ -1332,7 +1579,7 @@ async function renderUsers() {
     const avatar = document.createElement('img');
     avatar.className = 'profile-avatar';
     avatar.alt = '';
-    avatar.src = avatarUrl(user);
+    void setCachedAvatar(avatar, user);
     avatar.style.backgroundColor = user.profileColor;
     const text = document.createElement('div');
     text.innerHTML = `<strong>${escapeHtml(user.name)}</strong><div class="text-secondary">@${escapeHtml(user.username)} · ${user.role}</div>`;
@@ -1612,6 +1859,9 @@ function createImage(src, alt) {
   const image = document.createElement('img');
   image.src = src || fallbackCover;
   image.alt = alt || '';
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.fetchPriority = 'low';
   image.addEventListener(
     'error',
     () => {
@@ -1619,6 +1869,11 @@ function createImage(src, alt) {
     },
     { once: true }
   );
+  if (src && /^https?:\/\//i.test(src)) {
+    void animeDesk.cache.image(src, 'covers').then((result) => {
+      if (result?.ok && result.data?.url) image.src = result.data.url;
+    });
+  }
   return image;
 }
 
@@ -1661,12 +1916,23 @@ function avatarUrl(user) {
   return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}&backgroundType=gradientLinear`;
 }
 
+async function setCachedAvatar(image, user) {
+  if (!image) return;
+  image.src = avatarUrl(user);
+  const result = await animeDesk.avatars.get({
+    style: user?.avatarStyle || 'thumbs',
+    seed: user?.avatarSeed || user?.username || user?.name || 'user'
+  });
+  if (result?.ok && result.data?.url) image.src = result.data.url;
+}
+
 function updateUserAvatarPreview() {
   const preview = $('user-avatar-preview');
   if (!preview) return;
-  preview.src = avatarUrl({
+  void setCachedAvatar(preview, {
     avatarStyle: $('user-avatar-style').value,
-    avatarSeed: $('user-avatar-seed').value || $('user-username').value || 'user'
+    avatarSeed: $('user-avatar-seed').value || $('user-username').value || 'user',
+    profileColor: $('user-color').value || '#6f5cff'
   });
   preview.style.backgroundColor = $('user-color').value || '#6f5cff';
 }
