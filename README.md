@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.10.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.11.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,22 +20,22 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0100) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0100) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0110) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0110) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.10.0
+## Novidades da versão 0.11.0
 
-A v0.10.0 melhora velocidade, personalização e segurança dos dados locais.
+A v0.11.0 foca em abertura mais rápida, cache visual mais forte e novas identidades visuais.
 
+- novos temas: Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave;
+- snapshot local da Home, preferências e mini player para exibir a interface imediatamente ao abrir;
+- hidratação assíncrona de informações do app, configurações, biblioteca, playback e atualização;
+- aquecimento em segundo plano do cache de capas exibidas na Home;
+- cache offline dos avatares selecionados também no renderer, evitando tentativa remota na abertura;
+- cache de capas e avatares com janela de expiração/stale mais clara e limpeza automática de arquivos antigos;
 - cache local de pesquisas e episódios com expiração e fallback offline;
-- capas e avatares armazenados localmente para reduzir requisições repetidas;
 - backup da biblioteca em JSON com restauração por mesclagem ou substituição;
 - backup criptografado de perfis usando `scrypt` e `AES-256-GCM`;
-- gerenciamento visual da telemetria local com filtros, paginação, exclusão e exportação;
-- mais estilos de avatar gratuitos via DiceBear, com fallback gerado localmente;
-- temas Dracula, Classic 98, Frutiger Aero, Dark Fantasy e Rachni;
-- active dos menus em neon rosa para azul e hover roxo para azul;
-- Home abre sem aguardar o diagnóstico completo dos provedores e ferramentas;
-- imagens usam carregamento preguiçoso e o diagnóstico pesado só roda quando solicitado.
+- gerenciamento visual da telemetria local com filtros, paginação, exclusão e exportação.
 
 A reprodução continua estável em uma janela externa do MPV, e o atualizador automático permanece compatível com `latest.yml`, `.blockmap` e instalador NSIS.
 
@@ -213,27 +213,27 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.10.0.exe
+dist\KitsuneDesk-Setup-0.11.0.exe
 ```
 
-## Publicar a versão 0.10.0
+## Publicar a versão 0.11.0
 
 Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` no GitHub Actions para assinar o instalador Windows.
 
 ```powershell
 git add .
-git commit -m "feat: publica KitsuneDesk v0.10.0"
+git commit -m "feat: publica KitsuneDesk v0.11.0"
 git push origin main
 
-git tag -a v0.10.0 -m "KitsuneDesk v0.10.0"
-git push origin v0.10.0
+git tag -a v0.11.0 -m "KitsuneDesk v0.11.0"
+git push origin v0.11.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.10.0.exe
-KitsuneDesk-Setup-0.10.0.exe.blockmap
+KitsuneDesk-Setup-0.11.0.exe
+KitsuneDesk-Setup-0.11.0.exe.blockmap
 latest.yml
 ```
 
@@ -243,15 +243,15 @@ O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio,
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.9.1 --no-git-tag-version
+npm version 0.11.0 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "chore: prepara release v0.9.1"
+git commit -m "feat: publica KitsuneDesk v0.11.0"
 git push origin main
 
-git tag -a v0.9.1 -m "KitsuneDesk v0.9.1"
-git push origin v0.9.1
+git tag -a v0.11.0 -m "KitsuneDesk v0.11.0"
+git push origin v0.11.0
 ```
 
 </details>

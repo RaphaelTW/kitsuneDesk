@@ -3,6 +3,10 @@ import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
 
 const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
+const STARTUP_SNAPSHOT_KEY = 'kitsunedesk.startup-snapshot.v1';
+const AVATAR_SNAPSHOT_KEY = 'kitsunedesk.avatar-cache.v1';
+const SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
+const AVATAR_SNAPSHOT_LIMIT = 80;
 const viewMeta = Object.freeze({
   home: ['Biblioteca pessoal', 'Início'],
   search: ['Catálogo e provedores', 'Pesquisar'],
@@ -26,6 +30,7 @@ const installationDefinitions = Object.freeze({
 
 const state = {
   session: null,
+  appInfo: null,
   settings: null,
   playerStatus: null,
   dashboard: null,
@@ -51,7 +56,7 @@ const modals = {};
 
 const $ = (id) => document.getElementById(id);
 
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener('DOMContentLoaded', () => {
   state.session = requireSession();
   if (!state.session || !hasAnimeDeskApi()) return;
 
@@ -75,14 +80,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   bindInstallation();
   bindFailureTelemetry();
   subscribeEvents();
+  restoreStartupSnapshot();
 
-  await Promise.all([
-    hydrateAppInfo(),
-    hydrateSettings(),
-    hydrateDashboard(),
-    hydratePlaybackState(),
-    hydrateUpdateStatus()
-  ]);
   $('provider-health-dot').className = 'status-dot is-checking';
   $('provider-health-summary').textContent = 'Clique para verificar';
 
@@ -94,12 +93,24 @@ window.addEventListener('DOMContentLoaded', async () => {
       .forEach((element) => element.classList.add('d-none'));
   }
 
-  if (
-    state.settings?.checkUpdates &&
-    ['idle', 'not-available'].includes(state.update?.state || 'idle')
-  ) {
-    void checkUpdates(false);
-  }
+  const appInfoTask = hydrateAppInfo();
+  const settingsTask = hydrateSettings();
+  const dashboardTask = hydrateDashboard();
+  const playbackTask = hydratePlaybackState();
+  const updateTask = hydrateUpdateStatus();
+
+  void Promise.allSettled([appInfoTask, settingsTask, dashboardTask, playbackTask]).then(() => {
+    persistStartupSnapshot();
+  });
+
+  void Promise.allSettled([settingsTask, updateTask]).then(() => {
+    if (
+      state.settings?.checkUpdates &&
+      ['idle', 'not-available'].includes(state.update?.state || 'idle')
+    ) {
+      void checkUpdates(false);
+    }
+  });
 });
 
 function hydrateProfile() {
@@ -156,6 +167,7 @@ async function showView(view) {
 
 async function hydrateAppInfo() {
   const info = await animeDesk.app.getInfo();
+  state.appInfo = info;
   $('app-version').textContent = `v${info.version}`;
 }
 
@@ -163,10 +175,65 @@ async function hydrateDashboard() {
   const result = await animeDesk.library.dashboard();
   if (!result.ok) return;
   state.dashboard = result.data;
-  renderStats(result.data.stats || {});
-  renderContinueCards($('home-continue-list'), result.data.continueWatching || [], 8);
-  renderCollectionCards($('home-favorites-list'), result.data.favorites || [], 'favorites', 8);
-  renderHistoryPreview($('home-recent-list'), result.data.recent || [], 8);
+  renderDashboardSnapshot(result.data);
+  void warmDashboardCovers(result.data);
+}
+
+function renderDashboardSnapshot(dashboard) {
+  if (!dashboard) return;
+  renderStats(dashboard.stats || {});
+  renderContinueCards($('home-continue-list'), dashboard.continueWatching || [], 8);
+  renderCollectionCards($('home-favorites-list'), dashboard.favorites || [], 'favorites', 8);
+  renderHistoryPreview($('home-recent-list'), dashboard.recent || [], 8);
+}
+
+async function warmDashboardCovers(dashboard) {
+  const urls = [
+    ...(dashboard?.continueWatching || []).map((item) => item.anime_cover),
+    ...(dashboard?.favorites || []).map((item) => item.anime_cover),
+    ...(dashboard?.watchlist || []).map((item) => item.anime_cover),
+    ...(dashboard?.recent || []).map((item) => item.anime_cover)
+  ].filter(Boolean);
+  if (!urls.length || !animeDesk.cache?.warmImages) return;
+  try {
+    await animeDesk.cache.warmImages(urls, 'covers');
+  } catch {
+    // Aquecimento de cache nao pode afetar a abertura da tela inicial.
+  }
+}
+
+function restoreStartupSnapshot() {
+  const snapshot = readJsonStorage(STARTUP_SNAPSHOT_KEY);
+  if (!snapshot || snapshot.userId !== state.session.user.id) return;
+  if (Date.now() - Number(snapshot.savedAt || 0) > SNAPSHOT_TTL_MS) return;
+
+  if (snapshot.appInfo?.version) {
+    state.appInfo = snapshot.appInfo;
+    $('app-version').textContent = `v${snapshot.appInfo.version}`;
+  }
+  if (snapshot.settings) {
+    state.settings = snapshot.settings;
+    renderSettingsForm(snapshot.settings);
+    applyTheme(snapshot.settings.theme);
+    applySettingsToSearch();
+  }
+  if (snapshot.dashboard) {
+    state.dashboard = snapshot.dashboard;
+    renderDashboardSnapshot(snapshot.dashboard);
+  }
+  if (snapshot.playback) renderPlayerState(snapshot.playback);
+}
+
+function persistStartupSnapshot() {
+  if (!state.session?.user?.id) return;
+  writeJsonStorage(STARTUP_SNAPSHOT_KEY, {
+    userId: state.session.user.id,
+    savedAt: Date.now(),
+    appInfo: state.appInfo,
+    settings: state.settings,
+    dashboard: state.dashboard,
+    playback: state.playback
+  });
 }
 
 function renderStats(stats) {
@@ -1012,25 +1079,30 @@ async function hydrateSettings() {
   const result = await animeDesk.settings.get();
   if (!result.ok) return;
   state.settings = result.data;
-  $('setting-provider').value = result.data.defaultProvider;
-  $('setting-language').value = result.data.defaultLanguage;
-  $('setting-quality').value = result.data.defaultQuality;
-  $('setting-audio').value = result.data.audioPreference;
-  $('setting-volume').value = result.data.playerVolume;
-  $('setting-volume-label').textContent = `${result.data.playerVolume}%`;
-  $('setting-downloads').value = result.data.downloadsPath;
-  $('setting-autoplay').checked = result.data.autoPlayNext;
-  $('setting-remember').checked = result.data.rememberPosition;
-  $('setting-theme').value = result.data.theme;
-  $('setting-updates').checked = result.data.checkUpdates;
-  $('setting-telemetry').checked = result.data.localTelemetryEnabled;
-  $('setting-parental').checked = result.data.parentalControlEnabled;
-  $('setting-rating').value = result.data.maxContentRating;
-  $('parental-pin-status').textContent = result.data.parentalPinConfigured
-    ? 'PIN configurado'
-    : 'PIN não configurado';
+  renderSettingsForm(result.data);
   applyTheme(result.data.theme);
   applySettingsToSearch();
+}
+
+function renderSettingsForm(settings) {
+  if (!settings) return;
+  $('setting-provider').value = settings.defaultProvider || 'goanime-gui';
+  $('setting-language').value = settings.defaultLanguage || 'sub';
+  $('setting-quality').value = settings.defaultQuality || 'auto';
+  $('setting-audio').value = settings.audioPreference || 'sub';
+  $('setting-volume').value = Number(settings.playerVolume ?? 80);
+  $('setting-volume-label').textContent = `${Number(settings.playerVolume ?? 80)}%`;
+  $('setting-downloads').value = settings.downloadsPath || '';
+  $('setting-autoplay').checked = Boolean(settings.autoPlayNext);
+  $('setting-remember').checked = settings.rememberPosition !== false;
+  $('setting-theme').value = settings.theme || 'dark';
+  $('setting-updates').checked = settings.checkUpdates !== false;
+  $('setting-telemetry').checked = Boolean(settings.localTelemetryEnabled);
+  $('setting-parental').checked = Boolean(settings.parentalControlEnabled);
+  $('setting-rating').value = settings.maxContentRating || '18';
+  $('parental-pin-status').textContent = settings.parentalPinConfigured
+    ? 'PIN configurado'
+    : 'PIN não configurado';
 }
 
 function readSettingsForm() {
@@ -1871,7 +1943,8 @@ function createImage(src, alt) {
   );
   if (src && /^https?:\/\//i.test(src)) {
     void animeDesk.cache.image(src, 'covers').then((result) => {
-      if (result?.ok && result.data?.url) image.src = result.data.url;
+      const cachedUrl = result?.data?.fileUrl || result?.data?.url;
+      if (result?.ok && cachedUrl) image.src = cachedUrl;
     });
   }
   return image;
@@ -1910,20 +1983,19 @@ function setVisualAlert(element, message) {
   element.classList.toggle('d-none', !message);
 }
 
-function avatarUrl(user) {
-  const style = encodeURIComponent(user?.avatarStyle || 'thumbs');
-  const seed = encodeURIComponent(user?.avatarSeed || user?.username || user?.name || 'user');
-  return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}&backgroundType=gradientLinear`;
-}
-
 async function setCachedAvatar(image, user) {
   if (!image) return;
-  image.src = avatarUrl(user);
+  const cached = readAvatarSnapshot(user);
+  image.src = cached?.url || fallbackCover;
   const result = await animeDesk.avatars.get({
     style: user?.avatarStyle || 'thumbs',
     seed: user?.avatarSeed || user?.username || user?.name || 'user'
   });
-  if (result?.ok && result.data?.url) image.src = result.data.url;
+  const avatarSource = result?.data?.fileUrl || result?.data?.url;
+  if (result?.ok && avatarSource) {
+    image.src = avatarSource;
+    rememberAvatarSnapshot(user, avatarSource);
+  }
 }
 
 function updateUserAvatarPreview() {
@@ -1935,6 +2007,47 @@ function updateUserAvatarPreview() {
     profileColor: $('user-color').value || '#6f5cff'
   });
   preview.style.backgroundColor = $('user-color').value || '#6f5cff';
+}
+
+function avatarSnapshotKey(user) {
+  const style = user?.avatarStyle || 'thumbs';
+  const seed = user?.avatarSeed || user?.username || user?.name || 'user';
+  return `${style}:${seed}`;
+}
+
+function readAvatarSnapshot(user) {
+  const cache = readJsonStorage(AVATAR_SNAPSHOT_KEY) || {};
+  return cache[avatarSnapshotKey(user)] || null;
+}
+
+function rememberAvatarSnapshot(user, url) {
+  if (!url) return;
+  const cache = readJsonStorage(AVATAR_SNAPSHOT_KEY) || {};
+  cache[avatarSnapshotKey(user)] = { url, savedAt: Date.now() };
+  const entries = Object.entries(cache).sort(
+    ([, left], [, right]) => Number(right.savedAt || 0) - Number(left.savedAt || 0)
+  );
+  writeJsonStorage(
+    AVATAR_SNAPSHOT_KEY,
+    Object.fromEntries(entries.slice(0, AVATAR_SNAPSHOT_LIMIT))
+  );
+}
+
+function readJsonStorage(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function writeJsonStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache visual e snapshot de abertura sao apenas aceleradores locais.
+  }
 }
 
 function downloadTextFile(fileName, content, mimeType = 'text/plain;charset=utf-8') {

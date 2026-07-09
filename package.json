@@ -1,6 +1,6 @@
 {
   "name": "kitsunedesk",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com player MPV externo estável, perfis locais, biblioteca, instalação gráfica e atualização automática pelo GitHub.",
   "main": "src/main/main.js",
   "author": "Laurentino",

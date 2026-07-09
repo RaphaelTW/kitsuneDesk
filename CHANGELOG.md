@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.11.0] - 2026-07-09
+
+### Adicionado
+
+- Novos temas: Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave.
+- Snapshot local da Home, configurações e mini player para renderizar a tela principal imediatamente na abertura.
+- Aquecimento em segundo plano das capas vistas na Home para acelerar reaberturas.
+- Cache offline dos avatares selecionados também no renderer, evitando tentativa remota quando já existe avatar salvo.
+- Endpoint interno para pré-carregar capas em lote sem bloquear a interface.
+
+### Melhorado
+
+- Hidratação inicial da tela principal passa a ser assíncrona e resiliente com `Promise.allSettled`, sem depender de atualização, playback ou dashboard para liberar a UI.
+- Cache de capas e avatares ganhou janela `staleUntil`, TTL maior para avatares e limpeza automática de arquivos antigos na inicialização.
+- Capas em cache passam a preferir `fileUrl` quando disponível, reduzindo uso repetido de base64 no renderer.
+- README e fluxo interativo atualizados para a release `v0.11.0`.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.11.0`.
+
 ## [0.10.0] - 2026-07-09
 
 ### Adicionado

@@ -14,7 +14,12 @@ const THEMES = new Set([
   'classic-98',
   'frutiger-aero',
   'dark-fantasy',
-  'rachni'
+  'rachni',
+  'older-brother-core',
+  'dreamcore',
+  'cottagecore',
+  'cyberpunk',
+  'synthwave'
 ]);
 
 class SettingsService {

@@ -34,7 +34,7 @@ class AvatarService {
       String(payload?.seed || 'user')
         .trim()
         .slice(0, 80) || 'user';
-    const remoteUrl = `https://api.dicebear.com/9.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear`;
+    const remoteUrl = `https://api.dicebear.com/10.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear`;
     const cached = await this.cacheService.cacheImage(remoteUrl, 'avatars');
     if (cached.cached) return { ...cached, style, seed, source: 'dicebear-cache' };
     return {

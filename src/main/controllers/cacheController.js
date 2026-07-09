@@ -16,6 +16,10 @@ class CacheController {
     return this.cacheService.clear();
   }
 
+  warmImages(payload) {
+    return this.cacheService.warmImages(payload?.urls, payload?.kind);
+  }
+
   avatar(payload) {
     return this.avatarService.get(payload);
   }

@@ -1,4 +1,4 @@
-/* Temas do KitsuneDesk v0.10.0. Os componentes usam os mesmos tokens para manter consistência. */
+/* Temas do KitsuneDesk v0.11.0. Os componentes usam os mesmos tokens para manter consistência. */
 body {
   background-image: var(--theme-background-image, none);
   background-attachment: fixed;
@@ -125,6 +125,148 @@ body[data-theme='rachni'] {
     28px 28px,
     auto,
     auto;
+}
+
+
+body[data-theme='older-brother-core'] {
+  color-scheme: dark;
+  --app-bg: #11151d;
+  --app-surface: #1b2230;
+  --app-surface-soft: #253047;
+  --app-border: #526079;
+  --app-text: #f4f0e8;
+  --app-muted: #aeb7c8;
+  --app-purple: #7c8fb8;
+  --app-cyan: #8fb7d8;
+  --app-rose: #d08b73;
+  --app-green: #86a36f;
+  --app-shadow: 0 18px 42px rgba(5, 10, 20, 0.42);
+  --theme-background-image:
+    linear-gradient(120deg, rgba(124, 143, 184, 0.12), transparent 35%),
+    radial-gradient(circle at 85% 18%, rgba(208, 139, 115, 0.13), transparent 26%),
+    linear-gradient(180deg, #11151d 0%, #181d29 52%, #0e1218 100%);
+}
+
+body[data-theme='older-brother-core'] .panel,
+body[data-theme='older-brother-core'] .sidebar,
+body[data-theme='older-brother-core'] .topbar {
+  border-color: rgba(143, 183, 216, 0.28);
+}
+
+body[data-theme='dreamcore'] {
+  color-scheme: light;
+  --app-bg: #f5eeff;
+  --app-surface: rgba(255, 255, 255, 0.74);
+  --app-surface-soft: rgba(255, 248, 255, 0.86);
+  --app-border: rgba(179, 141, 221, 0.36);
+  --app-text: #2f2540;
+  --app-muted: #77698d;
+  --app-purple: #b983ff;
+  --app-cyan: #8ddfff;
+  --app-rose: #ff90c9;
+  --app-green: #93d6b3;
+  --app-shadow: 0 22px 52px rgba(142, 93, 184, 0.2);
+  --theme-background-image:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.92), transparent 10%),
+    radial-gradient(circle at 80% 12%, rgba(141, 223, 255, 0.5), transparent 18%),
+    radial-gradient(circle at 50% 84%, rgba(255, 144, 201, 0.34), transparent 22%),
+    linear-gradient(160deg, #fff8f4, #f3e8ff 45%, #dff8ff);
+}
+
+body[data-theme='dreamcore'] .panel,
+body[data-theme='dreamcore'] .sidebar,
+body[data-theme='dreamcore'] .topbar {
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+body[data-theme='cottagecore'] {
+  color-scheme: light;
+  --app-bg: #f6efe1;
+  --app-surface: rgba(255, 250, 239, 0.9);
+  --app-surface-soft: rgba(239, 226, 199, 0.92);
+  --app-border: rgba(130, 108, 69, 0.34);
+  --app-text: #3b2f23;
+  --app-muted: #7f6e55;
+  --app-purple: #8c6d4d;
+  --app-cyan: #7fa08a;
+  --app-rose: #c66f6f;
+  --app-green: #668454;
+  --app-shadow: 0 18px 42px rgba(89, 67, 39, 0.18);
+  --theme-background-image:
+    radial-gradient(circle at 16% 18%, rgba(198, 111, 111, 0.18), transparent 18%),
+    radial-gradient(circle at 82% 20%, rgba(102, 132, 84, 0.16), transparent 20%),
+    linear-gradient(180deg, #faf2df 0%, #efe2c7 58%, #d6c4a0 100%);
+}
+
+body[data-theme='cottagecore'] .panel,
+body[data-theme='cottagecore'] .settings-card,
+body[data-theme='cottagecore'] .sidebar,
+body[data-theme='cottagecore'] .topbar {
+  border-radius: 18px;
+}
+
+body[data-theme='cyberpunk'] {
+  color-scheme: dark;
+  --app-bg: #050713;
+  --app-surface: rgba(13, 16, 35, 0.92);
+  --app-surface-soft: rgba(24, 25, 54, 0.94);
+  --app-border: rgba(255, 234, 0, 0.34);
+  --app-text: #f7fbff;
+  --app-muted: #9ba5c7;
+  --app-purple: #ff2bd6;
+  --app-cyan: #00e5ff;
+  --app-rose: #ff3864;
+  --app-green: #d7ff34;
+  --app-shadow: 0 0 36px rgba(0, 229, 255, 0.16), 0 18px 48px rgba(0, 0, 0, 0.55);
+  --theme-background-image:
+    linear-gradient(rgba(0, 229, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 80% 10%, rgba(255, 43, 214, 0.22), transparent 24%),
+    radial-gradient(circle at 18% 82%, rgba(0, 229, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #050713, #10122b 58%, #060812);
+  background-size:
+    34px 34px,
+    34px 34px,
+    auto,
+    auto,
+    auto;
+}
+
+body[data-theme='cyberpunk'] .panel,
+body[data-theme='cyberpunk'] .sidebar,
+body[data-theme='cyberpunk'] .topbar {
+  box-shadow: var(--app-shadow);
+}
+
+body[data-theme='synthwave'] {
+  color-scheme: dark;
+  --app-bg: #14091f;
+  --app-surface: rgba(32, 14, 52, 0.92);
+  --app-surface-soft: rgba(48, 20, 72, 0.94);
+  --app-border: rgba(255, 121, 198, 0.35);
+  --app-text: #fff7ff;
+  --app-muted: #d5b8df;
+  --app-purple: #b05cff;
+  --app-cyan: #40e0ff;
+  --app-rose: #ff4fb8;
+  --app-green: #ffe066;
+  --app-shadow: 0 20px 52px rgba(59, 13, 94, 0.5);
+  --theme-background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 50% 18%, rgba(255, 79, 184, 0.38), transparent 20%),
+    linear-gradient(180deg, #291050 0%, #14091f 44%, #07030e 100%);
+  background-size:
+    48px 48px,
+    48px 48px,
+    auto,
+    auto;
+}
+
+body[data-theme='synthwave'] .topbar,
+body[data-theme='synthwave'] .sidebar,
+body[data-theme='synthwave'] .panel {
+  border-color: rgba(64, 224, 255, 0.28);
 }
 
 /* Hover roxo -> azul. */

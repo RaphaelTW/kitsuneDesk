@@ -7,6 +7,7 @@ function registerCacheHandlers(ipcMain, cacheController) {
   handle('cache:image', (payload) => cacheController.image(payload));
   handle('cache:stats', () => cacheController.stats());
   handle('cache:clear', () => cacheController.clear());
+  handle('cache:warm-images', (payload) => cacheController.warmImages(payload));
   handle('avatars:get', (payload) => cacheController.avatar(payload));
   handle('avatars:styles', () => cacheController.avatarStyles());
 }

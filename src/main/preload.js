@@ -73,6 +73,7 @@ const channels = Object.freeze({
   cacheImage: 'cache:image',
   cacheStats: 'cache:stats',
   cacheClear: 'cache:clear',
+  cacheWarmImages: 'cache:warm-images',
   avatarsGet: 'avatars:get',
   avatarsStyles: 'avatars:styles',
   backupExportLibrary: 'backup:export-library',
@@ -195,7 +196,8 @@ const animeDeskApi = Object.freeze({
   cache: Object.freeze({
     image: (url, kind = 'covers') => invoke(channels.cacheImage, { url, kind }),
     stats: () => invoke(channels.cacheStats),
-    clear: () => invoke(channels.cacheClear)
+    clear: () => invoke(channels.cacheClear),
+    warmImages: (urls, kind = 'covers') => invoke(channels.cacheWarmImages, { urls, kind })
   }),
   avatars: Object.freeze({
     get: (payload) => invoke(channels.avatarsGet, payload),

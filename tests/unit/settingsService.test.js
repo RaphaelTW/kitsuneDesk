@@ -91,3 +91,17 @@ test('configura e valida PIN parental', async () => {
   assert.equal(result.verified, true);
   await assert.rejects(() => service.verifyParentalPin({ pin: '9999' }), /PIN parental incorreto/);
 });
+
+test('aceita os novos temas da v0.11.0', () => {
+  const service = createService();
+  for (const theme of [
+    'older-brother-core',
+    'dreamcore',
+    'cottagecore',
+    'cyberpunk',
+    'synthwave'
+  ]) {
+    const settings = service.update({ theme });
+    assert.equal(settings.theme, theme);
+  }
+});

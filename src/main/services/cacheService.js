@@ -6,7 +6,10 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024;
-const IMAGE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const ASSET_TTL_MS = Object.freeze({
+  covers: 14 * 24 * 60 * 60 * 1000,
+  avatars: 90 * 24 * 60 * 60 * 1000
+});
 
 class CacheService {
   constructor({ app, cacheRepository }) {
@@ -17,6 +20,13 @@ class CacheService {
     fs.mkdirSync(this.root, { recursive: true });
     try {
       this.cacheRepository.prune();
+      setTimeout(() => {
+        try {
+          this.pruneDiskAssets();
+        } catch {
+          // Limpeza de arquivos antigos roda em segundo plano e nunca bloqueia a abertura.
+        }
+      }, 1500).unref?.();
     } catch {
       // Cache antigo nunca impede a abertura do aplicativo.
     }
@@ -40,6 +50,8 @@ class CacheService {
     }
 
     const safeKind = ['covers', 'avatars'].includes(kind) ? kind : 'covers';
+    const ttlMs = ASSET_TTL_MS[safeKind] || ASSET_TTL_MS.covers;
+    const staleTtlMs = safeKind === 'avatars' ? ttlMs * 2 : ttlMs * 4;
     const cacheKey = crypto.createHash('sha256').update(source).digest('hex');
     const memoryKey = `${safeKind}:${cacheKey}`;
     if (this.memory.has(memoryKey)) return this.memory.get(memoryKey);
@@ -65,7 +77,9 @@ class CacheService {
             source,
             contentType: response.contentType,
             savedAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + IMAGE_TTL_MS).toISOString()
+            expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+            staleUntil: new Date(Date.now() + staleTtlMs).toISOString(),
+            bytes: response.buffer.length
           },
           null,
           2
@@ -134,6 +148,51 @@ class CacheService {
     return { cleared: true, removed, database };
   }
 
+  async warmImages(urls = [], kind = 'covers') {
+    const safeUrls = Array.isArray(urls) ? urls : [];
+    const uniqueUrls = [
+      ...new Set(safeUrls.map((url) => String(url || '').trim()).filter(Boolean))
+    ];
+    const selected = uniqueUrls.slice(0, 80);
+    let cached = 0;
+    let failed = 0;
+    for (const url of selected) {
+      try {
+        const result = await this.cacheImage(url, kind);
+        if (result.cached) cached += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    return { warmed: true, total: selected.length, cached, failed };
+  }
+
+  pruneDiskAssets() {
+    let removed = 0;
+    for (const kind of ['covers', 'avatars']) {
+      const directory = path.join(this.root, kind);
+      if (!fs.existsSync(directory)) continue;
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+        const metaPath = path.join(directory, entry.name);
+        try {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+          const fallbackStaleUntil =
+            Date.parse(meta.expiresAt) + (ASSET_TTL_MS[kind] || ASSET_TTL_MS.covers);
+          const staleUntil = Date.parse(meta.staleUntil) || fallbackStaleUntil;
+          if (!Number.isFinite(staleUntil) || staleUntil > Date.now()) continue;
+          const dataPath = path.join(directory, entry.name.replace(/\.json$/, '.bin'));
+          fs.rmSync(metaPath, { force: true });
+          fs.rmSync(dataPath, { force: true });
+          removed += 1;
+        } catch {
+          // Metadado quebrado nao deve atrasar a abertura; a limpeza fica para uma proxima rodada.
+        }
+      }
+    }
+    return { removed };
+  }
+
   remember(key, value) {
     this.memory.set(key, value);
     if (this.memory.size <= 120) return;
@@ -153,7 +212,7 @@ function downloadBuffer(url, redirects = 0) {
       url,
       {
         headers: {
-          'User-Agent': 'KitsuneDesk/0.10.0',
+          'User-Agent': 'KitsuneDesk/0.11.0',
           Accept: 'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8'
         },
         timeout: 10_000
