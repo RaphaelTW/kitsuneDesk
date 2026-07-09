@@ -121,7 +121,10 @@ class UpdateService extends EventEmitter {
     return this.checkPromise;
   }
 
-  startAutomaticChecks({ initialDelayMs = DEFAULT_INITIAL_DELAY_MS, intervalMs = DEFAULT_INTERVAL_MS } = {}) {
+  startAutomaticChecks({
+    initialDelayMs = DEFAULT_INITIAL_DELAY_MS,
+    intervalMs = DEFAULT_INTERVAL_MS
+  } = {}) {
     this.configure();
     if (!this.app.isPackaged || this.initialTimer || this.intervalTimer) return;
 
@@ -148,7 +151,10 @@ class UpdateService extends EventEmitter {
     }
 
     setImmediate(() => autoUpdater.quitAndInstall(false, true));
-    return { installed: true, message: 'O KitsuneDesk será reiniciado para concluir a atualização.' };
+    return {
+      installed: true,
+      message: 'O KitsuneDesk será reiniciado para concluir a atualização.'
+    };
   }
 
   status() {

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KitsuneDesk v0.8.0 — Fluxo interativo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #070812;
+        --panel: #101225;
+        --line: #282c4c;
+        --text: #f4f5ff;
+        --muted: #a7acc9;
+        --blue: #28a8ff;
+        --violet: #7657ff;
+        --purple: #c93cff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 10%, #102a55 0, transparent 28%),
+          radial-gradient(circle at 85% 20%, #3c1558 0, transparent 30%), var(--bg);
+      }
+      header {
+        padding: 28px clamp(18px, 4vw, 60px) 12px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(28px, 5vw, 54px);
+        letter-spacing: -0.04em;
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 850px;
+        line-height: 1.6;
+      }
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 18px clamp(18px, 4vw, 60px);
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        backdrop-filter: blur(16px);
+        background: rgba(7, 8, 18, 0.76);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .toolbar button {
+        border: 1px solid var(--line);
+        background: #12152b;
+        color: var(--text);
+        border-radius: 999px;
+        padding: 10px 15px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .toolbar button:hover,
+      .toolbar button.active {
+        border-color: var(--violet);
+        box-shadow: 0 0 18px rgba(118, 87, 255, 0.45);
+        transform: translateY(-1px);
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 20px;
+        padding: 24px clamp(18px, 4vw, 60px) 50px;
+      }
+      .map {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(170px, 1fr));
+        gap: 16px;
+        align-content: start;
+      }
+      .node {
+        min-height: 126px;
+        text-align: left;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 18px;
+        color: var(--text);
+        background: linear-gradient(145deg, rgba(22, 25, 48, 0.96), rgba(10, 12, 28, 0.96));
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: 0.22s;
+      }
+      .node::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        height: 3px;
+        background: linear-gradient(90deg, var(--blue), var(--violet), var(--purple));
+        opacity: 0.75;
+      }
+      .node:hover,
+      .node.active {
+        transform: translateY(-4px);
+        border-color: rgba(118, 87, 255, 0.85);
+        box-shadow:
+          0 12px 35px rgba(0, 0, 0, 0.35),
+          0 0 25px rgba(118, 87, 255, 0.24);
+      }
+      .node small {
+        display: block;
+        color: var(--muted);
+        margin-top: 8px;
+        line-height: 1.45;
+      }
+      .node .tag {
+        display: inline-flex;
+        margin-bottom: 10px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #d9d6ff;
+      }
+      .node[data-group='play']::before {
+        background: linear-gradient(90deg, #16d9e3, #28a8ff, #7657ff);
+      }
+      .node[data-group='admin']::before {
+        background: linear-gradient(90deg, #7657ff, #c93cff, #ff4fa3);
+      }
+      .node[data-group='system']::before {
+        background: linear-gradient(90deg, #27e0a3, #28a8ff, #7657ff);
+      }
+      aside {
+        position: sticky;
+        top: 94px;
+        height: max-content;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(15, 18, 39, 0.9);
+        padding: 22px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+      }
+      aside h2 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+      aside p {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .steps {
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+      .steps li {
+        padding: 11px 13px;
+        border-radius: 12px;
+        background: #0b0e20;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: #dfe2f7;
+      }
+      .pulse {
+        width: 100%;
+        height: 8px;
+        border-radius: 99px;
+        overflow: hidden;
+        background: #090b19;
+        margin-top: 18px;
+      }
+      .pulse span {
+        display: block;
+        height: 100%;
+        width: 72%;
+        background: linear-gradient(90deg, var(--blue), var(--violet), var(--purple));
+        box-shadow: 0 0 16px var(--violet);
+        animation: flow 2.2s ease-in-out infinite alternate;
+      }
+      @keyframes flow {
+        to {
+          width: 100%;
+          filter: hue-rotate(25deg);
+        }
+      }
+      @media (max-width: 1050px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+        .map {
+          grid-template-columns: repeat(2, minmax(150px, 1fr));
+        }
+        aside {
+          position: static;
+        }
+      }
+      @media (max-width: 620px) {
+        .map {
+          grid-template-columns: 1fr;
+        }
+        .node {
+          min-height: 108px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Fluxo do KitsuneDesk <small>v0.8.0 Stable</small></h1>
+      <p>
+        Clique em cada etapa para entender o que acontece no aplicativo. Use os filtros para
+        visualizar reprodução, administração ou manutenção.
+      </p>
+    </header>
+    <nav class="toolbar" aria-label="Filtros do fluxo">
+      <button class="active" data-filter="all">Fluxo completo</button>
+      <button data-filter="play">Reprodução</button>
+      <button data-filter="admin">Usuários e segurança</button>
+      <button data-filter="system">Instalação e atualização</button>
+    </nav>
+    <main>
+      <section class="map" id="map"></section>
+      <aside>
+        <span id="detail-tag">Visão geral</span>
+        <h2 id="detail-title">Escolha uma etapa</h2>
+        <p id="detail-text">
+          O mapa mostra desde a configuração inicial até a reprodução externa, o histórico e as
+          atualizações pelo GitHub.
+        </p>
+        <ul class="steps" id="detail-steps">
+          <li>Clique em um cartão</li>
+          <li>Veja a responsabilidade da etapa</li>
+          <li>Filtre por área</li>
+        </ul>
+        <div class="pulse"><span></span></div>
+      </aside>
+    </main>
+    <script>
+      const nodes = [
+        {
+          group: 'admin',
+          tag: 'Acesso',
+          title: 'Primeira execução',
+          text: 'O aplicativo verifica se já existe um administrador local.',
+          steps: [
+            'Banco e migrações são preparados',
+            'Nenhuma senha padrão é criada',
+            'A tela correta é escolhida automaticamente'
+          ]
+        },
+        {
+          group: 'admin',
+          tag: 'Segurança',
+          title: 'Criar administrador',
+          text: 'O primeiro usuário define suas próprias credenciais e recebe a função ADMIN.',
+          steps: ['Nome e usuário', 'Senha forte', 'Sessão individual']
+        },
+        {
+          group: 'admin',
+          tag: 'Acesso',
+          title: 'Login e perfis',
+          text: 'Cada perfil mantém biblioteca, histórico, tema e preferências separados.',
+          steps: ['Bloqueio por tentativas', 'Controle parental', 'Sessão local segura']
+        },
+        {
+          group: 'play',
+          tag: 'Descoberta',
+          title: 'Pesquisar anime',
+          text: 'O usuário escolhe provedor, idioma e resolução antes da busca.',
+          steps: ['GoAnime GUI principal', 'PT-BR ou legendado', 'Melhor qualidade por padrão']
+        },
+        {
+          group: 'play',
+          tag: 'Catálogo',
+          title: 'Resultados e episódios',
+          text: 'Cards, capas e episódios são exibidos dentro do KitsuneDesk.',
+          steps: ['Escolher resultado', 'Filtrar episódios', 'Favoritar ou adicionar à lista']
+        },
+        {
+          group: 'play',
+          tag: 'Resolução',
+          title: 'Fallback de fontes',
+          text: 'Quando um link falha, o bridge tenta outras opções compatíveis.',
+          steps: ['Idioma alternativo', 'Melhor qualidade', 'Fonte alternativa']
+        },
+        {
+          group: 'play',
+          tag: 'Player',
+          title: 'MPV externo estável',
+          text: 'O episódio abre na janela tradicional do MPV enquanto os controles continuam no KitsuneDesk.',
+          steps: ['Janela externa compatível', 'Controles por IPC', 'Progresso salvo no perfil']
+        },
+        {
+          group: 'play',
+          tag: 'Acompanhamento',
+          title: 'Salvar progresso',
+          text: 'Posição, duração, episódio e fonte são gravados para continuar depois.',
+          steps: ['Atualização periódica', 'Marcar concluído', 'Próximo episódio automático']
+        },
+        {
+          group: 'admin',
+          tag: 'Administração',
+          title: 'Gerenciar usuários',
+          text: 'Administradores podem criar e editar perfis sem compartilhar histórico.',
+          steps: ['Criar usuário', 'Alterar função', 'Redefinir senha']
+        },
+        {
+          group: 'system',
+          tag: 'Componentes',
+          title: 'Instalação gráfica',
+          text: 'Dependências são verificadas e instaladas em segundo plano.',
+          steps: ['Barra neon', 'Visor de componentes', 'Sem terminal visível']
+        },
+        {
+          group: 'system',
+          tag: 'Manutenção',
+          title: 'Diagnóstico e reparo',
+          text: 'Verifica player, bridge, banco e provedores, preservando os dados locais.',
+          steps: ['Reparar componente', 'Limpar cache', 'Exportar relatório']
+        },
+        {
+          group: 'system',
+          tag: 'Release',
+          title: 'Atualização automática',
+          text: 'A versão instalada consulta o GitHub Releases e avisa quando houver uma versão superior.',
+          steps: ['Baixar em segundo plano', 'Mostrar progresso', 'Instalar e reiniciar']
+        }
+      ];
+      const map = document.querySelector('#map');
+      function render(filter = 'all') {
+        map.replaceChildren();
+        nodes
+          .filter((n) => filter === 'all' || n.group === filter)
+          .forEach((n, index) => {
+            const button = document.createElement('button');
+            button.className = 'node';
+            button.dataset.group = n.group;
+            button.innerHTML = `<span class="tag">${n.tag}</span><strong>${n.title}</strong><small>${n.text}</small>`;
+            button.addEventListener('click', () => select(n, button));
+            map.append(button);
+            if (index === 0) setTimeout(() => select(n, button), 0);
+          });
+      }
+      function select(node, element) {
+        document
+          .querySelectorAll('.node')
+          .forEach((n) => n.classList.toggle('active', n === element));
+        document.querySelector('#detail-tag').textContent = node.tag;
+        document.querySelector('#detail-title').textContent = node.title;
+        document.querySelector('#detail-text').textContent = node.text;
+        const list = document.querySelector('#detail-steps');
+        list.replaceChildren();
+        node.steps.forEach((step) => {
+          const li = document.createElement('li');
+          li.textContent = step;
+          list.append(li);
+        });
+      }
+      document.querySelectorAll('[data-filter]').forEach((button) =>
+        button.addEventListener('click', () => {
+          document
+            .querySelectorAll('[data-filter]')
+            .forEach((b) => b.classList.toggle('active', b === button));
+          render(button.dataset.filter);
+        })
+      );
+      render();
+    </script>
+  </body>
+</html>

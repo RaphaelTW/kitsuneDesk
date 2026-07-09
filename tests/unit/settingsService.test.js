@@ -10,6 +10,7 @@ function createService() {
     default_quality: 'auto',
     auto_play_next: 0,
     player_volume: 80,
+    player_mode: 'external',
     theme: 'dark',
     downloads_path: '',
     audio_preference: 'sub',
@@ -32,6 +33,7 @@ function createService() {
         default_quality: input.defaultQuality,
         auto_play_next: input.autoPlayNext ? 1 : 0,
         player_volume: input.playerVolume,
+        player_mode: input.playerMode,
         theme: input.theme,
         downloads_path: input.downloadsPath,
         audio_preference: input.audioPreference,
@@ -58,6 +60,7 @@ test('normaliza e persiste configurações do usuário', () => {
     defaultQuality: '720',
     autoPlayNext: true,
     playerVolume: 150,
+    playerMode: 'embedded',
     theme: 'light',
     downloadsPath: 'C:/Videos',
     audioPreference: 'dub',
@@ -70,6 +73,7 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.defaultProvider, 'ani-cli');
   assert.equal(settings.defaultLanguage, 'dub');
   assert.equal(settings.playerVolume, 100);
+  assert.equal(settings.playerMode, 'external');
   assert.equal(settings.autoPlayNext, true);
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);

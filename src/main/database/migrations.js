@@ -190,6 +190,20 @@ const migrations = [
       ALTER TABLE watch_history ADD COLUMN anime_payload TEXT;
       ALTER TABLE watch_history ADD COLUMN episode_payload TEXT;
     `
+  },
+  {
+    id: 5,
+    name: 'player-window-preference',
+    sql: `
+      ALTER TABLE settings ADD COLUMN player_mode TEXT NOT NULL DEFAULT 'external';
+    `
+  },
+  {
+    id: 6,
+    name: 'stable-external-player',
+    sql: `
+      UPDATE settings SET player_mode = 'external' WHERE player_mode <> 'external';
+    `
   }
 ];
 

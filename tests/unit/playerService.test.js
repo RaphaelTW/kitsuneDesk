@@ -2,11 +2,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const PlayerService = require('../../src/main/services/playerService');
 
-test('reprodução gráfica aplica volume, posição e salva histórico', async () => {
+test('reprodução externa aplica volume, posição e salva histórico', async () => {
   const saved = [];
   const service = new PlayerService({
     settingsService: {
-      get: () => ({ playerVolume: 65, rememberPosition: true, defaultQuality: 'auto' })
+      get: () => ({
+        playerVolume: 65,
+        playerMode: 'external',
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      })
     },
     libraryService: {
       savePlayback: async (payload) => saved.push(payload)
@@ -27,7 +32,7 @@ test('reprodução gráfica aplica volume, posição e salva histórico', async 
 
   const anime = { name: 'Teste', url: 'abc123', imageUrl: '', source: 'AllAnime' };
   const episode = { number: '1', num: 1, title: 'Piloto' };
-  await service.playEpisode({
+  const result = await service.playEpisode({
     anime,
     episode,
     episodes: [episode],
@@ -39,6 +44,49 @@ test('reprodução gráfica aplica volume, posição e salva histórico', async 
 
   assert.equal(received.volume, 65);
   assert.equal(received.startPosition, 42);
+  assert.equal('windowId' in received, false);
+  assert.equal(result.playerMode, 'external');
+  assert.equal(result.embedded, false);
   assert.equal(saved.length, 1);
   assert.equal(saved[0].animeTitle, 'Teste');
+});
+
+test('configuração antiga de player integrado não altera o modo estável externo', async () => {
+  const service = new PlayerService({
+    settingsService: {
+      get: () => ({
+        playerVolume: 80,
+        playerMode: 'embedded',
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      })
+    },
+    libraryService: { savePlayback: async () => {} }
+  });
+  service.status = () => ({
+    providers: { goAnime: { ready: true } },
+    dependencies: { mpv: { path: 'C:/mpv.exe' } }
+  });
+  service.goAnimeGui = {
+    playEpisode: async (payload) => ({
+      source: 'AllAnime',
+      quality: 'best',
+      mode: 'sub',
+      pid: 99,
+      payload
+    }),
+    getPlayerState: () => ({ active: true, position: 0, duration: 0 })
+  };
+
+  const episode = { number: '1', num: 1, title: 'Piloto' };
+  const result = await service.playEpisode({
+    anime: { name: 'Teste', url: 'abc123', source: 'AllAnime' },
+    episode,
+    episodes: [episode],
+    episodeIndex: 0
+  });
+
+  assert.equal(result.playerMode, 'external');
+  assert.equal(result.embedded, false);
+  assert.equal(result.embeddedFallback, false);
 });

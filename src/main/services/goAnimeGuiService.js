@@ -6,7 +6,7 @@ const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const AppError = require('../utils/AppError');
 
-const BRIDGE_VERSION = '1.4.0';
+const BRIDGE_VERSION = '1.5.1';
 const TOOLS_ROOT = path.join(
   process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
   'KitsuneDesk',
@@ -124,7 +124,8 @@ class GoAnimeGuiService extends EventEmitter {
       language: playback.mode || language,
       pid: playback.pid,
       ipcPath: this.ipcPath,
-      fallbackUsed: Boolean(playback.fallbackUsed)
+      fallbackUsed: Boolean(playback.fallbackUsed),
+      embedded: false
     };
     this.emitState();
     this.startPolling();
@@ -143,6 +144,7 @@ class GoAnimeGuiService extends EventEmitter {
       mode: playback.mode || language,
       requestedMode: playback.requestedMode || language,
       fallbackUsed: Boolean(playback.fallbackUsed),
+      embedded: false,
       pid: playback.pid,
       ipcPath: this.ipcPath,
       resumedAt: startPosition
@@ -635,6 +637,7 @@ function createIdleState() {
     language: '',
     mediaTitle: '',
     fallbackUsed: false,
+    embedded: false,
     ended: false,
     pid: null,
     ipcPath: null,

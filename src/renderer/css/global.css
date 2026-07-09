@@ -225,3 +225,31 @@ h2 {
     width: 100%;
   }
 }
+
+/* Indicador visual compartilhado entre login, carregamentos e reparos. */
+.neon-spinner {
+  animation: kitsune-neon-spin 0.85s linear infinite;
+  background: conic-gradient(from 0deg, transparent 0 18%, #27b8ff 38%, #8b5cf6 70%, #c13cff 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 16px rgba(39, 184, 255, 0.45),
+    0 0 26px rgba(139, 92, 246, 0.32);
+  display: inline-block;
+  height: 42px;
+  position: relative;
+  width: 42px;
+}
+
+.neon-spinner::after {
+  background: var(--app-surface);
+  border-radius: 50%;
+  content: '';
+  inset: 5px;
+  position: absolute;
+}
+
+@keyframes kitsune-neon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

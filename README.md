@@ -1,124 +1,192 @@
-# KitsuneDesk 0.6.2
+<p align="center">
+  <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
+</p>
 
-Aplicativo desktop em Electron para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca, progresso de reprodução, controles do MPV, diagnóstico e instalação gráfica dos componentes.
+<h1 align="center">KitsuneDesk v0.8.0 Stable</h1>
 
-> O KitsuneDesk não hospeda vídeos. A disponibilidade de títulos e episódios depende dos projetos e fontes externas utilizados pelos provedores.
+<p align="center">
+  Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
+</p>
 
-## Principais recursos
+<p align="center">
+  <a href="https://github.com/RaphaelTW/kitsuneDesk/releases/latest"><img alt="Última versão" src="https://img.shields.io/github/v/release/RaphaelTW/kitsuneDesk?display_name=tag&sort=semver&style=for-the-badge&color=7657ff"></a>
+  <a href="https://github.com/RaphaelTW/kitsuneDesk/actions/workflows/windows-build.yml"><img alt="Build Windows" src="https://img.shields.io/github/actions/workflow/status/RaphaelTW/kitsuneDesk/windows-build.yml?branch=main&style=for-the-badge&label=build%20windows"></a>
+  <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/RaphaelTW/kitsuneDesk?style=for-the-badge&color=28a8ff"></a>
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-43-47848F?style=for-the-badge&logo=electron&logoColor=white">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-24-339933?style=for-the-badge&logo=node.js&logoColor=white">
+</p>
 
-### Biblioteca por usuário
+> O KitsuneDesk não hospeda vídeos. A disponibilidade de títulos, idiomas, episódios e fontes depende dos projetos e serviços externos utilizados.
 
-- Continuar assistindo com porcentagem e posição salva;
-- últimos episódios abertos;
-- favoritos;
-- lista **Quero assistir**;
-- histórico pesquisável;
-- marcação de episódios concluídos;
-- estatísticas de reproduções, animes, episódios e tempo assistido.
+## Navegação rápida
 
-### Reprodução
+[Novidades](#novidades-da-versão-080) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-080) · [Limitações](#limitações-conhecidas)
 
-O **GoAnime — Interface gráfica** continua como provedor principal. O sistema também mantém:
+## Novidades da versão 0.8.0
 
-- GoAnime clássico;
-- anime-cli-br;
-- ani-cli experimental.
+A versão Stable prioriza compatibilidade e previsibilidade. O player incorporado foi retirado do fluxo principal porque, em alguns computadores, o MPV iniciava apenas o áudio e mantinha a superfície interna preta.
 
-O seletor oferece idioma legendado ou dublado/PT-BR e resolução **Melhor disponível** como padrão, além de 360p, 480p, 720p e 1080p.
+- MPV aberto exclusivamente em uma janela externa;
+- controles de pausa, volume, progresso, anterior, próximo e parada mantidos no KitsuneDesk;
+- preferências antigas de player integrado migradas automaticamente para o modo externo;
+- remoção dos canais IPC e da janela nativa usados pelo player incorporado;
+- bridge GoAnime simplificado, sem `--wid`;
+- README dinâmico com badges, seções recolhíveis, prévias e diagrama Mermaid;
+- fluxo HTML interativo corrigido e atualizado;
+- comando único de validação estável: `npm run validate`;
+- workflow de release executando lint, formatação e testes antes da publicação;
+- testes atualizados para garantir que nenhuma reprodução envie identificador de janela ao MPV.
 
-Quando a fonte principal não entrega um stream, o bridge tenta outros modos, qualidade automática e fontes compatíveis. Alguns episódios ainda podem ficar indisponíveis quando nenhuma fonte externa possui um link válido.
+## Prévia
 
-### Controle do MPV
+<table>
+  <tr>
+    <td align="center"><strong>Início</strong></td>
+    <td align="center"><strong>Pesquisa e episódios</strong></td>
+  </tr>
+  <tr>
+    <td><a href="assets/home-preview.svg"><img src="assets/home-preview.svg" alt="Tela inicial" width="430"></a></td>
+    <td><a href="assets/anime-preview.svg"><img src="assets/anime-preview.svg" alt="Pesquisa de anime" width="430"></a></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><strong>Player MPV externo com controles no aplicativo</strong></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><a href="assets/player-preview.svg"><img src="assets/player-preview.svg" alt="Player externo" width="870"></a></td>
+  </tr>
+</table>
 
-Durante a reprodução, o KitsuneDesk mostra um mini-player com:
+## Primeiro acesso
 
-- reproduzir e pausar;
-- posição e duração;
-- avançar e retroceder;
-- volume;
-- episódio anterior e próximo;
-- encerramento;
-- nome, episódio, qualidade e fonte utilizada;
-- botão para reportar um episódio com problema.
+**Não existe usuário ou senha padrão.**
 
-A posição é salva periodicamente. A opção de reprodução automática abre o episódio seguinte quando ele estiver disponível.
+Na primeira abertura, o sistema apresenta a configuração inicial para criar o administrador local. A senha deve ter pelo menos oito caracteres, uma letra e um número. Depois disso, somente administradores podem cadastrar outros usuários.
 
-### Configurações persistentes
+<details>
+<summary><strong>O que fica separado por usuário?</strong></summary>
 
-Cada perfil possui suas próprias preferências:
+- histórico e posição dos episódios;
+- favoritos e lista Quero assistir;
+- idioma, qualidade, volume e reprodução automática;
+- tema, controle parental e classificação máxima;
+- estatísticas e atividade recente.
 
-- provedor padrão;
-- idioma e áudio preferidos;
-- resolução padrão;
-- reprodução automática;
-- volume inicial;
-- retomada da posição;
-- tema claro, escuro ou do sistema;
-- pasta de downloads;
-- controle parental e classificação máxima;
-- verificação de atualizações.
+</details>
 
-### Usuários e segurança
+## Fluxo do sistema
 
-Na primeira execução, o sistema solicita a criação do administrador. Não existe mais usuário ou senha padrão.
+```mermaid
+flowchart TD
+    A[Primeira abertura] --> B{Existe administrador?}
+    B -- Não --> C[Criar administrador]
+    B -- Sim --> D[Login]
+    C --> E[Início]
+    D --> E
 
-- criação e edição de usuários;
-- perfis com histórico e configurações independentes;
-- papéis Administrador e Usuário;
-- ativação e desativação de contas;
-- redefinição de senha;
-- proteção do último administrador;
-- bloqueio por 15 minutos após cinco falhas consecutivas;
-- PIN parental com liberação temporária por 30 minutos.
+    E --> F[Pesquisar anime]
+    E --> G[Continuar assistindo]
+    E --> H[Minha lista]
+    E --> I[Histórico]
+    E --> J[Ferramentas]
+    E --> K[Configurações]
+    E --> L[Diagnóstico]
+    E --> M{Perfil administrador?}
+    M -- Sim --> N[Gerenciar usuários]
 
-A senha precisa ter pelo menos oito caracteres, uma letra e um número.
+    F --> O[Escolher provedor, idioma e qualidade]
+    O --> P[Selecionar resultado]
+    P --> Q[Listar episódios]
+    Q --> R{Stream disponível?}
+    R -- Não --> S[Tentar idioma, qualidade ou fonte alternativa]
+    S --> R
+    R -- Sim --> T[Abrir MPV em janela externa]
+    T --> U[Controlar pelo mini player do KitsuneDesk]
+    U --> V[Salvar posição, duração e histórico]
+    V --> W{Próximo automático?}
+    W -- Sim --> Q
+    W -- Não --> E
 
-### Instalação gráfica dos componentes
+    J --> X[Instalar ou reparar componentes]
+    L --> Y[Executar diagnóstico]
+    L --> Z[Verificar atualização]
+    Z --> AA{Nova versão?}
+    AA -- Sim --> AB[Baixar em segundo plano]
+    AB --> AC[Instalar e reiniciar]
+```
 
-Os comandos de instalação são executados ocultos. O aplicativo mostra barra de progresso, etapa atual, componentes encontrados e a finalidade de cada item.
+### Fluxo interativo
 
-| Componente | Instalação preparada pelo KitsuneDesk |
+Abra **[`docs/fluxo-interativo.html`](docs/fluxo-interativo.html)** no navegador para navegar pelos cartões e filtrar reprodução, usuários, segurança, instalação e atualização.
+
+## Recursos
+
+| Área | Recursos principais |
 |---|---|
-| GoAnime GUI e clássico | GoAnime, MPV, runtime Go portátil quando necessário e bridge gráfico |
-| anime-cli-br | Python 3.12 isolado, VLC, código e dependências |
-| ani-cli experimental | Git Bash, fzf, FFmpeg, MPV, OpenSSL e ani-cli |
-| FAST Anime VSR | Python 3.10, FFmpeg, projeto, PyTorch e diagnóstico de CUDA |
+| Reprodução | MPV externo, pausa, volume, busca, progresso, anterior, próximo e retomada |
+| Biblioteca | Continuar assistindo, favoritos, Quero assistir, histórico e estatísticas |
+| Pesquisa | GoAnime GUI, idioma, resolução, episódios, capas e fallback de fontes |
+| Administração | Usuários, funções, ativação, redefinição de senha e proteção do último administrador |
+| Segurança | Bloqueio após tentativas inválidas, PIN parental, CSP, sandbox e isolamento de contexto |
+| Manutenção | Diagnóstico, reparo, limpeza de cache, relatório técnico e atualização automática |
 
-O FAST Anime VSR fica em **Ferramentas** porque processa arquivos locais e não funciona como provedor de streaming.
+<details>
+<summary><strong>Provedores e ferramentas</strong></summary>
 
-### Diagnóstico e reparo
+| Item | Situação | Finalidade |
+|---|---|---|
+| GoAnime GUI | Recomendado | Pesquisa, episódios, fallback e reprodução sem terminal |
+| GoAnime clássico | Alternativo | Fluxo original em terminal |
+| anime-cli-br | Legado | Alternativa brasileira baseada em fonte externa |
+| ani-cli | Experimental | Alternativa sujeita a falhas dos provedores upstream |
+| FAST Anime VSR | Ferramenta | Processamento e melhoria de vídeos locais |
 
-A área de diagnóstico permite:
+</details>
 
-- verificar GoAnime GUI, GoAnime clássico, bridge e MPV;
-- verificar anime-cli-br, ani-cli e FAST Anime VSR;
-- reconstruir o `better-sqlite3` no modo de desenvolvimento;
-- atualizar ou reinstalar cada componente pela área Ferramentas;
-- limpar caches e arquivos temporários;
-- restaurar componentes locais sem apagar biblioteca, usuários ou configurações;
-- exportar um relatório técnico em JSON;
-- verificar e instalar atualizações do KitsuneDesk.
+## Player Stable
 
-No desenvolvimento, `npm run dev` verifica automaticamente se o módulo SQLite foi preparado para a versão atual do Electron. Se o reparo não for possível, o aplicativo tenta o modo de compatibilidade.
+O vídeo é exibido pela janela tradicional do MPV. O KitsuneDesk continua conectado ao player por IPC para atualizar o progresso e executar os controles.
 
-## Requisitos
+```text
+KitsuneDesk resolve o stream
+        ↓
+Bridge inicia o MPV externo
+        ↓
+IPC acompanha posição, duração e estado
+        ↓
+Mini player envia pausa, volume, seek, anterior e próximo
+        ↓
+SQLite salva o progresso por usuário
+```
 
-- Windows 10 ou Windows 11 de 64 bits;
-- conexão com a internet para instalar componentes e acessar fontes;
-- Node.js 24 recomendado para desenvolvimento;
-- PowerShell do Windows para a instalação automática;
-- GPU NVIDIA e CUDA são opcionais e usadas apenas pelo FAST Anime VSR.
+Esse modelo reduz incompatibilidades com drivers, composição de janelas do Windows e superfícies nativas do Electron.
 
 ## Executar em desenvolvimento
+
+Requisitos recomendados:
+
+- Windows 10 ou 11 x64;
+- Node.js 24;
+- npm 11;
+- Git.
 
 ```powershell
 npm install
 npm run dev
 ```
 
-Na primeira inicialização, crie o administrador pela própria tela de configuração.
+### Validar antes de enviar alterações
 
-Comandos úteis:
+```powershell
+npm run validate
+```
+
+O comando executa:
+
+```text
+ESLint → Prettier Check → Testes unitários e de integração
+```
+
+Comandos individuais:
 
 ```powershell
 npm run lint
@@ -131,90 +199,95 @@ npm run rebuild:native
 
 ```powershell
 npm install
+npm run validate
 npm run build:win
 ```
 
-O arquivo será criado em:
+Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.6.2.exe
+dist\KitsuneDesk-Setup-0.8.0.exe
 ```
 
-O instalador NSIS cria atalhos, permite escolher a pasta e preserva os dados locais durante a desinstalação.
-
-## Atualizações e releases
-
-A versão instalada verifica automaticamente as releases públicas do repositório `RaphaelTW/kitsuneDesk`:
-
-- primeira verificação alguns segundos após abrir o aplicativo;
-- novas verificações periódicas enquanto ele permanecer aberto;
-- aviso nativo do Windows quando uma versão for encontrada;
-- faixa dentro do KitsuneDesk com versão, progresso do download e notas da release;
-- botão **Instalar e reiniciar** quando o download terminar;
-- instalação automática ao fechar o aplicativo, caso o usuário não reinicie imediatamente.
-
-A atualização automática funciona apenas no instalador gerado e publicado no GitHub Releases. Ela não é executada por `npm run dev`.
-
-### Publicar uma versão
-
-A versão do `package.json` e a tag precisam ser iguais. Para publicar a versão `0.6.2`:
+## Publicar a versão 0.8.0
 
 ```powershell
 git add .
-git commit -m "feat: adiciona aviso e instalação automática de atualizações"
+git commit -m "release: KitsuneDesk v0.8.0 stable"
 git push origin main
 
-git tag -a v0.6.2 -m "KitsuneDesk v0.6.2"
-git push origin v0.6.2
+git tag -a v0.8.0 -m "KitsuneDesk v0.8.0 Stable"
+git push origin v0.8.0
 ```
 
-O workflow valida a tag, cria a release com notas automáticas e publica:
+O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.6.2.exe
+KitsuneDesk-Setup-0.8.0.exe
+KitsuneDesk-Setup-0.8.0.exe.blockmap
 latest.yml
-KitsuneDesk-Setup-0.6.2.exe.blockmap
 ```
 
-O arquivo `latest.yml` é o índice usado pelo `electron-updater`. Para a próxima versão, primeiro atualize o número com `npm version 0.6.3 --no-git-tag-version` e depois crie a tag `v0.6.3`.
+<details>
+<summary><strong>Publicar a próxima versão</strong></summary>
 
-### Reprodução de vídeo
+```powershell
+npm version 0.8.1 --no-git-tag-version
+npm run validate
 
-O vídeo continua sendo renderizado na janela do MPV. O KitsuneDesk mantém dentro da aplicação os controles, progresso, volume, próximo episódio e retomada. Incorporar a imagem do MPV na mesma janela exige uma integração nativa específica do Windows e permanece planejado para uma versão posterior.
+git add .
+git commit -m "chore: prepara release v0.8.1"
+git push origin main
+
+git tag -a v0.8.1 -m "KitsuneDesk v0.8.1"
+git push origin v0.8.1
+```
+
+</details>
 
 ## Estrutura principal
 
 ```text
 src/main/
-  controllers/       controladores IPC
+  controllers/       controladores da aplicação
   database/          SQLite e migrações
-  ipc/               canais seguros entre renderer e main
-  repositories/      acesso aos dados
-  services/          autenticação, biblioteca, player, diagnóstico e atualização
+  ipc/               canais seguros entre renderer e processo principal
+  repositories/      acesso e persistência de dados
+  services/          autenticação, player, biblioteca, diagnóstico e atualização
 src/renderer/
-  pages/              login e aplicação principal
-  js/                 interface e componentes
-  css/                estilos
+  pages/              login, troca de senha e aplicação principal
+  js/                 interface, eventos e componentes
+  css/                layout, temas e animações
 resources/
-  goanime-bridge/     bridge Go da interface gráfica
-scripts/windows/      instaladores automáticos
-scripts/              inicialização e preparação do desenvolvimento
+  goanime-bridge/     bridge Go e inicialização do MPV externo
+  providers/          componentes instalados localmente
+scripts/windows/      instalação e reparo de dependências
+docs/                 fluxo interativo
 tests/                testes unitários e de integração
-.github/workflows/    build e releases do Windows
+.github/workflows/    validação, build e releases
 ```
 
-## Dados locais
+## Melhorias recomendadas para as próximas versões
 
-O banco SQLite, logs e configurações ficam na pasta de dados do aplicativo do Windows. A restauração de componentes não apaga esses dados.
+- cache local de resultados e capas com expiração;
+- fila de reprodução com reordenação de episódios;
+- backup e restauração da biblioteca em JSON;
+- exportação do histórico em CSV;
+- telemetria local de falhas, desativada por padrão;
+- testes end-to-end do Electron no Windows;
+- assinatura digital do instalador;
+- verificação de integridade dos binários baixados;
+- acessibilidade completa por teclado e leitores de tela.
 
 ## Limitações conhecidas
 
-- fontes externas podem alterar páginas, bloquear regiões ou remover episódios;
-- ani-cli é experimental e pode encontrar o episódio sem receber um stream válido;
-- anime-cli-br depende da disponibilidade do AnimeFire;
-- a aceleração do FAST Anime VSR depende da combinação de GPU, driver, CUDA e PyTorch;
-- a atualização automática funciona no aplicativo instalado a partir de uma release publicada, não no `npm run dev`.
+- episódios e streams dependem de fontes externas;
+- o MPV abre em uma janela separada nesta versão;
+- serviços oficiais com DRM são abertos no navegador;
+- o FAST Anime VSR depende de hardware, driver e runtime compatíveis;
+- o atualizador automático funciona em instalações geradas por uma Release pública;
+- o modo de desenvolvimento não executa a instalação automática de atualizações.
 
 ## Licença
 
-KitsuneDesk é distribuído sob a licença MIT. Consulte `THIRD_PARTY.md` para os projetos externos.
+Distribuído sob a licença MIT. Consulte [`THIRD_PARTY.md`](THIRD_PARTY.md) para os componentes e projetos de terceiros.

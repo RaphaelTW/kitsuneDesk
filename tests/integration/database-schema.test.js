@@ -35,5 +35,10 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
     .map((row) => row.name);
   assert.ok(settingsColumns.includes('default_provider'));
   assert.ok(settingsColumns.includes('parental_pin_hash'));
+  assert.ok(settingsColumns.includes('player_mode'));
+  const defaultMode = database
+    .prepare("SELECT dflt_value FROM pragma_table_info('settings') WHERE name = 'player_mode'")
+    .get();
+  assert.equal(String(defaultMode.dflt_value).replaceAll("'", ''), 'external');
   database.close();
 });

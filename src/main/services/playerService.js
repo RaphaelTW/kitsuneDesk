@@ -91,6 +91,13 @@ class PlayerService extends EventEmitter {
       status.dependencies.mpv.path
     );
 
+    const normalizedResult = {
+      ...result,
+      embedded: false,
+      embeddedFallback: false,
+      playerMode: 'external'
+    };
+
     this.currentPlayback = {
       providerId: 'goanime-gui',
       anime: payload.anime,
@@ -99,13 +106,14 @@ class PlayerService extends EventEmitter {
       episodeIndex,
       language: payload?.language === 'dub' ? 'dub' : 'sub',
       quality: String(payload?.quality || settings.defaultQuality || 'auto'),
-      source: result.source || payload?.anime?.source || '',
+      source: normalizedResult.source || payload?.anime?.source || '',
+      playerMode: 'external',
       startedAt: new Date().toISOString()
     };
     this.lastProgressSaveAt = 0;
     await this.persistPlayback(this.goAnimeGui.getPlayerState());
-    this.emit('playback-started', { ...result, context: this.currentPlayback });
-    return result;
+    this.emit('playback-started', { ...normalizedResult, context: this.currentPlayback });
+    return normalizedResult;
   }
 
   /**
@@ -249,7 +257,7 @@ class PlayerService extends EventEmitter {
           mpv,
           stability: 'recommended',
           description:
-            'Pesquisa, resultados, episodios e qualidade dentro do KitsuneDesk; apenas o MPV abre para reproduzir.'
+            'Pesquisa, episódios e reprodução em uma janela externa do MPV, com controles integrados ao KitsuneDesk.'
         },
         animeCliBr: {
           id: 'anime-cli-br',
@@ -481,6 +489,7 @@ class PlayerService extends EventEmitter {
       return (
         this.settingsService?.get() ?? {
           playerVolume: 80,
+          playerMode: 'external',
           autoPlayNext: false,
           rememberPosition: true,
           defaultQuality: 'auto'
@@ -489,6 +498,7 @@ class PlayerService extends EventEmitter {
     } catch {
       return {
         playerVolume: 80,
+        playerMode: 'external',
         autoPlayNext: false,
         rememberPosition: true,
         defaultQuality: 'auto'
@@ -747,7 +757,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.6.2', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.8.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

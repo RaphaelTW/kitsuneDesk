@@ -90,5 +90,5 @@ function setAlert(alert, message) {
 function setButtonLoading(button, loading) {
   button.disabled = loading;
   button.querySelector('.button-label').textContent = loading ? 'Salvando' : 'Salvar senha';
-  button.querySelector('.spinner-border').classList.toggle('d-none', !loading);
+  button.querySelector('.neon-spinner, .spinner-border')?.classList.toggle('d-none', !loading);
 }

@@ -18,7 +18,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/kitsunedesk-logo.svg" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.6.2</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.8.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -111,7 +111,9 @@
             <button class="btn btn-primary d-none" id="install-update-button" type="button">
               <i class="bi bi-arrow-repeat"></i> Instalar e reiniciar
             </button>
-            <button class="btn btn-outline-light" id="dismiss-update-button" type="button">Agora não</button>
+            <button class="btn btn-outline-light" id="dismiss-update-button" type="button">
+              Agora não
+            </button>
           </div>
         </section>
 
@@ -430,6 +432,54 @@
                 </div>
               </article>
             </div>
+
+            <section class="official-providers panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Opções oficiais em português</p>
+                  <h3>Catálogos dublados e licenciados</h3>
+                  <p class="section-description">
+                    Esses serviços usam login e DRM próprios, por isso são abertos no navegador
+                    oficial e não são raspados pelo KitsuneDesk.
+                  </p>
+                </div>
+              </div>
+              <div class="official-provider-grid">
+                <button
+                  class="official-provider-card"
+                  data-official-url="https://www.crunchyroll.com/pt-br/videos/popular?tab=a"
+                  type="button"
+                >
+                  <i class="bi bi-play-btn-fill"></i
+                  ><span
+                    ><strong>Crunchyroll</strong
+                    ><small>Maior foco em anime, com filtro de dublados.</small></span
+                  ><i class="bi bi-box-arrow-up-right"></i>
+                </button>
+                <button
+                  class="official-provider-card"
+                  data-official-url="https://www.netflix.com/br-pt/browse/genre/81593939"
+                  type="button"
+                >
+                  <i class="bi bi-badge-hd-fill"></i
+                  ><span
+                    ><strong>Netflix — anime dublado</strong
+                    ><small>Categoria oficial com áudio em português.</small></span
+                  ><i class="bi bi-box-arrow-up-right"></i>
+                </button>
+                <button
+                  class="official-provider-card"
+                  data-official-url="https://www.primevideo.com/-/pt/region/na/genre/anime"
+                  type="button"
+                >
+                  <i class="bi bi-collection-play-fill"></i
+                  ><span
+                    ><strong>Prime Video</strong
+                    ><small>Catálogo de animes, filmes e canais adicionais.</small></span
+                  ><i class="bi bi-box-arrow-up-right"></i>
+                </button>
+              </div>
+            </section>
           </section>
 
           <section class="app-view d-none" id="view-settings" data-view-panel="settings">
@@ -443,6 +493,16 @@
                   </div>
                 </div>
                 <div class="settings-grid">
+                  <div class="stable-player-notice">
+                    <i class="bi bi-window"></i>
+                    <span
+                      ><strong>Janela externa do MPV</strong
+                      ><small
+                        >Modo estável ativado para evitar tela preta, travamentos e
+                        incompatibilidades do player incorporado.</small
+                      ></span
+                    >
+                  </div>
                   <label
                     ><span>Provedor padrão</span
                     ><select class="form-select" id="setting-provider">
@@ -633,6 +693,19 @@
           </section>
 
           <section class="app-view d-none" id="view-admin" data-view-panel="admin">
+            <div class="admin-intro panel">
+              <div>
+                <i class="bi bi-people-fill"></i
+                ><span
+                  ><strong>Perfis separados</strong
+                  ><small
+                    >Somente administradores podem criar usuários, definir permissões, controle
+                    parental e redefinir senhas.</small
+                  ></span
+                >
+              </div>
+              <span class="admin-badge">Área do administrador</span>
+            </div>
             <div class="admin-toolbar">
               <button class="btn btn-primary" id="new-user-button" type="button">
                 <i class="bi bi-person-plus"></i> Novo usuário
@@ -730,7 +803,7 @@
 
     <div class="loading-overlay d-none" id="loading-overlay">
       <div class="loading-card">
-        <span class="spinner-border"></span><strong id="loading-title">Carregando</strong
+        <span class="neon-spinner"></span><strong id="loading-title">Carregando</strong
         ><span id="loading-message">Aguarde...</span>
       </div>
     </div>

@@ -1,16 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
-<defs><linearGradient id="gp" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#4c1d95"/></linearGradient></defs>
-<rect width="1200" height="620" rx="24" fill="#0b1020"/>
-<rect x="32" y="32" width="1136" height="360" rx="22" fill="url(#gp)"/>
-<circle cx="600" cy="212" r="56" fill="#fff" opacity=".16"/>
-<polygon points="584,180 584,244 632,212" fill="#fff"/>
-<text x="56" y="438" fill="#fff" font-size="30" font-family="Segoe UI" font-weight="700">Nome do anime</text>
-<text x="56" y="474" fill="#c4b5fd" font-size="18" font-family="Segoe UI">Episódio 8 • Dublado • 1080p</text>
-<rect x="56" y="510" width="1088" height="10" rx="5" fill="#1e293b"/><rect x="56" y="510" width="620" height="10" rx="5" fill="#ec4899"/>
-<g>
-<rect x="56" y="545" width="190" height="48" rx="14" fill="#1e293b"/><text x="151" y="576" text-anchor="middle" fill="#fff" font-size="16" font-family="Segoe UI">Episódio anterior</text>
-<rect x="262" y="545" width="150" height="48" rx="14" fill="#7c3aed"/><text x="337" y="576" text-anchor="middle" fill="#fff" font-size="16" font-family="Segoe UI">Pausar</text>
-<rect x="428" y="545" width="190" height="48" rx="14" fill="#ec4899"/><text x="523" y="576" text-anchor="middle" fill="#fff" font-size="16" font-family="Segoe UI">Próximo episódio</text>
-<rect x="1000" y="545" width="144" height="48" rx="14" fill="#334155"/><text x="1072" y="576" text-anchor="middle" fill="#fff" font-size="16" font-family="Segoe UI">Volume 80%</text>
-</g>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#07101f"/>
+      <stop offset="0.55" stop-color="#171339"/>
+      <stop offset="1" stop-color="#3b1554"/>
+    </linearGradient>
+    <linearGradient id="progress" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#28a8ff"/>
+      <stop offset="0.52" stop-color="#7657ff"/>
+      <stop offset="1" stop-color="#c93cff"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="620" rx="28" fill="#080a13"/>
+  <rect x="34" y="34" width="1132" height="552" rx="22" fill="url(#bg)" stroke="#343a67"/>
+  <rect x="72" y="72" width="1056" height="356" rx="16" fill="#03040a" stroke="#39406c"/>
+  <rect x="92" y="92" width="1016" height="38" rx="9" fill="#111528"/>
+  <circle cx="112" cy="111" r="6" fill="#ff6b6b"/>
+  <circle cx="134" cy="111" r="6" fill="#ffd166"/>
+  <circle cx="156" cy="111" r="6" fill="#46d39a"/>
+  <text x="184" y="118" fill="#cbd0e8" font-size="16" font-family="Segoe UI">MPV — KitsuneDesk • Episódio 8</text>
+  <circle cx="600" cy="276" r="58" fill="#ffffff" opacity=".08"/>
+  <polygon points="581,241 581,311 634,276" fill="#ffffff" opacity=".86"/>
+  <text x="74" y="474" fill="#ffffff" font-size="28" font-family="Segoe UI" font-weight="700">Player externo estável</text>
+  <text x="74" y="507" fill="#aeb5d3" font-size="18" font-family="Segoe UI">O vídeo abre no MPV; os controles e o progresso continuam sincronizados no KitsuneDesk.</text>
+  <rect x="74" y="538" width="1052" height="8" rx="4" fill="#252a45"/>
+  <rect x="74" y="538" width="650" height="8" rx="4" fill="url(#progress)" filter="url(#glow)"/>
+  <g font-family="Segoe UI" font-size="15" fill="#fff">
+    <rect x="74" y="562" width="116" height="38" rx="11" fill="#181d31" stroke="#333a5e"/>
+    <text x="132" y="586" text-anchor="middle">Anterior</text>
+    <rect x="202" y="562" width="104" height="38" rx="11" fill="#7657ff"/>
+    <text x="254" y="586" text-anchor="middle">Pausar</text>
+    <rect x="318" y="562" width="116" height="38" rx="11" fill="#181d31" stroke="#333a5e"/>
+    <text x="376" y="586" text-anchor="middle">Próximo</text>
+    <rect x="966" y="562" width="160" height="38" rx="11" fill="#181d31" stroke="#333a5e"/>
+    <text x="1046" y="586" text-anchor="middle">Volume 80%</text>
+  </g>
 </svg>

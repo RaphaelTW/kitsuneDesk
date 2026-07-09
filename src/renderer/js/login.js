@@ -111,5 +111,5 @@ function setAlert(element, message) {
 function setButtonLoading(button, loading, label) {
   button.disabled = loading;
   button.querySelector('.button-label').textContent = loading ? `${label}...` : label;
-  button.querySelector('.spinner-border').classList.toggle('d-none', !loading);
+  button.querySelector('.neon-spinner, .spinner-border')?.classList.toggle('d-none', !loading);
 }

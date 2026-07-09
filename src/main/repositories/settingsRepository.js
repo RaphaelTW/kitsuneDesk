@@ -4,6 +4,7 @@ const DEFAULTS = Object.freeze({
   default_quality: 'auto',
   auto_play_next: 0,
   player_volume: 80,
+  player_mode: 'external',
   theme: 'dark',
   downloads_path: '',
   audio_preference: 'sub',
@@ -29,8 +30,8 @@ class SettingsRepository {
          user_id, default_language, default_quality, auto_play_next,
          player_volume, theme, default_provider, downloads_path,
          audio_preference, parental_control_enabled, max_content_rating,
-         remember_position, check_updates
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         remember_position, check_updates, player_mode
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         DEFAULTS.default_language,
@@ -44,7 +45,8 @@ class SettingsRepository {
         DEFAULTS.parental_control_enabled,
         DEFAULTS.max_content_rating,
         DEFAULTS.remember_position,
-        DEFAULTS.check_updates
+        DEFAULTS.check_updates,
+        DEFAULTS.player_mode
       ]
     );
   }
@@ -56,7 +58,7 @@ class SettingsRepository {
          default_provider = ?, default_language = ?, default_quality = ?,
          auto_play_next = ?, player_volume = ?, theme = ?, downloads_path = ?,
          audio_preference = ?, parental_control_enabled = ?, max_content_rating = ?,
-         remember_position = ?, check_updates = ?, updated_at = CURRENT_TIMESTAMP
+         remember_position = ?, check_updates = ?, player_mode = ?, updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
         settings.defaultProvider,
@@ -71,6 +73,7 @@ class SettingsRepository {
         settings.maxContentRating,
         settings.rememberPosition ? 1 : 0,
         settings.checkUpdates ? 1 : 0,
+        settings.playerMode,
         userId
       ]
     );

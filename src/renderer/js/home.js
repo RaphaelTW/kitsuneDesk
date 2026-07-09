@@ -82,7 +82,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     $('admin-nav-button').classList.remove('d-none');
   }
 
-  if (state.settings?.checkUpdates && ['idle', 'not-available'].includes(state.update?.state || 'idle')) {
+  if (
+    state.settings?.checkUpdates &&
+    ['idle', 'not-available'].includes(state.update?.state || 'idle')
+  ) {
     void checkUpdates(false);
   }
 });
@@ -104,6 +107,7 @@ function bindNavigation() {
   });
   $('brand-home-button').addEventListener('click', () => showView('home'));
   $('logout-button').addEventListener('click', async () => {
+    if (state.playback?.active) await animeDesk.player.stop();
     await animeDesk.auth.logout();
     clearSession();
     window.location.href = './login.html';
@@ -514,6 +518,7 @@ function renderEpisodes() {
 async function launchEpisode(payload) {
   showLoading('Preparando reprodução', 'Resolvendo a melhor fonte disponível...');
   state.lastIssue = null;
+
   try {
     const result = unwrap(await animeDesk.player.playEpisode(payload));
     state.playback = {
@@ -527,19 +532,14 @@ async function launchEpisode(payload) {
         quality: payload.quality
       }
     };
-    if (result.fallbackUsed) {
-      showToast({
-        title: 'Fonte alternativa utilizada',
-        message: `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`,
-        variant: 'warning'
-      });
-    } else {
-      showToast({
-        title: 'Reprodução iniciada',
-        message: 'O MPV foi aberto e está sob controle do KitsuneDesk.',
-        variant: 'success'
-      });
-    }
+
+    showToast({
+      title: result.fallbackUsed ? 'Fonte alternativa utilizada' : 'Reprodução iniciada',
+      message: result.fallbackUsed
+        ? `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`
+        : 'O episódio foi aberto em uma janela externa do MPV.',
+      variant: result.fallbackUsed ? 'warning' : 'success'
+    });
   } catch (error) {
     state.lastIssue = {
       anime: payload.anime,
@@ -690,7 +690,9 @@ function renderPlayerState(playerState) {
   state.playback = { ...(state.playback || {}), ...playerState };
   const active = Boolean(playerState.active || playerState.paused);
   $('mini-player').classList.toggle('is-hidden', !active);
-  if (!active) return;
+  if (!active) {
+    return;
+  }
   const context = playerState.context || state.playback?.context || {};
   const anime = context.anime || {};
   const episode = context.episode || {};
@@ -710,6 +712,11 @@ function renderPlayerState(playerState) {
 }
 
 function bindTools() {
+  document.querySelectorAll('[data-official-url]').forEach((button) => {
+    button.addEventListener('click', () =>
+      window.open(button.dataset.officialUrl, '_blank', 'noopener')
+    );
+  });
   document.querySelectorAll('.install-provider-button').forEach((button) => {
     button.addEventListener('click', () => startInstallation(button.dataset.provider));
   });
@@ -1129,7 +1136,7 @@ async function checkUpdates(showFeedback) {
 async function installDownloadedUpdate() {
   const button = $('install-update-button');
   button.disabled = true;
-  button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Reiniciando...';
+  button.innerHTML = '<span class="neon-spinner neon-spinner-sm"></span> Reiniciando...';
   const result = await animeDesk.updates.install();
   if (!result.ok || !result.data?.installed) {
     button.disabled = false;
@@ -1205,7 +1212,8 @@ function renderUpdateBanner(update) {
   const messages = {
     available: 'O download foi iniciado em segundo plano. Você pode continuar usando o aplicativo.',
     downloading: `Baixando os arquivos da versão ${version}.`,
-    downloaded: 'Clique em Instalar e reiniciar, ou feche o aplicativo para atualizar automaticamente.'
+    downloaded:
+      'Clique em Instalar e reiniciar, ou feche o aplicativo para atualizar automaticamente.'
   };
   $('update-banner-message').textContent = messages[update.state] || 'Preparando atualização...';
 

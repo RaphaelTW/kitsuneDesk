@@ -1,5 +1,6 @@
 appId: br.com.kitsunedesk.local
 productName: KitsuneDesk
+legalTrademarks: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
 asar: true
 asarUnpack:

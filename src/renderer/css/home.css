@@ -968,6 +968,32 @@ button {
   gap: 0.5rem;
 }
 
+.stable-player-notice {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(39, 184, 255, 0.09), rgba(118, 87, 255, 0.12));
+  border: 1px solid rgba(112, 121, 255, 0.3);
+  border-radius: 14px;
+  display: flex;
+  gap: 0.8rem;
+  min-height: 74px;
+  padding: 0.85rem 1rem;
+}
+
+.stable-player-notice > i {
+  color: var(--neon-blue);
+  font-size: 1.45rem;
+}
+
+.stable-player-notice span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.stable-player-notice small {
+  color: var(--app-muted);
+  line-height: 1.4;
+}
+
 .mini-player {
   align-items: center;
   backdrop-filter: blur(16px);
@@ -1460,5 +1486,180 @@ body[data-theme='light'] .update-release-notes pre {
   .update-banner-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
+  }
+}
+
+/* v0.8.0 Stable — identidade neon azul/roxo e player MPV externo */
+:root {
+  --neon-blue: #27b8ff;
+  --neon-violet: #8b5cf6;
+  --neon-purple: #c13cff;
+  --neon-gradient: linear-gradient(90deg, var(--neon-blue), var(--neon-violet), var(--neon-purple));
+  --neon-shadow: 0 0 10px rgba(39, 184, 255, 0.55), 0 0 22px rgba(139, 92, 246, 0.42);
+}
+
+.progress {
+  background: rgba(45, 55, 86, 0.48);
+  border: 1px solid rgba(117, 124, 255, 0.18);
+  border-radius: 999px;
+  box-shadow: inset 0 0 12px rgba(20, 25, 50, 0.8);
+  height: 12px;
+  overflow: hidden;
+}
+
+.progress-bar,
+.card-progress span,
+.update-progress-track span {
+  background: var(--neon-gradient) !important;
+  background-size: 220% 100% !important;
+  box-shadow: var(--neon-shadow);
+  animation: neon-progress-flow 2.2s linear infinite;
+}
+
+.update-progress-track {
+  border: 1px solid rgba(92, 113, 255, 0.22);
+  box-shadow: inset 0 0 9px rgba(17, 25, 54, 0.9);
+  height: 9px;
+}
+
+.neon-spinner {
+  animation: neon-spinner-rotate 0.85s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 18%,
+    var(--neon-blue) 38%,
+    var(--neon-violet) 70%,
+    var(--neon-purple) 100%
+  );
+  border-radius: 50%;
+  box-shadow:
+    0 0 16px rgba(39, 184, 255, 0.45),
+    0 0 26px rgba(139, 92, 246, 0.32);
+  display: inline-block;
+  height: 42px;
+  position: relative;
+  width: 42px;
+}
+
+.neon-spinner::after {
+  background: var(--app-surface);
+  border-radius: 50%;
+  content: '';
+  inset: 5px;
+  position: absolute;
+}
+
+.official-providers {
+  margin-top: 1rem;
+  padding: 1.1rem;
+}
+
+.section-description {
+  color: var(--app-muted);
+  margin: 0.35rem 0 0;
+}
+
+.official-provider-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.official-provider-card {
+  align-items: center;
+  background: linear-gradient(145deg, rgba(35, 42, 67, 0.8), rgba(17, 20, 35, 0.9));
+  border: 1px solid rgba(111, 122, 177, 0.32);
+  border-radius: 14px;
+  color: var(--app-text);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto 1fr auto;
+  padding: 1rem;
+  text-align: left;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.official-provider-card:hover {
+  border-color: var(--neon-violet);
+  box-shadow: 0 0 22px rgba(87, 93, 255, 0.18);
+  transform: translateY(-2px);
+}
+
+.official-provider-card > i:first-child {
+  color: var(--neon-blue);
+  font-size: 1.5rem;
+}
+
+.official-provider-card strong,
+.official-provider-card small {
+  display: block;
+}
+
+.official-provider-card small {
+  color: var(--app-muted);
+  margin-top: 0.15rem;
+}
+
+.admin-intro {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.admin-intro > div {
+  align-items: center;
+  display: flex;
+  gap: 0.8rem;
+}
+
+.admin-intro > div > i {
+  color: var(--neon-blue);
+  font-size: 1.6rem;
+}
+
+.admin-intro strong,
+.admin-intro small {
+  display: block;
+}
+
+.admin-intro small {
+  color: var(--app-muted);
+  margin-top: 0.2rem;
+}
+
+.admin-badge {
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+  color: #d8c8ff;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+}
+
+@keyframes neon-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes neon-progress-flow {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .official-provider-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.8rem;
   }
 }

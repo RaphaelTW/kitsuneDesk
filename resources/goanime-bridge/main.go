@@ -20,7 +20,7 @@ import (
 	"github.com/alvarorichard/Goanime/internal/util"
 )
 
-const bridgeVersion = "1.4.0"
+const bridgeVersion = "1.5.1"
 
 type request struct {
 	Query         string     `json:"query"`

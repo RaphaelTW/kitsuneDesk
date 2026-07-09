@@ -30,6 +30,12 @@ O KitsuneDesk não hospeda conteúdo. Pesquisa, episódios e reprodução depend
 - Não é um provedor de streaming.
 - O projeto e suas dependências são instalados separadamente no computador do usuário.
 
+## Catálogos oficiais externos
+
+- Crunchyroll, Netflix e Prime Video aparecem apenas como atalhos externos na área Ferramentas.
+- O KitsuneDesk não contorna autenticação, assinatura ou DRM e não incorpora os players desses serviços.
+- A disponibilidade de títulos, áudio PT-BR e regiões é definida por cada serviço e pode mudar.
+
 ## Electron e electron-builder
 
 - Electron: `https://github.com/electron/electron`

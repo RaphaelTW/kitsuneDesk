@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.8.0] - 2026-07-09
+
+### Stable
+
+- O player MPV passa a abrir exclusivamente em uma janela externa para eliminar a superfície preta observada em alguns computadores.
+- Os controles de pausa, volume, progresso, anterior, próximo e parada continuam disponíveis no mini player do KitsuneDesk por IPC.
+- Preferências antigas de player integrado são migradas automaticamente para `external`.
+- Removidos a janela nativa auxiliar, os canais IPC de posicionamento e visibilidade e o argumento `--wid` do bridge.
+- O fluxo de reprodução ficou menor e mais previsível, sem tentativa dupla de inicialização.
+
+### Melhorado
+
+- README dinâmico e interativo com badges, prévias, Mermaid, navegação rápida e seções recolhíveis.
+- Fluxo HTML interativo corrigido, incluindo a remoção de uma declaração JavaScript duplicada que impedia o mapa de funcionar.
+- Adicionado `npm run validate` para executar lint, verificação de formatação e testes em sequência.
+- Workflow de release atualizado para validar a compilação estável antes de publicar.
+- Testes atualizados para impedir regressões que voltem a enviar identificadores de janela ao MPV.
+- Versão do aplicativo atualizada para `0.8.0`.
+
+## [0.7.1] - 2026-07-09
+
+### Corrigido
+
+- Corrigida a tela preta com áudio no player integrado do Windows.
+- O `HWND` fornecido pelo Electron agora é convertido somente para os 32 bits (`uint32_t`) aceitos pela opção `--wid` do MPV.
+- O bridge força o backend gráfico nativo Direct3D 11 ao reproduzir dentro do KitsuneDesk.
+- O aplicativo confirma por IPC se o MPV criou faixa de vídeo, saída gráfica e dimensões válidas antes de informar que o player integrado está pronto.
+- Se o MPV iniciar somente o áudio ou não configurar a saída de vídeo em até oito segundos, a reprodução é reiniciada automaticamente na janela externa.
+
+### Alterado
+
+- Bridge GoAnime atualizado para `1.5.1`.
+- Versão do aplicativo atualizada para `0.7.1`.
+
+## [0.7.0] - 2026-07-09
+
+### Adicionado
+
+- Player MPV incorporado à interface no Windows usando uma superfície nativa e `--wid`.
+- Modos de player **Integrado**, **Automático** e **Janela externa** nas configurações de cada usuário.
+- Fallback automático para a janela externa quando o MPV não consegue iniciar incorporado.
+- Controles para expandir, ocultar, reabrir e parar o player integrado.
+- Barras de instalação e atualização com gradiente azul, violeta e roxo, brilho neon e animação.
+- Spinners neon no login, configuração inicial, carregamentos e reinicialização de atualização.
+- Atalhos para catálogos oficiais de anime em português na área Ferramentas.
+- Mapa completo em Mermaid no README e mapa interativo em `docs/fluxo-interativo.html`.
+- Testes das funções puras usadas para converter o identificador nativo da janela do Windows e normalizar o tamanho do player.
+
+### Alterado
+
+- Bridge GoAnime atualizado para `1.5.0`, com suporte ao identificador da janela nativa do player.
+- A tela de configurações passa a salvar o modo preferido de reprodução por usuário.
+- A área administrativa deixa mais explícito que somente administradores podem criar e gerenciar outros perfis.
+- README reorganizado com fluxo de primeira execução, player, usuários, releases e atualização automática.
+- Versão do aplicativo atualizada para `0.7.0`.
+
+### Mantido
+
+- GoAnime GUI como provedor principal, GoAnime clássico, anime-cli-br e ani-cli experimental.
+- Biblioteca, histórico, favoritos, controle parental, diagnóstico e atualização automática pelo GitHub Releases.
+- Janela externa do MPV como alternativa de compatibilidade.
+
 ## [0.6.2] - 2026-07-09
 
 ### Adicionado

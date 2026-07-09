@@ -15,7 +15,9 @@ if (tag) {
   const expectedTag = `v${version}`;
   if (tag !== expectedTag) {
     console.error(`A tag ${tag} não corresponde ao package.json (${expectedTag}).`);
-    console.error(`Atualize a versão com: npm version ${tag.replace(/^v/, '')} --no-git-tag-version`);
+    console.error(
+      `Atualize a versão com: npm version ${tag.replace(/^v/, '')} --no-git-tag-version`
+    );
     process.exit(1);
   }
 }
