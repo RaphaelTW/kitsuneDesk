@@ -18,7 +18,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/kitsunedesk-logo.svg" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.6.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.6.2</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -87,6 +87,33 @@
             </button>
           </div>
         </header>
+
+        <section class="update-banner d-none" id="update-banner" aria-live="polite">
+          <div class="update-banner-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
+          <div class="update-banner-content">
+            <div class="update-banner-heading">
+              <strong id="update-banner-title">Nova versão disponível</strong>
+              <span id="update-banner-version"></span>
+            </div>
+            <p id="update-banner-message">Preparando atualização...</p>
+            <div class="update-progress d-none" id="update-progress-wrap">
+              <div class="update-progress-track">
+                <span id="update-progress-bar"></span>
+              </div>
+              <small id="update-progress-label">0%</small>
+            </div>
+            <details class="update-release-notes d-none" id="update-release-notes-wrap">
+              <summary>Ver novidades desta versão</summary>
+              <pre id="update-release-notes"></pre>
+            </details>
+          </div>
+          <div class="update-banner-actions">
+            <button class="btn btn-primary d-none" id="install-update-button" type="button">
+              <i class="bi bi-arrow-repeat"></i> Instalar e reiniciar
+            </button>
+            <button class="btn btn-outline-light" id="dismiss-update-button" type="button">Agora não</button>
+          </div>
+        </section>
 
         <main class="content-area">
           <section class="app-view" id="view-home" data-view-panel="home">

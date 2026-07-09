@@ -64,7 +64,7 @@ function registerDomainHandlers(database) {
   });
   const playerService = new PlayerService({ settingsService, libraryService });
   const diagnosticsService = new DiagnosticsService({ app, database, playerService });
-  updateService = new UpdateService({ app });
+  updateService = new UpdateService({ app, focusApp: focusExistingWindow });
   updateService.configure();
 
   const authController = new AuthController(authService);
@@ -89,6 +89,10 @@ function registerDomainHandlers(database) {
   playerController.on('playback-started', (state) => broadcast('player:playback-started', state));
   playerController.on('source-progress', (state) => broadcast('player:source-progress', state));
   updateService.on('state', (state) => broadcast('updates:state-changed', state));
+  updateService.on('notification-click', (state) => {
+    focusExistingWindow();
+    broadcast('updates:state-changed', state);
+  });
 }
 
 function focusExistingWindow() {
@@ -106,6 +110,10 @@ function openMainWindow() {
   if (process.env.KITSUNEDESK_SMOKE_TEST === '1') {
     mainWindow.webContents.once('did-finish-load', () => {
       setTimeout(() => app.quit(), 250);
+    });
+  } else {
+    mainWindow.webContents.once('did-finish-load', () => {
+      updateService?.startAutomaticChecks();
     });
   }
 }
@@ -129,6 +137,7 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on('before-quit', () => {
+    updateService?.stopAutomaticChecks();
     closeDatabase();
   });
 

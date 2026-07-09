@@ -1346,3 +1346,119 @@ input[type='range'] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Atualização automática pelo GitHub */
+.update-banner {
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(111, 92, 255, 0.2), rgba(28, 211, 167, 0.1));
+  border: 1px solid rgba(139, 124, 255, 0.38);
+  border-radius: 18px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin: 0 1.5rem 1rem;
+  padding: 1rem 1.15rem;
+}
+
+.update-banner-icon {
+  align-items: center;
+  background: rgba(111, 92, 255, 0.22);
+  border-radius: 14px;
+  display: flex;
+  font-size: 1.35rem;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.update-banner-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.update-banner-heading span {
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.55rem;
+}
+
+.update-banner-content p {
+  color: var(--text-secondary);
+  margin: 0.35rem 0 0;
+}
+
+.update-banner-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.update-progress {
+  align-items: center;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  margin-top: 0.7rem;
+}
+
+.update-progress-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.update-progress-track span {
+  background: linear-gradient(90deg, #6f5cff, #1cd3a7);
+  display: block;
+  height: 100%;
+  transition: width 180ms ease;
+  width: 0;
+}
+
+.update-release-notes {
+  margin-top: 0.7rem;
+}
+
+.update-release-notes summary {
+  color: var(--accent, #8b7cff);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.update-release-notes pre {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  margin: 0.55rem 0 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+
+body[data-theme='light'] .update-banner {
+  background: linear-gradient(135deg, rgba(111, 92, 255, 0.11), rgba(28, 211, 167, 0.08));
+}
+
+body[data-theme='light'] .update-release-notes pre {
+  background: rgba(20, 20, 30, 0.06);
+}
+
+@media (max-width: 760px) {
+  .update-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 0 0.75rem 0.75rem;
+  }
+
+  .update-banner-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}

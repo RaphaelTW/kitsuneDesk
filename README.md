@@ -1,4 +1,4 @@
-# KitsuneDesk 0.6.1
+# KitsuneDesk 0.6.2
 
 Aplicativo desktop em Electron para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca, progresso de reprodução, controles do MPV, diagnóstico e instalação gráfica dos componentes.
 
@@ -137,26 +137,50 @@ npm run build:win
 O arquivo será criado em:
 
 ```text
-dist\KitsuneDesk-Setup-0.6.1.exe
+dist\KitsuneDesk-Setup-0.6.2.exe
 ```
 
 O instalador NSIS cria atalhos, permite escolher a pasta e preserva os dados locais durante a desinstalação.
 
 ## Atualizações e releases
 
-O projeto possui workflow em `.github/workflows/windows-build.yml`.
+A versão instalada verifica automaticamente as releases públicas do repositório `RaphaelTW/kitsuneDesk`:
 
-- pushes e pull requests executam lint, formatação, testes e build;
-- o instalador é disponibilizado como artefato do workflow;
-- uma tag como `v0.6.1` publica o instalador, `latest.yml` e o arquivo de atualização no GitHub Releases;
-- o aplicativo instalado consulta esses releases por meio do `electron-updater`.
+- primeira verificação alguns segundos após abrir o aplicativo;
+- novas verificações periódicas enquanto ele permanecer aberto;
+- aviso nativo do Windows quando uma versão for encontrada;
+- faixa dentro do KitsuneDesk com versão, progresso do download e notas da release;
+- botão **Instalar e reiniciar** quando o download terminar;
+- instalação automática ao fechar o aplicativo, caso o usuário não reinicie imediatamente.
 
-Para criar uma release:
+A atualização automática funciona apenas no instalador gerado e publicado no GitHub Releases. Ela não é executada por `npm run dev`.
+
+### Publicar uma versão
+
+A versão do `package.json` e a tag precisam ser iguais. Para publicar a versão `0.6.2`:
 
 ```powershell
-git tag v0.6.1
-git push origin v0.6.1
+git add .
+git commit -m "feat: adiciona aviso e instalação automática de atualizações"
+git push origin main
+
+git tag -a v0.6.2 -m "KitsuneDesk v0.6.2"
+git push origin v0.6.2
 ```
+
+O workflow valida a tag, cria a release com notas automáticas e publica:
+
+```text
+KitsuneDesk-Setup-0.6.2.exe
+latest.yml
+KitsuneDesk-Setup-0.6.2.exe.blockmap
+```
+
+O arquivo `latest.yml` é o índice usado pelo `electron-updater`. Para a próxima versão, primeiro atualize o número com `npm version 0.6.3 --no-git-tag-version` e depois crie a tag `v0.6.3`.
+
+### Reprodução de vídeo
+
+O vídeo continua sendo renderizado na janela do MPV. O KitsuneDesk mantém dentro da aplicação os controles, progresso, volume, próximo episódio e retomada. Incorporar a imagem do MPV na mesma janela exige uma integração nativa específica do Windows e permanece planejado para uma versão posterior.
 
 ## Estrutura principal
 

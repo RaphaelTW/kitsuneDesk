@@ -85,7 +85,7 @@ function Invoke-Download {
     [Parameter(Mandatory = $true)][string]$OutFile
   )
   Ensure-Directory -Path (Split-Path -Parent $OutFile)
-  Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.0' }
+  Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.2' }
   if (-not (Test-Path -LiteralPath $OutFile) -or (Get-Item -LiteralPath $OutFile).Length -eq 0) {
     throw "O download de $Uri ficou vazio ou incompleto."
   }
@@ -96,7 +96,7 @@ function Get-GitHubReleaseAsset {
     [Parameter(Mandatory = $true)][string]$Repository,
     [Parameter(Mandatory = $true)][scriptblock]$Filter
   )
-  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.0' }
+  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.2' }
   $asset = $release.assets | Where-Object $Filter | Select-Object -First 1
   if (-not $asset) { throw "Nenhum pacote compativel foi encontrado em $Repository." }
   return $asset
@@ -131,7 +131,7 @@ function Ensure-Scoop {
 
   Send-Step $Percent 'scoop' 'installing' 'Instalando o gerenciador Scoop em modo silencioso...' 'Gerencia ferramentas portateis sem exigir Winget ou terminal externo.'
   try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force } catch {}
-  Invoke-RestMethod -Uri 'https://get.scoop.sh' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.0' } | Invoke-Expression
+  Invoke-RestMethod -Uri 'https://get.scoop.sh' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.2' } | Invoke-Expression
   Refresh-ProcessPath
   if (-not (Resolve-CommandPath -Name 'scoop')) { throw 'Scoop nao foi localizado depois da instalacao.' }
   Send-Step ($Percent + 3) 'scoop' 'installed' 'Scoop instalado.' 'Gerencia ferramentas portateis sem exigir Winget ou terminal externo.'
@@ -315,7 +315,7 @@ function Ensure-GoAnime {
   }
 
   Send-Step $Percent 'goanime' 'downloading' 'Baixando o executavel oficial do GoAnime...' 'Motor principal de pesquisa, episodios e fontes.'
-  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/alvarorichard/GoAnime/releases/latest' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.0' }
+  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/alvarorichard/GoAnime/releases/latest' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.2' }
   $portable = $release.assets | Where-Object {
     $_.name -match '(?i)^goanime.*windows.*amd64.*\.exe$' -and $_.name -notmatch '(?i)installer'
   } | Select-Object -First 1
@@ -367,7 +367,7 @@ function Ensure-GoRuntime {
   }
 
   Send-Step $Percent 'go-runtime' 'downloading' 'Baixando o runtime Go portatil...' 'Compila o bridge local que conecta o GoAnime à interface gráfica.'
-  $releases = Invoke-RestMethod -Uri 'https://go.dev/dl/?mode=json' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.0' }
+  $releases = Invoke-RestMethod -Uri 'https://go.dev/dl/?mode=json' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.6.2' }
   $stable = $releases | Where-Object { $_.stable -eq $true } | Select-Object -First 1
   $file = $stable.files | Where-Object { $_.os -eq 'windows' -and $_.arch -eq 'amd64' -and $_.kind -eq 'archive' } | Select-Object -First 1
   if (-not $file) { throw 'O pacote portatil do Go para Windows nao foi encontrado.' }

@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.2] - 2026-07-09
+
+### Adicionado
+
+- Verificação automática de atualizações alguns segundos após iniciar o aplicativo instalado.
+- Novas verificações periódicas em segundo plano enquanto o KitsuneDesk estiver aberto.
+- Notificação nativa do Windows quando uma versão estiver disponível ou pronta para instalar.
+- Faixa de atualização dentro da interface com versão, progresso, notas da release e botão **Instalar e reiniciar**.
+- Consulta do estado da atualização ao entrar no aplicativo, evitando perder eventos disparados antes do login.
+- Script `release:verify` que impede a publicação quando a tag não corresponde à versão do `package.json`.
+- GitHub Actions cria a release com notas automáticas antes de publicar o instalador e os metadados do atualizador.
+
+### Alterado
+
+- O atualizador passa a usar avisos próprios do KitsuneDesk, mantendo download em segundo plano e instalação ao fechar.
+- Mensagens de atualização agora mostram claramente a versão encontrada e o percentual baixado.
+
+### Mantido
+
+- O vídeo continua sendo exibido pela janela externa do MPV; os controles permanecem integrados ao KitsuneDesk.
+
 ## [0.6.1] - 2026-07-08
 
 ### Corrigido
