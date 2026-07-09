@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.1] - 2026-07-09
+
+### Corrigido
+
+- Corrigida a publicação das atualizações automáticas com envio obrigatório de `latest.yml`, instalador `.exe` e arquivo `.blockmap` para a mesma GitHub Release.
+- A release criada por tag agora é marcada explicitamente como **Latest**, impedindo que versões antigas continuem sendo consultadas pelo aplicativo.
+- O workflow gera e valida todos os artefatos antes de publicar a release, evitando releases vazias ou incompletas.
+- Removida a configuração duplicada do `electron-builder` no `package.json`; `electron-builder.yml` passa a ser informado explicitamente em todos os comandos de build.
+- Erros técnicos extensos do atualizador deixam de aparecer para o usuário e passam a ser convertidos em mensagens curtas e orientativas.
+
+### Adicionado
+
+- Script `npm run release:verify-artifacts` para validar versão, nome do instalador, `sha512`, `.blockmap` e conteúdo do `latest.yml`.
+- Testes para impedir regressões na configuração de release e na sanitização dos erros de atualização.
+- Ícones do KitsuneDesk aplicados ao instalador, à janela principal e às telas da aplicação.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.8.1`.
+
 ## [0.8.0] - 2026-07-09
 
 ### Stable

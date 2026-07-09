@@ -2,7 +2,7 @@ import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
 
-const fallbackCover = '../../../assets/kitsunedesk-logo.svg';
+const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
 const viewMeta = Object.freeze({
   home: ['Biblioteca pessoal', 'Início'],
   search: ['Catálogo e provedores', 'Pesquisar'],

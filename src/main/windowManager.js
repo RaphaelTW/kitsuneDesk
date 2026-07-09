@@ -9,6 +9,7 @@ const { BrowserWindow, shell } = require('electron');
 function createMainWindow() {
   const preloadPath = path.join(__dirname, 'preload.js');
   const startPage = path.join(__dirname, '..', 'renderer', 'pages', 'login.html');
+  const iconPath = path.join(__dirname, '..', '..', 'assets', 'icons', 'icon.ico');
 
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -16,6 +17,7 @@ function createMainWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'KitsuneDesk',
+    icon: iconPath,
     backgroundColor: '#101216',
     show: false,
     autoHideMenuBar: true,

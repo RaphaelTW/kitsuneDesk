@@ -757,7 +757,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.8.0', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.8.1', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

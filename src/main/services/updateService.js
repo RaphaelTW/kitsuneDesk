@@ -2,6 +2,8 @@ const { EventEmitter } = require('events');
 const { Notification } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
+const { createUpdateErrorPayload } = require('./updateErrors');
+
 const DEFAULT_INITIAL_DELAY_MS = 7000;
 const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
@@ -63,12 +65,7 @@ class UpdateService extends EventEmitter {
         body: 'Abra o KitsuneDesk para instalar e reiniciar agora, ou feche o aplicativo para atualizar.'
       });
     });
-    autoUpdater.on('error', (error) =>
-      this.relay('error', {
-        message: error?.message || 'Não foi possível verificar atualizações.',
-        technicalMessage: error?.stack || error?.message || String(error)
-      })
-    );
+    autoUpdater.on('error', (error) => this.relay('error', createUpdateErrorPayload(error)));
   }
 
   relay(state, payload = {}) {
@@ -107,11 +104,7 @@ class UpdateService extends EventEmitter {
       .checkForUpdates()
       .then(() => this.status())
       .catch((error) => {
-        this.relay('error', {
-          automatic,
-          message: error?.message || 'Não foi possível verificar atualizações.',
-          technicalMessage: error?.stack || error?.message || String(error)
-        });
+        this.relay('error', createUpdateErrorPayload(error, { automatic }));
         return this.status();
       })
       .finally(() => {

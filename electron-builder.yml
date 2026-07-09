@@ -1,6 +1,5 @@
 appId: br.com.kitsunedesk.local
 productName: KitsuneDesk
-legalTrademarks: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
 asar: true
 asarUnpack:
@@ -19,6 +18,7 @@ files:
   - package.json
 
 win:
+  icon: assets/icons/icon.ico
   target:
     - target: nsis
       arch:

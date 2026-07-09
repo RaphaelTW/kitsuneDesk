@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.8.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.8.1 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,22 +20,22 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-080) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-080) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-081) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-081) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.8.0
+## Novidades da versão 0.8.1
 
-A versão Stable prioriza compatibilidade e previsibilidade. O player incorporado foi retirado do fluxo principal porque, em alguns computadores, o MPV iniciava apenas o áudio e mantinha a superfície interna preta.
+Esta versão corrige o fluxo de publicação das atualizações automáticas. A GitHub Release só é publicada depois que o instalador e todos os metadados exigidos pelo `electron-updater` forem gerados e validados.
 
-- MPV aberto exclusivamente em uma janela externa;
-- controles de pausa, volume, progresso, anterior, próximo e parada mantidos no KitsuneDesk;
-- preferências antigas de player integrado migradas automaticamente para o modo externo;
-- remoção dos canais IPC e da janela nativa usados pelo player incorporado;
-- bridge GoAnime simplificado, sem `--wid`;
-- README dinâmico com badges, seções recolhíveis, prévias e diagrama Mermaid;
-- fluxo HTML interativo corrigido e atualizado;
-- comando único de validação estável: `npm run validate`;
-- workflow de release executando lint, formatação e testes antes da publicação;
-- testes atualizados para garantir que nenhuma reprodução envie identificador de janela ao MPV.
+- publicação obrigatória de `KitsuneDesk-Setup-0.8.1.exe`, `.blockmap` e `latest.yml` na mesma release;
+- release criada pela tag marcada explicitamente como **Latest**;
+- build executado com `electron-builder.yml` informado explicitamente, sem configuração duplicada no `package.json`;
+- validação automática do nome, versão, hash `sha512` e conteúdo do `latest.yml`;
+- mensagens amigáveis no aplicativo quando uma release estiver incompleta ou houver falha de conexão;
+- detalhes técnicos preservados apenas para diagnóstico;
+- testes contra regressões no workflow e no tratamento de erros;
+- novos ícones aplicados ao instalador, à janela e às telas do KitsuneDesk.
+
+A reprodução permanece estável em uma janela externa do MPV, com controles integrados no KitsuneDesk.
 
 ## Prévia
 
@@ -206,41 +206,43 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.8.0.exe
+dist\KitsuneDesk-Setup-0.8.1.exe
 ```
 
-## Publicar a versão 0.8.0
+## Publicar a versão 0.8.1
 
 ```powershell
 git add .
-git commit -m "release: KitsuneDesk v0.8.0 stable"
+git commit -m "fix: corrige atualização automática da v0.8.1"
 git push origin main
 
-git tag -a v0.8.0 -m "KitsuneDesk v0.8.0 Stable"
-git push origin v0.8.0
+git tag -a v0.8.1 -m "KitsuneDesk v0.8.1"
+git push origin v0.8.1
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.8.0.exe
-KitsuneDesk-Setup-0.8.0.exe.blockmap
+KitsuneDesk-Setup-0.8.1.exe
+KitsuneDesk-Setup-0.8.1.exe.blockmap
 latest.yml
 ```
+
+O workflow interrompe a publicação se qualquer um desses arquivos estiver ausente, vazio ou apontando para uma versão incorreta.
 
 <details>
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.8.1 --no-git-tag-version
+npm version 0.8.2 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "chore: prepara release v0.8.1"
+git commit -m "chore: prepara release v0.8.2"
 git push origin main
 
-git tag -a v0.8.1 -m "KitsuneDesk v0.8.1"
-git push origin v0.8.1
+git tag -a v0.8.2 -m "KitsuneDesk v0.8.2"
+git push origin v0.8.2
 ```
 
 </details>

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>KitsuneDesk v0.8.0 — Fluxo interativo</title>
+    <title>KitsuneDesk v0.8.1 — Fluxo interativo</title>
     <style>
       :root {
         color-scheme: dark;
@@ -215,7 +215,7 @@
   </head>
   <body>
     <header>
-      <h1>Fluxo do KitsuneDesk <small>v0.8.0 Stable</small></h1>
+      <h1>Fluxo do KitsuneDesk <small>v0.8.1 Stable</small></h1>
       <p>
         Clique em cada etapa para entender o que acontece no aplicativo. Use os filtros para
         visualizar reprodução, administração ou manutenção.
@@ -331,8 +331,8 @@
           group: 'system',
           tag: 'Release',
           title: 'Atualização automática',
-          text: 'A versão instalada consulta o GitHub Releases e avisa quando houver uma versão superior.',
-          steps: ['Baixar em segundo plano', 'Mostrar progresso', 'Instalar e reiniciar']
+          text: 'A versão instalada consulta a release marcada como Latest e usa o latest.yml para localizar e validar o instalador.',
+          steps: ['Consultar latest.yml', 'Baixar e validar o instalador', 'Instalar e reiniciar']
         }
       ];
       const map = document.querySelector('#map');
