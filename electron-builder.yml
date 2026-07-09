@@ -1,10 +1,13 @@
 appId: br.com.kitsunedesk.local
 productName: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
+
 asar: true
+
 asarUnpack:
   - scripts/windows/**/*
   - resources/goanime-bridge/**/*
+
 npmRebuild: true
 
 directories:
@@ -19,8 +22,7 @@ files:
 
 win:
   icon: assets/icons/icon.ico
-  publisherName: Laurentino
-  verifyUpdateCodeSignature: true
+  verifyUpdateCodeSignature: false
   target:
     - target: nsis
       arch:
