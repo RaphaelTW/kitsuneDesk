@@ -1,6 +1,6 @@
 {
   "name": "kitsunedesk",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Aplicação desktop completa para assistir e acompanhar animes, com biblioteca por usuário, progresso, favoritos, controle do MPV, provedores, diagnóstico, segurança e atualização automática.",
   "main": "src/main/main.js",
   "author": "Raphael Laurentino da Silva",
