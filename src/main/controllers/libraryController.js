@@ -15,6 +15,10 @@ class LibraryController {
     return this.libraryService.history(payload);
   }
 
+  exportHistoryCsv(payload) {
+    return this.libraryService.exportHistoryCsv(payload);
+  }
+
   favorites() {
     return this.libraryService.favorites();
   }

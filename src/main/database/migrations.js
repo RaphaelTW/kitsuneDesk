@@ -204,6 +204,30 @@ const migrations = [
     sql: `
       UPDATE settings SET player_mode = 'external' WHERE player_mode <> 'external';
     `
+  },
+  {
+    id: 7,
+    name: 'default-admin-avatars-local-telemetry',
+    sql: `
+      ALTER TABLE users ADD COLUMN avatar_seed TEXT;
+      ALTER TABLE users ADD COLUMN avatar_style TEXT NOT NULL DEFAULT 'thumbs';
+
+      ALTER TABLE settings ADD COLUMN local_telemetry_enabled INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS failure_telemetry (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        scope TEXT NOT NULL,
+        event TEXT NOT NULL,
+        message TEXT,
+        metadata TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_failure_telemetry_user_created
+        ON failure_telemetry(user_id, created_at DESC);
+    `
   }
 ];
 

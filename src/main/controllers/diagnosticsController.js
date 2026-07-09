@@ -20,6 +20,14 @@ class DiagnosticsController {
     return this.diagnosticsService.restoreComponents();
   }
 
+  recordFailure(payload) {
+    return this.diagnosticsService.recordFailure(payload);
+  }
+
+  clearFailureTelemetry() {
+    return this.diagnosticsService.clearFailureTelemetry();
+  }
+
   exportReport(filePath) {
     return this.diagnosticsService.exportReport(filePath);
   }

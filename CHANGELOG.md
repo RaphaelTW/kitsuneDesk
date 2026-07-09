@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0] - 2026-07-09
+
+### Adicionado
+
+- Primeiro usuário local criado automaticamente como `admin` / `admin123`, com troca obrigatória de senha no primeiro login.
+- Política forte para novas senhas: mínimo de oito caracteres, maiúscula, minúscula, número e caractere especial.
+- Fila de reprodução com reordenação de episódios pelo mini player.
+- Exportação do histórico filtrado em CSV.
+- Telemetria local de falhas, desativada por padrão e visível no diagnóstico quando ativada.
+- Avatares de usuário via DiceBear, armazenando estilo e semente.
+- Teste end-to-end do Electron no Windows com Playwright.
+
+### Segurança
+
+- Release Windows preparada para assinatura digital do instalador por certificado configurado em secrets.
+- Verificação de integridade dos binários baixados por SHA-256 publicado ou assinatura Authenticode.
+- Melhorias de acessibilidade por teclado e leitores de tela: skip link, foco visível, `aria-current`, rótulos e controles de fila acessíveis.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.9.0`.
+
 ## [0.8.1] - 2026-07-09
 
 ### Corrigido

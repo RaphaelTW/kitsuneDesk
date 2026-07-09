@@ -22,6 +22,18 @@ class LibraryService {
     });
   }
 
+  exportHistoryCsv(filters) {
+    const rows = this.libraryRepository.history(requireUserId(this.sessionRepository), {
+      limit: Math.min(5000, Math.max(1, Number(filters?.limit ?? 5000))),
+      query: String(filters?.query ?? '')
+    });
+    return {
+      fileName: `kitsunedesk-historico-${new Date().toISOString().slice(0, 10)}.csv`,
+      mimeType: 'text/csv;charset=utf-8',
+      csv: toHistoryCsv(rows)
+    };
+  }
+
   favorites() {
     return this.libraryRepository.favorites(requireUserId(this.sessionRepository));
   }
@@ -147,6 +159,43 @@ function normalizeTitle(value) {
     throw new AppError('INVALID_ANIME', 'Título do anime não informado.', { status: 400 });
   }
   return title.slice(0, 300);
+}
+
+function toHistoryCsv(rows) {
+  const header = [
+    'anime',
+    'episodio',
+    'titulo_episodio',
+    'idioma',
+    'qualidade',
+    'posicao_segundos',
+    'duracao_segundos',
+    'concluido',
+    'fonte',
+    'assistido_em'
+  ];
+  const body = rows.map((row) =>
+    [
+      row.anime_title,
+      row.episode_number,
+      row.episode_title,
+      row.language,
+      row.quality,
+      row.playback_position,
+      row.duration,
+      row.completed ? 'sim' : 'nao',
+      row.source,
+      row.watched_at
+    ]
+      .map(csvCell)
+      .join(',')
+  );
+  return [header.join(','), ...body].join('\r\n');
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 module.exports = LibraryService;

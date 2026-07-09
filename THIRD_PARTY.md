@@ -36,6 +36,13 @@ O KitsuneDesk não hospeda conteúdo. Pesquisa, episódios e reprodução depend
 - O KitsuneDesk não contorna autenticação, assinatura ou DRM e não incorpora os players desses serviços.
 - A disponibilidade de títulos, áudio PT-BR e regiões é definida por cada serviço e pode mudar.
 
+## DiceBear
+
+- Projeto: `https://www.dicebear.com/`
+- Uso: avatares determinísticos de usuário por URL HTTPS.
+- Estilo principal: `thumbs`, licenciado sob CC0 1.0 pelo DiceBear.
+- O KitsuneDesk armazena apenas estilo e semente do avatar, não arquivos de imagem.
+
 ## Electron e electron-builder
 
 - Electron: `https://github.com/electron/electron`

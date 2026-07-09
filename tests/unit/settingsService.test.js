@@ -18,7 +18,8 @@ function createService() {
     parental_pin_hash: null,
     max_content_rating: '18',
     remember_position: 1,
-    check_updates: 1
+    check_updates: 1,
+    local_telemetry_enabled: 0
   };
   const repository = {
     createDefaultForUser() {},
@@ -40,7 +41,8 @@ function createService() {
         parental_control_enabled: input.parentalControlEnabled ? 1 : 0,
         max_content_rating: input.maxContentRating,
         remember_position: input.rememberPosition ? 1 : 0,
-        check_updates: input.checkUpdates ? 1 : 0
+        check_updates: input.checkUpdates ? 1 : 0,
+        local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0
       };
     },
     updateParentalPin(_userId, hash) {
@@ -67,7 +69,8 @@ test('normaliza e persiste configurações do usuário', () => {
     parentalControlEnabled: true,
     maxContentRating: '14',
     rememberPosition: true,
-    checkUpdates: false
+    checkUpdates: false,
+    localTelemetryEnabled: true
   });
 
   assert.equal(settings.defaultProvider, 'ani-cli');
@@ -77,6 +80,7 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.autoPlayNext, true);
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);
+  assert.equal(settings.localTelemetryEnabled, true);
 });
 
 test('configura e valida PIN parental', async () => {

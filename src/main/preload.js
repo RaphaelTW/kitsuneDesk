@@ -32,6 +32,8 @@ const channels = Object.freeze({
   playerStop: 'player:stop',
   playerStatus: 'player:status',
   playerPlaybackState: 'player:playback-state',
+  playerQueue: 'player:queue',
+  playerReorderQueue: 'player:reorder-queue',
   playerStateChanged: 'player:state-changed',
   playerPlaybackStarted: 'player:playback-started',
   playerSourceProgress: 'player:source-progress',
@@ -40,6 +42,7 @@ const channels = Object.freeze({
   libraryContinue: 'library:continue',
   libraryCollectionState: 'library:collection-state',
   historyList: 'history:list',
+  historyExportCsv: 'history:export-csv',
   historyRemove: 'history:remove',
   historyClear: 'history:clear',
   historyMarkCompleted: 'history:mark-completed',
@@ -56,6 +59,8 @@ const channels = Object.freeze({
   diagnosticsRepairNative: 'diagnostics:repair-native',
   diagnosticsClearCache: 'diagnostics:clear-cache',
   diagnosticsRestoreComponents: 'diagnostics:restore-components',
+  diagnosticsRecordFailure: 'diagnostics:record-failure',
+  diagnosticsClearFailures: 'diagnostics:clear-failures',
   diagnosticsExport: 'diagnostics:export',
   diagnosticsProgress: 'diagnostics:progress',
   updatesCheck: 'updates:check',
@@ -116,6 +121,8 @@ const animeDeskApi = Object.freeze({
     stop: () => invoke(channels.playerStop),
     status: () => invoke(channels.playerStatus),
     playbackState: () => invoke(channels.playerPlaybackState),
+    queue: () => invoke(channels.playerQueue),
+    reorderQueue: (payload) => invoke(channels.playerReorderQueue, payload),
     onStateChanged: (callback) => subscribe(channels.playerStateChanged, callback),
     onPlaybackStarted: (callback) => subscribe(channels.playerPlaybackStarted, callback),
     onSourceProgress: (callback) => subscribe(channels.playerSourceProgress, callback)
@@ -130,6 +137,7 @@ const animeDeskApi = Object.freeze({
   }),
   history: Object.freeze({
     list: (filters) => invoke(channels.historyList, filters),
+    exportCsv: (filters) => invoke(channels.historyExportCsv, filters),
     remove: (historyId) => invoke(channels.historyRemove, { historyId }),
     clear: () => invoke(channels.historyClear),
     markCompleted: (historyId, completed) =>
@@ -157,6 +165,8 @@ const animeDeskApi = Object.freeze({
     repairNative: () => invoke(channels.diagnosticsRepairNative),
     clearCache: () => invoke(channels.diagnosticsClearCache),
     restoreComponents: () => invoke(channels.diagnosticsRestoreComponents),
+    recordFailure: (payload) => invoke(channels.diagnosticsRecordFailure, payload),
+    clearFailures: () => invoke(channels.diagnosticsClearFailures),
     export: () => invoke(channels.diagnosticsExport),
     onProgress: (callback) => subscribe(channels.diagnosticsProgress, callback)
   }),

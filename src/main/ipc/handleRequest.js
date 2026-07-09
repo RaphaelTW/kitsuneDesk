@@ -1,6 +1,8 @@
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
+let failureTelemetryRecorder = null;
+
 async function handleRequest(scope, action) {
   try {
     const data = await action();
@@ -20,6 +22,22 @@ async function handleRequest(scope, action) {
       technicalMessage: appError.technicalMessage
     });
 
+    if (appError.status >= 500 && failureTelemetryRecorder) {
+      try {
+        failureTelemetryRecorder({
+          scope: `IPC_${scope}`,
+          event: appError.code,
+          message: appError.publicMessage,
+          metadata: {
+            status: appError.status,
+            technicalMessage: appError.technicalMessage
+          }
+        });
+      } catch {
+        // Telemetria local nunca deve interferir no retorno do IPC.
+      }
+    }
+
     return {
       ok: false,
       error: {
@@ -33,4 +51,9 @@ async function handleRequest(scope, action) {
   }
 }
 
+function configureFailureTelemetry(recorder) {
+  failureTelemetryRecorder = typeof recorder === 'function' ? recorder : null;
+}
+
 module.exports = handleRequest;
+module.exports.configureFailureTelemetry = configureFailureTelemetry;

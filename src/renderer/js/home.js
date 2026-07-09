@@ -54,6 +54,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   modals.parental = new bootstrap.Modal($('parental-pin-modal'));
   modals.report = new bootstrap.Modal($('report-modal'));
   modals.user = new bootstrap.Modal($('user-modal'));
+  modals.queue = new bootstrap.Modal($('queue-modal'));
 
   hydrateProfile();
   bindNavigation();
@@ -66,6 +67,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   bindAdmin();
   bindModals();
   bindInstallation();
+  bindFailureTelemetry();
   subscribeEvents();
 
   await Promise.all([
@@ -94,7 +96,7 @@ function hydrateProfile() {
   const user = state.session.user;
   $('current-user').textContent = user.name;
   $('current-role').textContent = user.role === 'ADMIN' ? 'Administrador' : 'Usuário';
-  $('profile-avatar').textContent = user.name?.trim()?.[0]?.toUpperCase() || 'U';
+  $('profile-avatar').src = avatarUrl(user);
   $('profile-avatar').style.backgroundColor = user.profileColor || '#6f5cff';
 }
 
@@ -120,10 +122,13 @@ async function showView(view) {
     panel.classList.toggle('d-none', panel.dataset.viewPanel !== view);
   });
   document.querySelectorAll('.nav-item[data-view]').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.view === view);
+    const active = button.dataset.view === view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
   });
   $('view-eyebrow').textContent = viewMeta[view][0];
   $('view-title').textContent = viewMeta[view][1];
+  $('content-area').focus({ preventScroll: true });
 
   if (view === 'home') await hydrateDashboard();
   if (view === 'continue') await renderContinueView();
@@ -592,6 +597,7 @@ function bindCollections() {
     });
   });
   $('history-search').addEventListener('input', debounce(renderHistory, 250));
+  $('export-history-button').addEventListener('click', exportHistoryCsv);
   $('clear-history-button').addEventListener('click', async () => {
     if (
       !window.confirm(
@@ -631,6 +637,23 @@ async function renderHistory() {
   result.data.forEach((row) => container.append(createHistoryItem(row, true)));
 }
 
+async function exportHistoryCsv() {
+  const result = await animeDesk.history.exportCsv({
+    query: $('history-search').value,
+    limit: 5000
+  });
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
+  }
+  downloadTextFile(result.data.fileName, result.data.csv, result.data.mimeType);
+  showToast({
+    title: 'Historico exportado',
+    message: 'O CSV foi gerado com os itens filtrados.',
+    variant: 'success'
+  });
+}
+
 function bindPlayer() {
   $('player-toggle').addEventListener('click', async () => {
     const result = await animeDesk.player.togglePause();
@@ -645,6 +668,10 @@ function bindPlayer() {
   $('player-stop').addEventListener('click', async () =>
     notifyResult(await animeDesk.player.stop())
   );
+  $('player-queue-button').addEventListener('click', async () => {
+    await renderPlaybackQueue();
+    modals.queue.show();
+  });
   $('player-progress').addEventListener('change', async () => {
     const duration = Number(state.playback?.duration || 0);
     if (duration <= 0) return;
@@ -709,6 +736,52 @@ function renderPlayerState(playerState) {
   $('player-toggle').querySelector('i').className = playerState.paused
     ? 'bi bi-play-fill'
     : 'bi bi-pause-fill';
+}
+
+async function renderPlaybackQueue() {
+  const result = await animeDesk.player.queue();
+  const container = $('playback-queue-list');
+  container.replaceChildren();
+  if (!result.ok || !result.data?.items?.length) {
+    container.append(emptyState('bi-list-ol', 'Nenhuma fila ativa.'));
+    return;
+  }
+
+  const { items, currentIndex } = result.data;
+  items.forEach((episode, index) => {
+    const item = document.createElement('article');
+    item.className = 'queue-item';
+    item.classList.toggle('is-current', index === currentIndex);
+    const text = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = episode.title || `Episodio ${cleanEpisode(episode.number)}`;
+    const meta = document.createElement('small');
+    meta.textContent =
+      index === currentIndex
+        ? 'Reproduzindo agora'
+        : `Episodio ${cleanEpisode(episode.number || episode.num)}`;
+    text.append(title, meta);
+    const actions = document.createElement('div');
+    actions.className = 'queue-actions';
+    const up = iconButton('bi-arrow-up', 'Subir na fila');
+    up.disabled = index <= 0;
+    up.addEventListener('click', () => moveQueueItem(index, index - 1));
+    const down = iconButton('bi-arrow-down', 'Descer na fila');
+    down.disabled = index >= items.length - 1;
+    down.addEventListener('click', () => moveQueueItem(index, index + 1));
+    actions.append(up, down);
+    item.append(text, actions);
+    container.append(item);
+  });
+}
+
+async function moveQueueItem(fromIndex, toIndex) {
+  const result = await animeDesk.player.reorderQueue({ fromIndex, toIndex });
+  if (!result.ok) {
+    notifyResultError(result);
+    return;
+  }
+  await renderPlaybackQueue();
 }
 
 function bindTools() {
@@ -935,6 +1008,7 @@ async function hydrateSettings() {
   $('setting-remember').checked = result.data.rememberPosition;
   $('setting-theme').value = result.data.theme;
   $('setting-updates').checked = result.data.checkUpdates;
+  $('setting-telemetry').checked = result.data.localTelemetryEnabled;
   $('setting-parental').checked = result.data.parentalControlEnabled;
   $('setting-rating').value = result.data.maxContentRating;
   $('parental-pin-status').textContent = result.data.parentalPinConfigured
@@ -956,6 +1030,7 @@ function readSettingsForm() {
     rememberPosition: $('setting-remember').checked,
     theme: $('setting-theme').value,
     checkUpdates: $('setting-updates').checked,
+    localTelemetryEnabled: $('setting-telemetry').checked,
     parentalControlEnabled: $('setting-parental').checked,
     maxContentRating: $('setting-rating').value
   };
@@ -1079,6 +1154,10 @@ async function runDiagnostics() {
       ['anime-cli-br', report.providers.animeCliBr.ready ? 'Pronto' : 'Indisponível'],
       ['ani-cli', report.providers.aniCli.ready ? 'Experimental' : 'Indisponível'],
       ['FAST Anime VSR', report.tools.fastAnimeVsr.ready ? 'Pronto' : 'Não preparado']
+    ]),
+    diagnosticCard('Telemetria local', [
+      ['Estado', report.telemetry?.enabled ? 'Ativa' : 'Desativada'],
+      ['Falhas recentes', report.telemetry?.recentFailures?.length || 0]
     ])
   );
   appendDiagnosticLog(
@@ -1231,6 +1310,9 @@ function formatUpdateVersion(update) {
 function bindAdmin() {
   $('new-user-button').addEventListener('click', () => openUserModal());
   $('save-user-button').addEventListener('click', saveUser);
+  $('user-avatar-style').addEventListener('change', updateUserAvatarPreview);
+  $('user-avatar-seed').addEventListener('input', updateUserAvatarPreview);
+  $('user-color').addEventListener('input', updateUserAvatarPreview);
 }
 
 async function renderUsers() {
@@ -1247,10 +1329,11 @@ async function renderUsers() {
     card.className = 'user-card';
     const header = document.createElement('div');
     header.className = 'user-card-header';
-    const avatar = document.createElement('span');
+    const avatar = document.createElement('img');
     avatar.className = 'profile-avatar';
+    avatar.alt = '';
+    avatar.src = avatarUrl(user);
     avatar.style.backgroundColor = user.profileColor;
-    avatar.textContent = user.name[0]?.toUpperCase() || 'U';
     const text = document.createElement('div');
     text.innerHTML = `<strong>${escapeHtml(user.name)}</strong><div class="text-secondary">@${escapeHtml(user.username)} · ${user.role}</div>`;
     header.append(avatar, text);
@@ -1283,7 +1366,11 @@ function openUserModal(user = null) {
   $('user-role').value = user?.role || 'USER';
   $('user-parental-level').value = user?.parentalLevel || 'ADULT';
   $('user-color').value = user?.profileColor || '#6f5cff';
+  $('user-avatar-style').value = user?.avatarStyle || 'thumbs';
+  $('user-avatar-seed').value =
+    user?.avatarSeed || user?.username || $('user-username').value || '';
   $('user-active').checked = user?.active ?? true;
+  updateUserAvatarPreview();
   setVisualAlert($('user-form-alert'), '');
   modals.user.show();
 }
@@ -1298,6 +1385,8 @@ async function saveUser() {
     role: $('user-role').value,
     parentalLevel: $('user-parental-level').value,
     profileColor: $('user-color').value,
+    avatarSeed: $('user-avatar-seed').value || $('user-username').value,
+    avatarStyle: $('user-avatar-style').value,
     active: $('user-active').checked
   };
   let result;
@@ -1342,6 +1431,31 @@ function bindModals() {
     if (action) action();
   });
   $('submit-report-button').addEventListener('click', submitReport);
+}
+
+function bindFailureTelemetry() {
+  window.addEventListener('error', (event) => {
+    void animeDesk.diagnostics.recordFailure({
+      scope: 'RENDERER',
+      event: 'WINDOW_ERROR',
+      message: event.message,
+      metadata: {
+        file: event.filename,
+        line: event.lineno,
+        column: event.colno,
+        stack: event.error?.stack
+      }
+    });
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    void animeDesk.diagnostics.recordFailure({
+      scope: 'RENDERER',
+      event: 'UNHANDLED_REJECTION',
+      message: reason?.message || String(reason),
+      metadata: { stack: reason?.stack }
+    });
+  });
 }
 
 function requestParentalUnlock(action) {
@@ -1520,6 +1634,7 @@ function iconButton(icon, title) {
   button.type = 'button';
   button.className = 'card-icon-button';
   button.title = title;
+  button.setAttribute('aria-label', title);
   button.innerHTML = `<i class="bi ${icon}"></i>`;
   return button;
 }
@@ -1538,6 +1653,34 @@ function emptyState(icon, message) {
 function setVisualAlert(element, message) {
   element.textContent = message;
   element.classList.toggle('d-none', !message);
+}
+
+function avatarUrl(user) {
+  const style = encodeURIComponent(user?.avatarStyle || 'thumbs');
+  const seed = encodeURIComponent(user?.avatarSeed || user?.username || user?.name || 'user');
+  return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}&backgroundType=gradientLinear`;
+}
+
+function updateUserAvatarPreview() {
+  const preview = $('user-avatar-preview');
+  if (!preview) return;
+  preview.src = avatarUrl({
+    avatarStyle: $('user-avatar-style').value,
+    avatarSeed: $('user-avatar-seed').value || $('user-username').value || 'user'
+  });
+  preview.style.backgroundColor = $('user-color').value || '#6f5cff';
+}
+
+function downloadTextFile(fileName, content, mimeType = 'text/plain;charset=utf-8') {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function parseJson(value) {

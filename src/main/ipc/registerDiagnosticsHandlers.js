@@ -15,6 +15,8 @@ function registerDiagnosticsHandlers(ipcMain, diagnosticsController) {
   );
   handle('diagnostics:clear-cache', () => diagnosticsController.clearCache());
   handle('diagnostics:restore-components', () => diagnosticsController.restoreComponents());
+  handle('diagnostics:record-failure', (payload) => diagnosticsController.recordFailure(payload));
+  handle('diagnostics:clear-failures', () => diagnosticsController.clearFailureTelemetry());
   handle('diagnostics:export', async () => {
     const result = await dialog.showSaveDialog({
       title: 'Exportar diagnóstico do KitsuneDesk',

@@ -82,13 +82,56 @@ function Remove-Safe {
 function Invoke-Download {
   param(
     [Parameter(Mandatory = $true)][string]$Uri,
-    [Parameter(Mandatory = $true)][string]$OutFile
+    [Parameter(Mandatory = $true)][string]$OutFile,
+    [string]$ExpectedSha256 = '',
+    [string]$RequiredPublisher = ''
   )
   Ensure-Directory -Path (Split-Path -Parent $OutFile)
-  Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -Headers @{ 'User-Agent' = 'KitsuneDesk/0.7.1' }
+  Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -Headers @{ 'User-Agent' = 'KitsuneDesk/0.9.0' }
   if (-not (Test-Path -LiteralPath $OutFile) -or (Get-Item -LiteralPath $OutFile).Length -eq 0) {
     throw "O download de $Uri ficou vazio ou incompleto."
   }
+  if ($ExpectedSha256) {
+    Assert-FileSha256 -Path $OutFile -ExpectedSha256 $ExpectedSha256
+  } elseif ($OutFile -match '(?i)\.(exe|msi)$') {
+    Assert-AuthenticodeSignature -Path $OutFile -RequiredPublisher $RequiredPublisher
+  }
+}
+
+function Assert-FileSha256 {
+  param(
+    [Parameter(Mandatory = $true)][string]$Path,
+    [Parameter(Mandatory = $true)][string]$ExpectedSha256
+  )
+  $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $expected = $ExpectedSha256.ToLowerInvariant().Replace('sha256:', '')
+  if ($actual -ne $expected) {
+    throw "Falha de integridade em $(Split-Path -Leaf $Path): SHA-256 esperado $expected, recebido $actual."
+  }
+}
+
+function Assert-AuthenticodeSignature {
+  param(
+    [Parameter(Mandatory = $true)][string]$Path,
+    [string]$RequiredPublisher = ''
+  )
+  $signature = Get-AuthenticodeSignature -FilePath $Path
+  if ($signature.Status -ne 'Valid') {
+    throw "A assinatura digital de $(Split-Path -Leaf $Path) nao e valida: $($signature.Status)."
+  }
+  if ($RequiredPublisher -and $signature.SignerCertificate.Subject -notmatch [Regex]::Escape($RequiredPublisher)) {
+    throw "A assinatura digital de $(Split-Path -Leaf $Path) nao pertence ao publicador esperado."
+  }
+}
+
+function Resolve-AssetSha256 {
+  param($Asset)
+  $digest = ''
+  if ($Asset -and $Asset.PSObject.Properties.Name -contains 'digest') {
+    $digest = [string]$Asset.digest
+  }
+  if ($digest -match '(?i)^sha256:([a-f0-9]{64})$') { return $Matches[1] }
+  return ''
 }
 
 function Get-GitHubReleaseAsset {
@@ -96,7 +139,7 @@ function Get-GitHubReleaseAsset {
     [Parameter(Mandatory = $true)][string]$Repository,
     [Parameter(Mandatory = $true)][scriptblock]$Filter
   )
-  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'KitsuneDesk/0.7.1' }
+  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'KitsuneDesk/0.9.0' }
   $asset = $release.assets | Where-Object $Filter | Select-Object -First 1
   if (-not $asset) { throw "Nenhum pacote compativel foi encontrado em $Repository." }
   return $asset
@@ -131,7 +174,7 @@ function Ensure-Scoop {
 
   Send-Step $Percent 'scoop' 'installing' 'Instalando o gerenciador Scoop em modo silencioso...' 'Gerencia ferramentas portateis sem exigir Winget ou terminal externo.'
   try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force } catch {}
-  Invoke-RestMethod -Uri 'https://get.scoop.sh' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.7.1' } | Invoke-Expression
+  Invoke-RestMethod -Uri 'https://get.scoop.sh' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.9.0' } | Invoke-Expression
   Refresh-ProcessPath
   if (-not (Resolve-CommandPath -Name 'scoop')) { throw 'Scoop nao foi localizado depois da instalacao.' }
   Send-Step ($Percent + 3) 'scoop' 'installed' 'Scoop instalado.' 'Gerencia ferramentas portateis sem exigir Winget ou terminal externo.'
@@ -253,7 +296,7 @@ function Ensure-Python {
   Send-Step $Percent $Component 'downloading' "Baixando Python $FullVersion..." $Purpose
   $compact = $Version.Replace('.', '')
   $installer = Join-Path $DownloadsRoot "python-$FullVersion-amd64.exe"
-  Invoke-Download -Uri "https://www.python.org/ftp/python/$FullVersion/python-$FullVersion-amd64.exe" -OutFile $installer
+  Invoke-Download -Uri "https://www.python.org/ftp/python/$FullVersion/python-$FullVersion-amd64.exe" -OutFile $installer -RequiredPublisher 'Python'
   $targetDir = Join-Path $env:LOCALAPPDATA "Programs\Python\Python$compact"
   $arguments = @(
     '/quiet',
@@ -315,7 +358,7 @@ function Ensure-GoAnime {
   }
 
   Send-Step $Percent 'goanime' 'downloading' 'Baixando o executavel oficial do GoAnime...' 'Motor principal de pesquisa, episodios e fontes.'
-  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/alvarorichard/GoAnime/releases/latest' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.7.1' }
+  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/alvarorichard/GoAnime/releases/latest' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.9.0' }
   $portable = $release.assets | Where-Object {
     $_.name -match '(?i)^goanime.*windows.*amd64.*\.exe$' -and $_.name -notmatch '(?i)installer'
   } | Select-Object -First 1
@@ -324,13 +367,13 @@ function Ensure-GoAnime {
     $directory = Join-Path $env:LOCALAPPDATA 'Programs\GoAnime'
     Ensure-Directory -Path $directory
     $target = Join-Path $directory 'goanime.exe'
-    Invoke-Download -Uri $portable.browser_download_url -OutFile $target
+    Invoke-Download -Uri $portable.browser_download_url -OutFile $target -ExpectedSha256 (Resolve-AssetSha256 -Asset $portable)
     Add-UserPath -Directory $directory
   } else {
     $installer = $release.assets | Where-Object { $_.name -match '(?i)^GoAnime.*Installer.*\.exe$' } | Select-Object -First 1
     if (-not $installer) { throw 'A release oficial nao possui executavel portatil nem instalador para Windows.' }
     $installerPath = Join-Path $DownloadsRoot $installer.name
-    Invoke-Download -Uri $installer.browser_download_url -OutFile $installerPath
+    Invoke-Download -Uri $installer.browser_download_url -OutFile $installerPath -ExpectedSha256 (Resolve-AssetSha256 -Asset $installer)
     Send-Step ($Percent + 4) 'goanime' 'installing' 'Executando o instalador oficial do GoAnime...' 'Motor principal de pesquisa, episodios e fontes.'
     $arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /TASKS="addtopath"'
     $process = Start-Process -FilePath $installerPath -ArgumentList $arguments -Verb RunAs -Wait -PassThru
@@ -367,12 +410,12 @@ function Ensure-GoRuntime {
   }
 
   Send-Step $Percent 'go-runtime' 'downloading' 'Baixando o runtime Go portatil...' 'Compila o bridge local que conecta o GoAnime à interface gráfica.'
-  $releases = Invoke-RestMethod -Uri 'https://go.dev/dl/?mode=json' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.7.1' }
+  $releases = Invoke-RestMethod -Uri 'https://go.dev/dl/?mode=json' -Headers @{ 'User-Agent' = 'KitsuneDesk/0.9.0' }
   $stable = $releases | Where-Object { $_.stable -eq $true } | Select-Object -First 1
   $file = $stable.files | Where-Object { $_.os -eq 'windows' -and $_.arch -eq 'amd64' -and $_.kind -eq 'archive' } | Select-Object -First 1
   if (-not $file) { throw 'O pacote portatil do Go para Windows nao foi encontrado.' }
   $archive = Join-Path $DownloadsRoot $file.filename
-  Invoke-Download -Uri ('https://go.dev/dl/' + $file.filename) -OutFile $archive
+  Invoke-Download -Uri ('https://go.dev/dl/' + $file.filename) -OutFile $archive -ExpectedSha256 $file.sha256
   $temporary = Join-Path $env:TEMP ('kitsunedesk-go-' + [Guid]::NewGuid().ToString())
   Expand-ZipFresh -Archive $archive -Destination $temporary
   $goRoot = Join-Path $RuntimesRoot 'go'

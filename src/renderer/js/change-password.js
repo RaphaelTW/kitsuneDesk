@@ -23,6 +23,7 @@ function bindPasswordRules() {
     setRule('rule-uppercase', /[A-Z]/.test(password));
     setRule('rule-lowercase', /[a-z]/.test(password));
     setRule('rule-number', /\d/.test(password));
+    setRule('rule-special', /[^A-Za-z0-9]/.test(password));
     setRule('rule-match', Boolean(password) && password === confirm);
   };
 

@@ -27,6 +27,8 @@ function registerPlayerHandlers(ipcMain, playerController) {
   handle('player:stop', () => playerController.stop());
   handle('player:status', () => playerController.status());
   handle('player:playback-state', () => playerController.playbackState());
+  handle('player:queue', () => playerController.queue());
+  handle('player:reorder-queue', (payload) => playerController.reorderQueue(payload));
   handle('providers:health', () => playerController.providerHealth());
 }
 

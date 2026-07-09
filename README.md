@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.8.1 Stable</h1>
+<h1 align="center">KitsuneDesk v0.9.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,20 +20,22 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-081) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-081) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-090) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-090) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.8.1
+## Novidades da versão 0.9.0
 
-Esta versão corrige o fluxo de publicação das atualizações automáticas. A GitHub Release só é publicada depois que o instalador e todos os metadados exigidos pelo `electron-updater` forem gerados e validados.
+Esta versão transforma os itens planejados em recursos de produto e endurece o caminho de release do Windows.
 
-- publicação obrigatória de `KitsuneDesk-Setup-0.8.1.exe`, `.blockmap` e `latest.yml` na mesma release;
-- release criada pela tag marcada explicitamente como **Latest**;
-- build executado com `electron-builder.yml` informado explicitamente, sem configuração duplicada no `package.json`;
-- validação automática do nome, versão, hash `sha512` e conteúdo do `latest.yml`;
-- mensagens amigáveis no aplicativo quando uma release estiver incompleta ou houver falha de conexão;
-- detalhes técnicos preservados apenas para diagnóstico;
-- testes contra regressões no workflow e no tratamento de erros;
-- novos ícones aplicados ao instalador, à janela e às telas do KitsuneDesk.
+- primeiro usuário local criado automaticamente como `admin` / `admin123`, com troca obrigatória no primeiro login;
+- nova senha exige pelo menos oito caracteres, letra maiúscula, letra minúscula, número e caractere especial;
+- fila de reprodução com reordenação por botões acessíveis;
+- exportação do histórico filtrado em CSV;
+- telemetria local de falhas, desativada por padrão e controlada nas configurações;
+- avatares de usuário via DiceBear, guardando apenas estilo e semente;
+- teste end-to-end do Electron no Windows com Playwright;
+- release Windows preparada para assinatura digital por certificado via secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD`;
+- verificação de integridade dos binários baixados por SHA-256 publicado ou assinatura Authenticode;
+- melhorias de navegação por teclado, foco visível, `aria-current`, skip link e rótulos para leitores de tela.
 
 A reprodução permanece estável em uma janela externa do MPV, com controles integrados no KitsuneDesk.
 
@@ -58,9 +60,14 @@ A reprodução permanece estável em uma janela externa do MPV, com controles in
 
 ## Primeiro acesso
 
-**Não existe usuário ou senha padrão.**
+O primeiro acesso usa uma senha temporária:
 
-Na primeira abertura, o sistema apresenta a configuração inicial para criar o administrador local. A senha deve ter pelo menos oito caracteres, uma letra e um número. Depois disso, somente administradores podem cadastrar outros usuários.
+```text
+usuario: admin
+senha: admin123
+```
+
+Depois do login, o KitsuneDesk exige a troca imediata. A nova senha deve ter pelo menos oito caracteres, uma letra maiúscula, uma letra minúscula, um número e um caractere especial. Depois disso, somente administradores podem cadastrar outros usuários.
 
 <details>
 <summary><strong>O que fica separado por usuário?</strong></summary>
@@ -77,11 +84,10 @@ Na primeira abertura, o sistema apresenta a configuração inicial para criar o 
 
 ```mermaid
 flowchart TD
-    A[Primeira abertura] --> B{Existe administrador?}
-    B -- Não --> C[Criar administrador]
-    B -- Sim --> D[Login]
-    C --> E[Início]
-    D --> E
+    A[Primeira abertura] --> B[Admin temporario criado]
+    B --> C[Login admin/admin123]
+    C --> D[Troca obrigatoria de senha forte]
+    D --> E[Início]
 
     E --> F[Pesquisar anime]
     E --> G[Continuar assistindo]
@@ -192,6 +198,7 @@ Comandos individuais:
 npm run lint
 npm run format:check
 npm test
+npm run test:e2e:electron
 npm run rebuild:native
 ```
 
@@ -206,43 +213,45 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.8.1.exe
+dist\KitsuneDesk-Setup-0.9.0.exe
 ```
 
-## Publicar a versão 0.8.1
+## Publicar a versão 0.9.0
+
+Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` no GitHub Actions para assinar o instalador Windows.
 
 ```powershell
 git add .
-git commit -m "fix: corrige atualização automática da v0.8.1"
+git commit -m "feat: prepara release v0.9.0"
 git push origin main
 
-git tag -a v0.8.1 -m "KitsuneDesk v0.8.1"
-git push origin v0.8.1
+git tag -a v0.9.0 -m "KitsuneDesk v0.9.0"
+git push origin v0.9.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.8.1.exe
-KitsuneDesk-Setup-0.8.1.exe.blockmap
+KitsuneDesk-Setup-0.9.0.exe
+KitsuneDesk-Setup-0.9.0.exe.blockmap
 latest.yml
 ```
 
-O workflow interrompe a publicação se qualquer um desses arquivos estiver ausente, vazio ou apontando para uma versão incorreta.
+O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio, apontando para uma versão incorreta ou se a assinatura digital não estiver configurada.
 
 <details>
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.8.2 --no-git-tag-version
+npm version 0.9.1 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "chore: prepara release v0.8.2"
+git commit -m "chore: prepara release v0.9.1"
 git push origin main
 
-git tag -a v0.8.2 -m "KitsuneDesk v0.8.2"
-git push origin v0.8.2
+git tag -a v0.9.1 -m "KitsuneDesk v0.9.1"
+git push origin v0.9.1
 ```
 
 </details>
@@ -265,21 +274,17 @@ resources/
   providers/          componentes instalados localmente
 scripts/windows/      instalação e reparo de dependências
 docs/                 fluxo interativo
-tests/                testes unitários e de integração
+tests/                testes unitários, integração e E2E Electron
 .github/workflows/    validação, build e releases
 ```
 
 ## Melhorias recomendadas para as próximas versões
 
 - cache local de resultados e capas com expiração;
-- fila de reprodução com reordenação de episódios;
 - backup e restauração da biblioteca em JSON;
-- exportação do histórico em CSV;
-- telemetria local de falhas, desativada por padrão;
-- testes end-to-end do Electron no Windows;
-- assinatura digital do instalador;
-- verificação de integridade dos binários baixados;
-- acessibilidade completa por teclado e leitores de tela.
+- backup criptografado opcional dos perfis locais;
+- gerenciamento visual dos registros de telemetria local;
+- cache offline dos avatares selecionados.
 
 ## Limitações conhecidas
 

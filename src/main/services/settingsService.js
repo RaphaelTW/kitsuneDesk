@@ -46,7 +46,8 @@ class SettingsService {
         ? String(payload.maxContentRating)
         : current.maxContentRating,
       rememberPosition: payload?.rememberPosition !== false,
-      checkUpdates: payload?.checkUpdates !== false
+      checkUpdates: payload?.checkUpdates !== false,
+      localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled)
     };
     this.settingsRepository.update(userId, settings);
     return this.get();
@@ -91,7 +92,8 @@ function mapSettings(row) {
     parentalPinConfigured: Boolean(row?.parental_pin_hash),
     maxContentRating: row?.max_content_rating || '18',
     rememberPosition: row?.remember_position !== 0,
-    checkUpdates: row?.check_updates !== 0
+    checkUpdates: row?.check_updates !== 0,
+    localTelemetryEnabled: Boolean(row?.local_telemetry_enabled)
   };
 }
 

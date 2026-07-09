@@ -1,10 +1,15 @@
 const bcrypt = require('bcryptjs');
 const AppError = require('../utils/AppError');
-const { validateChangePasswordPayload, validateLoginPayload } = require('../utils/validator');
+const {
+  assertPasswordPolicy,
+  validateChangePasswordPayload,
+  validateLoginPayload
+} = require('../utils/validator');
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,32}$/;
+const AVATAR_STYLES = new Set(['thumbs', 'initials', 'identicon', 'shapes', 'rings']);
 
 class AuthService {
   constructor({ userRepository, sessionRepository, securityRepository, settingsRepository }) {
@@ -20,7 +25,7 @@ class AuthService {
 
   async createInitialAdmin(payload) {
     if (this.userRepository.count() > 0) {
-      throw new AppError('SETUP_ALREADY_COMPLETED', 'A configuração inicial já foi concluída.', {
+      throw new AppError('SETUP_ALREADY_COMPLETED', 'A configuracao inicial ja foi concluida.', {
         status: 409
       });
     }
@@ -43,7 +48,7 @@ class AuthService {
     const user = this.userRepository.findByUsername(credentials.username);
     if (!user || !user.active) {
       this.registerFailedAttempt(credentials.username);
-      throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuário ou senha inválidos.', {
+      throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuario ou senha invalidos.', {
         status: 401
       });
     }
@@ -51,7 +56,7 @@ class AuthService {
     const passwordMatches = await bcrypt.compare(credentials.password, user.password_hash);
     if (!passwordMatches) {
       this.registerFailedAttempt(credentials.username);
-      throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuário ou senha inválidos.', {
+      throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuario ou senha invalidos.', {
         status: 401
       });
     }
@@ -79,7 +84,7 @@ class AuthService {
     const user = this.userRepository.findById(userId);
 
     if (!user || !user.active) {
-      throw new AppError('AUTH_USER_DISABLED', 'Usuário desativado.', { status: 403 });
+      throw new AppError('AUTH_USER_DISABLED', 'Usuario desativado.', { status: 403 });
     }
 
     const currentPasswordMatches = await bcrypt.compare(
@@ -106,7 +111,7 @@ class AuthService {
     requireAdmin(this.sessionRepository);
     const input = normalizeNewUser(payload);
     if (this.userRepository.findByUsername(input.username)) {
-      throw new AppError('USERNAME_IN_USE', 'Esse nome de usuário já está em uso.', {
+      throw new AppError('USERNAME_IN_USE', 'Esse nome de usuario ja esta em uso.', {
         status: 409
       });
     }
@@ -121,7 +126,7 @@ class AuthService {
     const userId = Number(payload?.id);
     const current = this.userRepository.findById(userId);
     if (!current) {
-      throw new AppError('USER_NOT_FOUND', 'Usuário não encontrado.', { status: 404 });
+      throw new AppError('USER_NOT_FOUND', 'Usuario nao encontrado.', { status: 404 });
     }
 
     const role = payload?.role === 'ADMIN' ? 'ADMIN' : 'USER';
@@ -129,7 +134,7 @@ class AuthService {
     if (current.id === admin.id && (!active || role !== 'ADMIN')) {
       throw new AppError(
         'ADMIN_SELF_PROTECTION',
-        'Você não pode remover seu próprio acesso de administrador.',
+        'Voce nao pode remover seu proprio acesso de administrador.',
         { status: 409 }
       );
     }
@@ -146,6 +151,8 @@ class AuthService {
       role,
       active,
       profileColor: normalizeColor(payload?.profileColor),
+      avatarSeed: normalizeAvatarSeed(payload?.avatarSeed, current.username),
+      avatarStyle: normalizeAvatarStyle(payload?.avatarStyle),
       parentalLevel: normalizeParentalLevel(payload?.parentalLevel)
     });
     return toSafeUser(this.userRepository.findById(userId));
@@ -156,7 +163,7 @@ class AuthService {
     const userId = Number(payload?.id);
     const user = this.userRepository.findById(userId);
     if (!user) {
-      throw new AppError('USER_NOT_FOUND', 'Usuário não encontrado.', { status: 404 });
+      throw new AppError('USER_NOT_FOUND', 'Usuario nao encontrado.', { status: 404 });
     }
     const password = normalizePassword(payload?.password);
     const passwordHash = await bcrypt.hash(password, 12);
@@ -176,7 +183,7 @@ class AuthService {
     const minutes = Math.max(1, Math.ceil((lockedUntil - Date.now()) / 60000));
     throw new AppError(
       'AUTH_TEMPORARILY_LOCKED',
-      `Muitas tentativas inválidas. Tente novamente em aproximadamente ${minutes} minuto(s).`,
+      `Muitas tentativas invalidas. Tente novamente em aproximadamente ${minutes} minuto(s).`,
       { status: 429 }
     );
   }
@@ -199,7 +206,7 @@ function normalizeNewUser(payload, { forceAdmin = false } = {}) {
   if (!USERNAME_PATTERN.test(username)) {
     throw new AppError(
       'INVALID_USERNAME',
-      'Use de 3 a 32 caracteres: letras, números, ponto, hífen ou sublinhado.',
+      'Use de 3 a 32 caracteres: letras, numeros, ponto, hifen ou sublinhado.',
       { status: 400 }
     );
   }
@@ -209,19 +216,15 @@ function normalizeNewUser(payload, { forceAdmin = false } = {}) {
     name: normalizeName(payload?.name),
     role: forceAdmin || payload?.role === 'ADMIN' ? 'ADMIN' : 'USER',
     profileColor: normalizeColor(payload?.profileColor),
+    avatarSeed: normalizeAvatarSeed(payload?.avatarSeed, username),
+    avatarStyle: normalizeAvatarStyle(payload?.avatarStyle),
     parentalLevel: normalizeParentalLevel(payload?.parentalLevel)
   };
 }
 
 function normalizePassword(value) {
   const password = String(value ?? '');
-  if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
-    throw new AppError(
-      'WEAK_PASSWORD',
-      'A senha precisa ter pelo menos 8 caracteres, uma letra e um número.',
-      { status: 400 }
-    );
-  }
+  assertPasswordPolicy(password);
   return password;
 }
 
@@ -238,6 +241,16 @@ function normalizeName(value) {
 function normalizeColor(value) {
   const color = String(value ?? '#6f5cff');
   return /^#[0-9a-f]{6}$/i.test(color) ? color : '#6f5cff';
+}
+
+function normalizeAvatarSeed(value, fallback) {
+  const seed = String(value || fallback || 'user').trim();
+  return seed.slice(0, 80) || 'user';
+}
+
+function normalizeAvatarStyle(value) {
+  const style = String(value || 'thumbs').trim();
+  return AVATAR_STYLES.has(style) ? style : 'thumbs';
 }
 
 function normalizeParentalLevel(value) {
@@ -262,7 +275,7 @@ function requireAdmin(sessionRepository) {
     });
   }
   if (user.role !== 'ADMIN') {
-    throw new AppError('ADMIN_REQUIRED', 'Apenas administradores podem realizar essa ação.', {
+    throw new AppError('ADMIN_REQUIRED', 'Apenas administradores podem realizar essa acao.', {
       status: 403
     });
   }
@@ -278,6 +291,8 @@ function toSafeUser(user) {
     mustChangePassword: Boolean(user.must_change_password),
     active: Boolean(user.active),
     profileColor: user.profile_color || '#6f5cff',
+    avatarSeed: user.avatar_seed || user.username || user.name || 'user',
+    avatarStyle: normalizeAvatarStyle(user.avatar_style),
     parentalLevel: user.parental_level || 'ADULT',
     createdAt: user.created_at,
     updatedAt: user.updated_at

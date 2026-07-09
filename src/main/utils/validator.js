@@ -65,13 +65,14 @@ function assertPasswordPolicy(password) {
     password.length >= 8,
     /[A-Z]/.test(password),
     /[a-z]/.test(password),
-    /\d/.test(password)
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password)
   ];
 
   if (checks.some((isValid) => !isValid)) {
     throw new AppError(
       'AUTH_PASSWORD_INVALID',
-      'A senha deve ter oito caracteres, uma letra maiuscula, uma minuscula e um numero.',
+      'A senha deve ter oito caracteres, uma letra maiuscula, uma minuscula, um numero e um caractere especial.',
       { status: 400 }
     );
   }

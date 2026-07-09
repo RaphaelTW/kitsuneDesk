@@ -14,15 +14,16 @@
     <link rel="stylesheet" href="../css/home.css" />
   </head>
   <body data-theme="dark">
+    <a class="skip-link" href="#content-area">Pular para o conteudo</a>
     <div class="app-frame">
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.8.1</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.9.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
-          <button class="nav-item is-active" data-view="home" type="button">
+          <button class="nav-item is-active" data-view="home" type="button" aria-current="page">
             <i class="bi bi-house-door"></i><span>Início</span>
           </button>
           <button class="nav-item" data-view="search" type="button">
@@ -53,7 +54,7 @@
 
         <div class="sidebar-footer">
           <div class="profile-chip">
-            <span class="profile-avatar" id="profile-avatar">R</span>
+            <img class="profile-avatar" id="profile-avatar" src="" alt="" />
             <span
               ><strong id="current-user">Usuário</strong
               ><small id="current-role">Perfil</small></span
@@ -67,7 +68,7 @@
 
       <div class="main-column">
         <header class="topbar">
-          <div>
+          <div class="sr-only" aria-live="polite">
             <p class="eyebrow" id="view-eyebrow">Biblioteca pessoal</p>
             <h1 id="view-title">Início</h1>
           </div>
@@ -81,6 +82,7 @@
               id="updates-button"
               type="button"
               title="Verificar atualizações"
+              aria-label="Verificar atualizacoes"
             >
               <i class="bi bi-cloud-arrow-down"></i>
               <span class="notification-dot d-none" id="update-notification"></span>
@@ -117,7 +119,7 @@
           </div>
         </section>
 
-        <main class="content-area">
+        <main class="content-area" id="content-area" tabindex="-1">
           <section class="app-view" id="view-home" data-view-panel="home">
             <div class="welcome-banner panel">
               <div>
@@ -312,11 +314,21 @@
             <div class="history-toolbar panel">
               <div class="search-input-wrap compact">
                 <i class="bi bi-search"></i
-                ><input id="history-search" type="search" placeholder="Pesquisar no histórico" />
+                ><input
+                  id="history-search"
+                  type="search"
+                  placeholder="Pesquisar no historico"
+                  aria-label="Pesquisar no historico"
+                />
               </div>
-              <button class="btn btn-outline-danger" id="clear-history-button" type="button">
-                <i class="bi bi-trash"></i> Limpar histórico
-              </button>
+              <div class="history-actions">
+                <button class="btn btn-outline-light" id="export-history-button" type="button">
+                  <i class="bi bi-filetype-csv"></i> Exportar CSV
+                </button>
+                <button class="btn btn-outline-danger" id="clear-history-button" type="button">
+                  <i class="bi bi-trash"></i> Limpar historico
+                </button>
+              </div>
             </div>
             <div class="history-list" id="history-list"></div>
           </section>
@@ -583,7 +595,11 @@
                     </select></label
                   ><label class="switch-inline"
                     ><input id="setting-updates" type="checkbox" checked /><span
-                      >Verificar atualizações automaticamente</span
+                      >Verificar atualizacoes automaticamente</span
+                    ></label
+                  ><label class="switch-inline"
+                    ><input id="setting-telemetry" type="checkbox" /><span
+                      >Registrar telemetria local de falhas</span
                     ></label
                   >
                 </div>
@@ -731,36 +747,61 @@
       </div>
       <div class="mini-player-center">
         <div class="player-buttons">
-          <button id="player-previous" type="button" title="Episódio anterior">
+          <button
+            id="player-previous"
+            type="button"
+            title="Episodio anterior"
+            aria-label="Episodio anterior"
+          >
             <i class="bi bi-skip-backward-fill"></i></button
           ><button
             class="player-main-button"
             id="player-toggle"
             type="button"
             title="Pausar ou continuar"
+            aria-label="Pausar ou continuar"
           >
             <i class="bi bi-play-fill"></i></button
-          ><button id="player-next" type="button" title="Próximo episódio">
+          ><button
+            id="player-next"
+            type="button"
+            title="Proximo episodio"
+            aria-label="Proximo episodio"
+          >
             <i class="bi bi-skip-forward-fill"></i>
           </button>
         </div>
         <div class="player-progress-row">
           <span id="player-current-time">00:00</span
-          ><input id="player-progress" type="range" min="0" max="100" value="0" /><span
-            id="player-duration"
-            >00:00</span
-          >
+          ><input
+            id="player-progress"
+            type="range"
+            min="0"
+            max="100"
+            value="0"
+            aria-label="Progresso da reproducao"
+          /><span id="player-duration">00:00</span>
         </div>
       </div>
       <div class="mini-player-actions">
         <span class="player-source" id="player-source">GoAnime</span><i class="bi bi-volume-up"></i
-        ><input id="player-volume" type="range" min="0" max="100" value="80" /><button
+        ><input
+          id="player-volume"
+          type="range"
+          min="0"
+          max="100"
+          value="80"
+          aria-label="Volume"
+        /><button id="player-queue-button" type="button" title="Fila" aria-label="Abrir fila">
+          <i class="bi bi-list-ol"></i></button
+        ><button
           id="report-episode-button"
           type="button"
           title="Reportar problema"
+          aria-label="Reportar problema"
         >
           <i class="bi bi-flag"></i></button
-        ><button id="player-stop" type="button" title="Parar">
+        ><button id="player-stop" type="button" title="Parar" aria-label="Parar">
           <i class="bi bi-stop-fill"></i>
         </button>
       </div>
@@ -812,6 +853,31 @@
       </div>
     </div>
 
+    <div
+      class="modal fade"
+      id="queue-modal"
+      tabindex="-1"
+      aria-labelledby="queue-modal-title"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="queue-modal-title">Fila de reproducao</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Fechar"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="playback-queue-list" id="playback-queue-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="parental-pin-modal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -821,6 +887,7 @@
               type="button"
               class="btn-close btn-close-white"
               data-bs-dismiss="modal"
+              aria-label="Fechar"
             ></button>
           </div>
           <div class="modal-body">
@@ -831,6 +898,7 @@
               inputmode="numeric"
               maxlength="8"
               placeholder="PIN"
+              aria-label="PIN parental"
             />
             <div class="visual-alert d-none mt-3" id="parental-unlock-alert"></div>
           </div>
@@ -854,6 +922,7 @@
               type="button"
               class="btn-close btn-close-white"
               data-bs-dismiss="modal"
+              aria-label="Fechar"
             ></button>
           </div>
           <div class="modal-body">
@@ -888,6 +957,7 @@
               type="button"
               class="btn-close btn-close-white"
               data-bs-dismiss="modal"
+              aria-label="Fechar"
             ></button>
           </div>
           <div class="modal-body">
@@ -904,6 +974,28 @@
               <div class="mb-3" id="user-password-field">
                 <label class="form-label" for="user-password">Senha inicial</label
                 ><input class="form-control" id="user-password" type="password" />
+              </div>
+              <div class="avatar-editor">
+                <img class="profile-avatar avatar-preview" id="user-avatar-preview" src="" alt="" />
+                <div class="settings-grid">
+                  <label
+                    ><span>Avatar</span
+                    ><select class="form-select" id="user-avatar-style">
+                      <option value="thumbs">DiceBear Thumbs</option>
+                      <option value="initials">DiceBear Initials</option>
+                      <option value="identicon">DiceBear Identicon</option>
+                      <option value="shapes">DiceBear Shapes</option>
+                      <option value="rings">DiceBear Rings</option>
+                    </select></label
+                  ><label
+                    ><span>Semente</span
+                    ><input
+                      class="form-control"
+                      id="user-avatar-seed"
+                      maxlength="80"
+                      placeholder="Ex.: admin"
+                  /></label>
+                </div>
               </div>
               <div class="settings-grid">
                 <label

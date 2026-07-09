@@ -1,6 +1,5 @@
 const { EventEmitter } = require('events');
 const { Notification } = require('electron');
-const { autoUpdater } = require('electron-updater');
 
 const { createUpdateErrorPayload } = require('./updateErrors');
 
@@ -16,6 +15,7 @@ class UpdateService extends EventEmitter {
     this.checkPromise = null;
     this.initialTimer = null;
     this.intervalTimer = null;
+    this.autoUpdater = null;
     this.notifiedVersions = new Set();
     this.lastState = {
       state: 'idle',
@@ -29,6 +29,7 @@ class UpdateService extends EventEmitter {
     if (this.configured) return;
     this.configured = true;
 
+    const autoUpdater = this.getAutoUpdater();
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.allowPrerelease = false;
@@ -84,6 +85,7 @@ class UpdateService extends EventEmitter {
 
   async check(options = {}) {
     this.configure();
+    const autoUpdater = this.getAutoUpdater();
     const automatic = Boolean(options?.automatic);
 
     if (!this.app.isPackaged) {
@@ -143,7 +145,7 @@ class UpdateService extends EventEmitter {
       return { installed: false, message: 'Nenhuma atualização foi baixada ainda.' };
     }
 
-    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    setImmediate(() => this.getAutoUpdater().quitAndInstall(false, true));
     return {
       installed: true,
       message: 'O KitsuneDesk será reiniciado para concluir a atualização.'
@@ -152,6 +154,13 @@ class UpdateService extends EventEmitter {
 
   status() {
     return JSON.parse(JSON.stringify(this.lastState));
+  }
+
+  getAutoUpdater() {
+    if (!this.autoUpdater) {
+      this.autoUpdater = require('electron-updater').autoUpdater;
+    }
+    return this.autoUpdater;
   }
 
   showSystemNotification({ key, title, body }) {

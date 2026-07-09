@@ -8,6 +8,7 @@ function registerLibraryHandlers(ipcMain, libraryController) {
   handle('library:dashboard', () => libraryController.dashboard());
   handle('library:continue', () => libraryController.continueWatching());
   handle('history:list', (payload) => libraryController.history(payload));
+  handle('history:export-csv', (payload) => libraryController.exportHistoryCsv(payload));
   handle('history:remove', (payload) => libraryController.removeHistory(payload));
   handle('history:clear', () => libraryController.clearHistory());
   handle('history:mark-completed', (payload) => libraryController.markCompleted(payload));

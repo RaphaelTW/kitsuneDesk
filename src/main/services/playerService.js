@@ -78,6 +78,8 @@ class PlayerService extends EventEmitter {
     const episodeIndex = Number.isInteger(payload?.episodeIndex)
       ? payload.episodeIndex
       : episodes.findIndex((item) => String(item?.number) === String(payload?.episode?.number));
+    const queue = buildPlaybackQueue(episodes, Math.max(0, episodeIndex), payload?.queue);
+    const queueIndex = findEpisodeIndexInList(queue, payload.episode);
     const startPosition = settings.rememberPosition
       ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
       : 0;
@@ -102,8 +104,10 @@ class PlayerService extends EventEmitter {
       providerId: 'goanime-gui',
       anime: payload.anime,
       episode: payload.episode,
-      episodes,
-      episodeIndex,
+      episodes: queue,
+      episodeIndex: queueIndex,
+      queue,
+      queueIndex,
       language: payload?.language === 'dub' ? 'dub' : 'sub',
       quality: String(payload?.quality || settings.defaultQuality || 'auto'),
       source: normalizedResult.source || payload?.anime?.source || '',
@@ -387,6 +391,50 @@ class PlayerService extends EventEmitter {
     };
   }
 
+  queue() {
+    const context = this.currentPlayback;
+    if (!context) return { active: false, items: [], currentIndex: -1 };
+    return {
+      active: true,
+      currentIndex: Number.isInteger(context.queueIndex) ? context.queueIndex : 0,
+      items: Array.isArray(context.queue) ? context.queue : []
+    };
+  }
+
+  reorderQueue(payload) {
+    const context = this.currentPlayback;
+    if (!context || !Array.isArray(context.queue) || context.queue.length === 0) {
+      throw new AppError('PLAYBACK_QUEUE_UNAVAILABLE', 'Nao existe fila ativa para reordenar.', {
+        status: 409
+      });
+    }
+
+    const fromIndex = Number(payload?.fromIndex);
+    const toIndex = Number(payload?.toIndex);
+    if (
+      !Number.isInteger(fromIndex) ||
+      !Number.isInteger(toIndex) ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= context.queue.length ||
+      toIndex >= context.queue.length
+    ) {
+      throw new AppError('PLAYBACK_QUEUE_INVALID', 'A posicao informada para a fila e invalida.', {
+        status: 400
+      });
+    }
+
+    const queue = [...context.queue];
+    const [item] = queue.splice(fromIndex, 1);
+    queue.splice(toIndex, 0, item);
+    context.queue = queue;
+    context.episodes = queue;
+    context.queueIndex = findEpisodeIndexInList(queue, context.episode);
+    context.episodeIndex = context.queueIndex;
+    this.emit('state', { ...this.goAnimeGui.getPlayerState(), context });
+    return this.queue();
+  }
+
   next() {
     return this.playAdjacent(1);
   }
@@ -404,7 +452,8 @@ class PlayerService extends EventEmitter {
 
   async playAdjacent(direction) {
     const context = this.currentPlayback;
-    if (!context || !Array.isArray(context.episodes) || context.episodes.length === 0) {
+    const queue = Array.isArray(context?.queue) ? context.queue : context?.episodes;
+    if (!context || !Array.isArray(queue) || queue.length === 0) {
       throw new AppError(
         'EPISODE_NAVIGATION_UNAVAILABLE',
         'A lista de episódios não está disponível para esta reprodução.',
@@ -412,9 +461,13 @@ class PlayerService extends EventEmitter {
       );
     }
 
-    const currentIndex = Number.isInteger(context.episodeIndex) ? context.episodeIndex : 0;
+    const currentIndex = Number.isInteger(context.queueIndex)
+      ? context.queueIndex
+      : Number.isInteger(context.episodeIndex)
+        ? context.episodeIndex
+        : 0;
     const targetIndex = currentIndex + direction;
-    if (targetIndex < 0 || targetIndex >= context.episodes.length) {
+    if (targetIndex < 0 || targetIndex >= queue.length) {
       return {
         available: false,
         message:
@@ -426,9 +479,10 @@ class PlayerService extends EventEmitter {
     await this.goAnimeGui.stop();
     return this.playEpisode({
       anime: context.anime,
-      episode: context.episodes[targetIndex],
-      episodes: context.episodes,
+      episode: queue[targetIndex],
+      episodes: queue,
       episodeIndex: targetIndex,
+      queue,
       language: context.language,
       quality: context.quality,
       resumePosition: 0
@@ -554,6 +608,35 @@ class PlayerService extends EventEmitter {
       // A reprodução não deve ser interrompida por uma falha de histórico.
     }
   }
+}
+
+function buildPlaybackQueue(episodes, episodeIndex, requestedQueue) {
+  const baseQueue =
+    Array.isArray(requestedQueue) && requestedQueue.length > 0 ? requestedQueue : episodes;
+  if (!Array.isArray(baseQueue) || baseQueue.length === 0) return [];
+  const queue = baseQueue.filter(Boolean);
+  const currentEpisode = Array.isArray(episodes) ? episodes[episodeIndex] : null;
+  const currentIndex = findEpisodeIndexInList(queue, currentEpisode);
+  if (currentIndex <= 0) return queue;
+  const [current] = queue.splice(currentIndex, 1);
+  queue.splice(episodeIndex, 0, current);
+  return queue;
+}
+
+function findEpisodeIndexInList(episodes, episode) {
+  if (!Array.isArray(episodes) || episodes.length === 0) return 0;
+  const index = episodes.findIndex((candidate) => sameEpisode(candidate, episode));
+  return index >= 0 ? index : 0;
+}
+
+function sameEpisode(left, right) {
+  if (!left || !right) return false;
+  const leftNumber = String(left.num ?? left.number ?? '').trim();
+  const rightNumber = String(right.num ?? right.number ?? '').trim();
+  if (leftNumber && rightNumber && leftNumber === rightNumber) return true;
+  const leftTitle = String(left.title || '').trim();
+  const rightTitle = String(right.title || '').trim();
+  return Boolean(leftTitle && rightTitle && leftTitle === rightTitle);
 }
 
 /**
@@ -757,7 +840,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.8.1', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.9.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

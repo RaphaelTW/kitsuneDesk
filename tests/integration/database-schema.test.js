@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { runMigrations } = require('../../src/main/database/migrations');
+const { seedInitialData } = require('../../src/main/database/seed');
 
 let Database = null;
 try {
@@ -25,10 +26,17 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
     'favorites',
     'watchlist',
     'episode_reports',
-    'login_security'
+    'login_security',
+    'failure_telemetry'
   ]) {
     assert.ok(tables.includes(table), `Tabela ausente: ${table}`);
   }
+  const userColumns = database
+    .prepare('PRAGMA table_info(users)')
+    .all()
+    .map((row) => row.name);
+  assert.ok(userColumns.includes('avatar_seed'));
+  assert.ok(userColumns.includes('avatar_style'));
   const settingsColumns = database
     .prepare('PRAGMA table_info(settings)')
     .all()
@@ -36,9 +44,15 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
   assert.ok(settingsColumns.includes('default_provider'));
   assert.ok(settingsColumns.includes('parental_pin_hash'));
   assert.ok(settingsColumns.includes('player_mode'));
+  assert.ok(settingsColumns.includes('local_telemetry_enabled'));
   const defaultMode = database
     .prepare("SELECT dflt_value FROM pragma_table_info('settings') WHERE name = 'player_mode'")
     .get();
   assert.equal(String(defaultMode.dflt_value).replaceAll("'", ''), 'external');
+  seedInitialData(database);
+  const admin = database.prepare("SELECT * FROM users WHERE username = 'admin'").get();
+  assert.equal(admin.role, 'ADMIN');
+  assert.equal(admin.must_change_password, 1);
+  assert.equal(admin.avatar_style, 'thumbs');
   database.close();
 });

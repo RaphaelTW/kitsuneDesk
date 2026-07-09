@@ -6,15 +6,24 @@ const { getAppPaths } = require('../utils/paths');
 const AppError = require('../utils/AppError');
 
 class DiagnosticsService {
-  constructor({ app, database, playerService }) {
+  constructor({
+    app,
+    database,
+    playerService,
+    telemetryRepository = null,
+    sessionRepository = null
+  }) {
     this.app = app;
     this.database = database;
     this.playerService = playerService;
+    this.telemetryRepository = telemetryRepository;
+    this.sessionRepository = sessionRepository;
   }
 
   run() {
     const paths = getAppPaths(this.app);
     const player = this.playerService.status();
+    const userId = this.currentUserId();
     return {
       checkedAt: new Date().toISOString(),
       app: {
@@ -44,8 +53,28 @@ class DiagnosticsService {
       storage: {
         freeMemory: os.freemem(),
         totalMemory: os.totalmem()
+      },
+      telemetry: {
+        enabled: this.telemetryRepository?.enabledForUser(userId) ?? false,
+        recentFailures: this.telemetryRepository?.list(userId, 10) ?? []
       }
     };
+  }
+
+  recordFailure(payload) {
+    const userId = this.currentUserId();
+    return (
+      this.telemetryRepository?.record(userId, {
+        scope: payload?.scope || 'RENDERER',
+        event: payload?.event || 'ERROR',
+        message: payload?.message || '',
+        metadata: payload?.metadata || {}
+      }) ?? { recorded: false, reason: 'unavailable' }
+    );
+  }
+
+  clearFailureTelemetry() {
+    return this.telemetryRepository?.clear(this.currentUserId()) ?? { cleared: false };
   }
 
   async repairNative(webContents) {
@@ -128,6 +157,10 @@ class DiagnosticsService {
     const report = this.run();
     fs.writeFileSync(filePath, JSON.stringify(report, null, 2), 'utf8');
     return { exported: true, path: filePath };
+  }
+
+  currentUserId() {
+    return Number(this.sessionRepository?.getCurrent()?.user?.id || 0);
   }
 
   runProcess(command, args, cwd, webContents, component) {

@@ -6,6 +6,7 @@ const LibraryController = require('./controllers/libraryController');
 const PlayerController = require('./controllers/playerController');
 const SettingsController = require('./controllers/settingsController');
 const { closeDatabase } = require('./database/connection');
+const { configureFailureTelemetry } = require('./ipc/handleRequest');
 const { registerAuthHandlers } = require('./ipc/registerAuthHandlers');
 const { registerDiagnosticsHandlers } = require('./ipc/registerDiagnosticsHandlers');
 const { registerLibraryHandlers } = require('./ipc/registerLibraryHandlers');
@@ -16,6 +17,7 @@ const SecurityRepository = require('./repositories/securityRepository');
 const SessionRepository = require('./repositories/sessionRepository');
 const SettingsRepository = require('./repositories/settingsRepository');
 const UserRepository = require('./repositories/userRepository');
+const TelemetryRepository = require('./repositories/telemetryRepository');
 const AuthService = require('./services/authService');
 const DiagnosticsService = require('./services/diagnosticsService');
 const { initializeFirstRun } = require('./services/firstRunService');
@@ -53,6 +55,7 @@ function registerDomainHandlers(database) {
   const securityRepository = new SecurityRepository(database);
   const settingsRepository = new SettingsRepository(database);
   const libraryRepository = new LibraryRepository(database);
+  const telemetryRepository = new TelemetryRepository(database);
 
   const settingsService = new SettingsService({ settingsRepository, sessionRepository });
   const libraryService = new LibraryService({ libraryRepository, sessionRepository });
@@ -63,9 +66,41 @@ function registerDomainHandlers(database) {
     settingsRepository
   });
   const playerService = new PlayerService({ settingsService, libraryService });
-  const diagnosticsService = new DiagnosticsService({ app, database, playerService });
+  const diagnosticsService = new DiagnosticsService({
+    app,
+    database,
+    playerService,
+    telemetryRepository,
+    sessionRepository
+  });
   updateService = new UpdateService({ app, focusApp: focusExistingWindow });
   updateService.configure();
+
+  const recordFailure = (failure) => {
+    try {
+      const userId = Number(sessionRepository.getCurrent()?.user?.id || 0);
+      telemetryRepository.record(userId, failure);
+    } catch {
+      // Falhas de telemetria local nao podem derrubar o app.
+    }
+  };
+  configureFailureTelemetry(recordFailure);
+  process.on('uncaughtExceptionMonitor', (error) => {
+    recordFailure({
+      scope: 'MAIN_PROCESS',
+      event: 'UNCAUGHT_EXCEPTION',
+      message: error?.message || String(error),
+      metadata: { stack: error?.stack }
+    });
+  });
+  process.on('unhandledRejection', (reason) => {
+    recordFailure({
+      scope: 'MAIN_PROCESS',
+      event: 'UNHANDLED_REJECTION',
+      message: reason?.message || String(reason),
+      metadata: { stack: reason?.stack }
+    });
+  });
 
   const authController = new AuthController(authService);
   const settingsController = new SettingsController(settingsService);

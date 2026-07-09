@@ -18,6 +18,40 @@ button {
   font: inherit;
 }
 
+.sr-only {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  background: var(--app-cyan);
+  border-radius: 8px;
+  color: #071016;
+  font-weight: 800;
+  left: 1rem;
+  padding: 0.55rem 0.8rem;
+  position: fixed;
+  top: 1rem;
+  transform: translateY(-160%);
+  transition: transform 140ms ease;
+  z-index: 200;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+:focus-visible {
+  outline: 3px solid var(--app-cyan);
+  outline-offset: 3px;
+}
+
 .app-frame {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
@@ -95,10 +129,15 @@ button {
   width: 20px;
 }
 
-.nav-item:hover,
-.nav-item.is-active {
+.nav-item:hover {
   background: color-mix(in srgb, var(--app-purple) 15%, var(--app-surface-soft));
   border-color: color-mix(in srgb, var(--app-purple) 45%, var(--app-border));
+  color: var(--app-text);
+}
+
+.nav-item.is-active {
+  background: linear-gradient(135deg, rgba(39, 184, 255, 0.24), rgba(139, 92, 246, 0.34));
+  border-color: color-mix(in srgb, var(--app-cyan) 50%, var(--app-purple));
   color: var(--app-text);
 }
 
@@ -131,6 +170,8 @@ button {
   font-weight: 800;
   height: 38px;
   justify-content: center;
+  object-fit: cover;
+  width: 38px;
 }
 
 .profile-chip strong,
@@ -179,6 +220,7 @@ button {
 .topbar-actions {
   display: flex;
   gap: 0.6rem;
+  margin-left: auto;
 }
 
 .status-action {
@@ -722,6 +764,13 @@ button {
   padding: 0.8rem;
 }
 
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
 .history-toolbar .search-input-wrap {
   flex: 1;
   max-width: 560px;
@@ -966,6 +1015,55 @@ button {
 .user-card-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.avatar-editor {
+  align-items: center;
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  margin-bottom: 1rem;
+}
+
+.avatar-preview,
+.user-card .profile-avatar {
+  flex-basis: 52px;
+  height: 52px;
+  width: 52px;
+}
+
+.playback-queue-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.queue-item {
+  align-items: center;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.7rem;
+}
+
+.queue-item.is-current {
+  border-color: var(--app-cyan);
+}
+
+.queue-item strong,
+.queue-item small {
+  display: block;
+}
+
+.queue-item small {
+  color: var(--app-muted);
+}
+
+.queue-actions {
+  display: flex;
+  gap: 0.35rem;
 }
 
 .stable-player-notice {
@@ -1289,6 +1387,12 @@ input[type='range'] {
     grid-template-columns: minmax(170px, 1fr) minmax(260px, 1.5fr);
   }
   .mini-player-actions {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+  .mini-player-actions .player-source,
+  .mini-player-actions > i,
+  .mini-player-actions input[type='range'] {
     display: none;
   }
 }
@@ -1489,7 +1593,7 @@ body[data-theme='light'] .update-release-notes pre {
   }
 }
 
-/* v0.8.1 Stable — identidade neon azul/roxo e player MPV externo */
+/* v0.9.0 Stable - identidade neon azul/roxo e player MPV externo */
 :root {
   --neon-blue: #27b8ff;
   --neon-violet: #8b5cf6;

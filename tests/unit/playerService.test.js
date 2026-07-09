@@ -90,3 +90,44 @@ test('configuração antiga de player integrado não altera o modo estável exte
   assert.equal(result.embedded, false);
   assert.equal(result.embeddedFallback, false);
 });
+
+test('fila de reproducao pode ser reordenada', async () => {
+  const service = new PlayerService({
+    settingsService: {
+      get: () => ({
+        playerVolume: 80,
+        playerMode: 'external',
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      })
+    },
+    libraryService: { savePlayback: async () => {} }
+  });
+  service.status = () => ({
+    providers: { goAnime: { ready: true } },
+    dependencies: { mpv: { path: 'C:/mpv.exe' } }
+  });
+  service.goAnimeGui = {
+    playEpisode: async () => ({ source: 'AllAnime', quality: 'best', mode: 'sub', pid: 100 }),
+    getPlayerState: () => ({ active: true, position: 0, duration: 0 })
+  };
+
+  const episodes = [
+    { number: '1', num: 1, title: 'Um' },
+    { number: '2', num: 2, title: 'Dois' },
+    { number: '3', num: 3, title: 'Tres' }
+  ];
+  await service.playEpisode({
+    anime: { name: 'Teste', url: 'abc123', source: 'AllAnime' },
+    episode: episodes[0],
+    episodes,
+    episodeIndex: 0
+  });
+
+  const result = service.reorderQueue({ fromIndex: 2, toIndex: 1 });
+
+  assert.deepEqual(
+    result.items.map((episode) => episode.num),
+    [1, 3, 2]
+  );
+});

@@ -20,6 +20,8 @@ function createFixture() {
         must_change_password: 0,
         active: 1,
         profile_color: input.profileColor,
+        avatar_seed: input.avatarSeed,
+        avatar_style: input.avatarStyle,
         parental_level: input.parentalLevel
       };
       users.push(user);
@@ -59,36 +61,37 @@ function createFixture() {
   };
 }
 
-test('primeira execução exige criação de administrador sem senha padrão', async () => {
+test('criacao inicial de administrador exige senha forte', async () => {
   const fixture = createFixture();
   assert.equal(fixture.service.setupStatus().needsSetup, true);
   const result = await fixture.service.createInitialAdmin({
     name: 'Raphael',
     username: 'raphael',
-    password: 'Senha123'
+    password: 'Senha123!'
   });
   assert.equal(result.user.role, 'ADMIN');
+  assert.equal(result.user.avatarStyle, 'thumbs');
   assert.equal(fixture.service.setupStatus().needsSetup, false);
 });
 
-test('bloqueio de login é persistido após cinco falhas', async () => {
+test('bloqueio de login e persistido apos cinco falhas', async () => {
   const fixture = createFixture();
   await fixture.service.createInitialAdmin({
     name: 'Raphael',
     username: 'raphael',
-    password: 'Senha123'
+    password: 'Senha123!'
   });
   fixture.service.logout();
 
   for (let index = 0; index < 5; index += 1) {
     await assert.rejects(
       () => fixture.service.login({ username: 'raphael', password: 'Errada999' }),
-      /Usuário ou senha inválidos/
+      /Usuario ou senha invalidos/
     );
   }
   assert.ok(fixture.security.get('raphael').locked_until);
   await assert.rejects(
-    () => fixture.service.login({ username: 'raphael', password: 'Senha123' }),
-    /Muitas tentativas inválidas/
+    () => fixture.service.login({ username: 'raphael', password: 'Senha123!' }),
+    /Muitas tentativas invalidas/
   );
 });

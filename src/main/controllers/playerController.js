@@ -75,6 +75,14 @@ class PlayerController {
     return this.playerService.playbackState();
   }
 
+  queue() {
+    return this.playerService.queue();
+  }
+
+  reorderQueue(payload) {
+    return this.playerService.reorderQueue(payload);
+  }
+
   providerHealth() {
     return this.playerService.providerHealth();
   }

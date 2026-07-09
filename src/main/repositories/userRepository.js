@@ -18,29 +18,40 @@ class UserRepository {
   list() {
     return this.database.all(
       `SELECT id, username, name, role, must_change_password, active,
-              profile_color, parental_level, created_at, updated_at
+              profile_color, avatar_seed, avatar_style, parental_level,
+              created_at, updated_at
        FROM users
        ORDER BY active DESC, name COLLATE NOCASE ASC`
     );
   }
 
-  create({ username, passwordHash, name, role, profileColor, parentalLevel }) {
+  create({
+    username,
+    passwordHash,
+    name,
+    role,
+    profileColor,
+    avatarSeed,
+    avatarStyle,
+    parentalLevel
+  }) {
     return this.database.run(
       `INSERT INTO users (
          username, password_hash, name, role, must_change_password,
-         active, profile_color, parental_level
-       ) VALUES (?, ?, ?, ?, 0, 1, ?, ?)`,
-      [username, passwordHash, name, role, profileColor, parentalLevel]
+         active, profile_color, avatar_seed, avatar_style, parental_level
+       ) VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, ?)`,
+      [username, passwordHash, name, role, profileColor, avatarSeed, avatarStyle, parentalLevel]
     );
   }
 
-  update(userId, { name, role, active, profileColor, parentalLevel }) {
+  update(userId, { name, role, active, profileColor, avatarSeed, avatarStyle, parentalLevel }) {
     return this.database.run(
       `UPDATE users
-       SET name = ?, role = ?, active = ?, profile_color = ?, parental_level = ?,
+       SET name = ?, role = ?, active = ?, profile_color = ?,
+           avatar_seed = ?, avatar_style = ?, parental_level = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [name, role, active ? 1 : 0, profileColor, parentalLevel, userId]
+      [name, role, active ? 1 : 0, profileColor, avatarSeed, avatarStyle, parentalLevel, userId]
     );
   }
 
