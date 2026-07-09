@@ -1,41 +1,38 @@
 class PlayerController {
-  /**
-   * @param {import('../services/playerService')} playerService
-   */
   constructor(playerService) {
     this.playerService = playerService;
   }
 
-  /** @param {unknown} payload */
   searchAnimes(payload) {
     return this.playerService.searchAnimes(payload);
   }
 
-  /** @param {unknown} payload */
   listEpisodes(payload) {
     return this.playerService.listEpisodes(payload);
   }
 
-  /** @param {unknown} payload */
   playEpisode(payload) {
     return this.playerService.playEpisode(payload);
   }
 
-  /**
-   * Abre apenas provedores legados que ainda usam terminal.
-   * @param {unknown} payload
-   */
   openLegacy(payload) {
     return this.playerService.play(payload);
   }
 
-  /** Compatibilidade com a API anterior. @param {unknown} payload */
   play(payload) {
     return this.openLegacy(payload);
   }
 
-  installDependencies(payload) {
-    return this.playerService.installDependencies(payload);
+  openTool(payload) {
+    return this.playerService.openTool(payload);
+  }
+
+  installDependencies(payload, webContents) {
+    return this.playerService.installDependencies(payload, webContents);
+  }
+
+  cancelInstallation(payload) {
+    return this.playerService.cancelInstallation(payload);
   }
 
   pause() {
@@ -44,6 +41,18 @@ class PlayerController {
 
   resume() {
     return this.playerService.resume();
+  }
+
+  togglePause() {
+    return this.playerService.togglePause();
+  }
+
+  seek(payload) {
+    return this.playerService.seek(payload);
+  }
+
+  setVolume(payload) {
+    return this.playerService.setVolume(payload);
   }
 
   next() {
@@ -60,6 +69,18 @@ class PlayerController {
 
   status() {
     return this.playerService.status();
+  }
+
+  playbackState() {
+    return this.playerService.playbackState();
+  }
+
+  providerHealth() {
+    return this.playerService.providerHealth();
+  }
+
+  on(eventName, listener) {
+    this.playerService.on(eventName, listener);
   }
 }
 

@@ -1,14 +1,14 @@
 {
   "name": "kitsunedesk",
-  "version": "0.4.0",
-  "description": "Aplicação desktop local com interface gráfica para pesquisar animes, listar episódios e reproduzir pelo GoAnime e MPV.",
+  "version": "0.6.1",
+  "description": "Aplicação desktop completa para assistir e acompanhar animes, com biblioteca por usuário, progresso, favoritos, controle do MPV, provedores, diagnóstico, segurança e atualização automática.",
   "main": "src/main/main.js",
   "author": "Raphael Laurentino da Silva",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev": "npm run vendor && node scripts/start-electron.js",
-    "start": "node scripts/start-electron.js",
+    "dev": "npm run vendor && node scripts/prepare-dev.js && node scripts/start-electron.js",
+    "start": "node scripts/prepare-dev.js && node scripts/start-electron.js",
     "vendor": "node scripts/copy-vendor.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -16,13 +16,19 @@
     "format:check": "prettier --check .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
-    "postinstall": "npm run vendor"
+    "postinstall": "npm run vendor",
+    "rebuild:native": "electron-builder install-app-deps",
+    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "release:win": "electron-builder --win --publish always"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.11.1",
     "bootstrap": "^5.3.7",
-    "bootstrap-icons": "^1.13.1"
+    "bootstrap-icons": "^1.13.1",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

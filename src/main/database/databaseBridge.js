@@ -13,50 +13,55 @@ class BridgeDatabaseClient {
   }
 
   initialize() {
-    return this.run('initialize');
+    return this.call('initialize');
   }
 
-  /**
-   * @param {string} username
-   * @returns {object | undefined}
-   */
+  get(sql, params = []) {
+    return this.call('get', { sql, params });
+  }
+
+  all(sql, params = []) {
+    return this.call('all', { sql, params });
+  }
+
+  run(sql, params = []) {
+    return this.call('run', { sql, params });
+  }
+
+  exec(sql) {
+    return this.call('exec', { sql });
+  }
+
   findUserByUsername(username) {
-    return this.run('findUserByUsername', { username });
+    return this.get('SELECT * FROM users WHERE username = ?', [username]);
   }
 
-  /**
-   * @param {number} userId
-   * @returns {object | undefined}
-   */
   findUserById(userId) {
-    return this.run('findUserById', { userId });
+    return this.get('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
-  /**
-   * @param {number} userId
-   * @param {string} passwordHash
-   */
   updateUserPassword(userId, passwordHash) {
-    this.run('updateUserPassword', { userId, passwordHash });
+    return this.run(
+      `UPDATE users
+       SET password_hash = ?, must_change_password = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [passwordHash, userId]
+    );
   }
 
   close() {
-    // O worker abre e fecha a conexao por chamada.
+    // O worker abre e fecha a conexão por chamada.
   }
 
-  /**
-   * @param {string} action
-   * @param {Record<string, unknown>} [payload]
-   * @returns {unknown}
-   */
-  run(action, payload = {}) {
+  call(action, payload = {}) {
     const nodeExecutable = process.env.KITSUNEDESK_NODE_PATH || 'node';
     const result = spawnSync(
       nodeExecutable,
       [this.workerPath, action, this.databasePath, JSON.stringify(payload)],
       {
         encoding: 'utf8',
-        windowsHide: true
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024
       }
     );
 

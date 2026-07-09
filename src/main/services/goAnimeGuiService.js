@@ -1,10 +1,12 @@
 const fs = require('fs');
+const net = require('net');
 const os = require('os');
 const path = require('path');
+const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const AppError = require('../utils/AppError');
 
-const BRIDGE_VERSION = '1.0.0';
+const BRIDGE_VERSION = '1.4.0';
 const TOOLS_ROOT = path.join(
   process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
   'KitsuneDesk',
@@ -13,9 +15,17 @@ const TOOLS_ROOT = path.join(
 const BRIDGE_DIRECTORY = path.join(TOOLS_ROOT, 'goanime-bridge');
 const BRIDGE_PATH = path.join(BRIDGE_DIRECTORY, 'goanime-bridge.exe');
 
-class GoAnimeGuiService {
+class GoAnimeGuiService extends EventEmitter {
   constructor() {
+    super();
     this.mpvProcess = null;
+    this.playbackBridgeProcess = null;
+    this.playbackMpvPid = null;
+    this.ipcPath = null;
+    this.pollTimer = null;
+    this.consecutivePollErrors = 0;
+    this.playerState = createIdleState();
+    this.stopRequested = false;
   }
 
   status() {
@@ -42,11 +52,16 @@ class GoAnimeGuiService {
     });
     const output = `${probe.stdout ?? ''}${probe.stderr ?? ''}`.trim();
     const versionMatch = output.match(/([0-9]+\.[0-9]+\.[0-9]+)/);
+    const version = versionMatch?.[1] ?? null;
+    const executableHealthy = probe.status === 0;
+    const versionCompatible = executableHealthy && version === BRIDGE_VERSION;
 
     return {
-      available: probe.status === 0,
+      available: versionCompatible,
+      installed: executableHealthy,
+      needsUpdate: executableHealthy && !versionCompatible,
       path: bridgePath,
-      version: versionMatch?.[1] ?? null,
+      version,
       expectedVersion: BRIDGE_VERSION,
       output
     };
@@ -68,7 +83,6 @@ class GoAnimeGuiService {
   async episodes(payload) {
     const anime = normalizeAnime(payload?.anime);
     const language = payload?.language === 'dub' ? 'dub' : 'sub';
-
     return this.runBridge('episodes', { anime, language }, 45000);
   }
 
@@ -77,18 +91,43 @@ class GoAnimeGuiService {
     const episode = normalizeEpisode(payload?.episode);
     const language = payload?.language === 'dub' ? 'dub' : 'sub';
     const quality = normalizeQuality(payload?.quality);
+    const startPosition = Math.max(0, Number(payload?.startPosition ?? 0));
+    const volume = clamp(Number(payload?.volume ?? 80), 0, 100, 80);
 
     if (!mpvPath || !fs.existsSync(mpvPath)) {
       throw new AppError(
         'PLAYER_NOT_FOUND',
-        'MPV nao foi encontrado. Reinstale o GoAnime mantendo a opcao de incluir o MPV.',
+        'MPV não foi encontrado. Reinstale o GoAnime mantendo a opção de incluir o MPV.',
         { status: 424 }
       );
     }
 
-    const stream = await this.runBridge('stream', { anime, episode, language, quality }, 60000);
+    this.stopRequested = false;
+    const ipcPath = createMpvIpcPath();
+    const playback = await this.runBridgePlayback(
+      { anime, episode, language, quality, mpvPath, ipcPath, startPosition, volume },
+      90000
+    );
 
-    this.launchMpv({ mpvPath, stream, anime, episode });
+    this.ipcPath = playback.ipcPath || ipcPath;
+    this.playerState = {
+      ...createIdleState(),
+      active: true,
+      paused: false,
+      position: startPosition,
+      volume,
+      animeTitle: anime.name,
+      episodeNumber: episode.num || parseFloat(episode.number) || 1,
+      episodeTitle: episode.title,
+      source: playback.source || anime.source,
+      quality: playback.quality || quality,
+      language: playback.mode || language,
+      pid: playback.pid,
+      ipcPath: this.ipcPath,
+      fallbackUsed: Boolean(playback.fallbackUsed)
+    };
+    this.emitState();
+    this.startPolling();
 
     return {
       launched: true,
@@ -97,28 +136,394 @@ class GoAnimeGuiService {
       player: 'MPV',
       anime: anime.name,
       episode: episode.number,
-      source: anime.source,
-      quality
+      source: playback.source || anime.source,
+      requestedSource: playback.requestedSource || anime.source,
+      quality: playback.quality || quality,
+      requestedQuality: playback.requestedQuality || quality,
+      mode: playback.mode || language,
+      requestedMode: playback.requestedMode || language,
+      fallbackUsed: Boolean(playback.fallbackUsed),
+      pid: playback.pid,
+      ipcPath: this.ipcPath,
+      resumedAt: startPosition
     };
   }
 
-  stop() {
-    if (!this.mpvProcess || this.mpvProcess.killed) {
-      return { stopped: false, message: 'Nenhuma reproducao iniciada pelo KitsuneDesk.' };
+  getPlayerState() {
+    return { ...this.playerState };
+  }
+
+  async pause() {
+    await this.setProperty('pause', true);
+    return this.refreshState();
+  }
+
+  async resume() {
+    await this.setProperty('pause', false);
+    return this.refreshState();
+  }
+
+  async togglePause() {
+    await this.command(['cycle', 'pause']);
+    return this.refreshState();
+  }
+
+  async seek(value, mode = 'relative') {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds)) {
+      throw new AppError('INVALID_SEEK', 'Posição de reprodução inválida.', { status: 400 });
+    }
+    await this.command(['seek', seconds, mode === 'absolute' ? 'absolute' : 'relative']);
+    return this.refreshState();
+  }
+
+  async setVolume(value) {
+    const volume = clamp(Number(value), 0, 100, 80);
+    await this.setProperty('volume', volume);
+    return this.refreshState();
+  }
+
+  async stop() {
+    let stopped = false;
+    this.stopRequested = true;
+    this.stopPolling();
+
+    const bridgeProcess = this.playbackBridgeProcess;
+    const mpvPid = this.playbackMpvPid;
+    const mpvProcess = this.mpvProcess;
+
+    if (this.ipcPath) {
+      try {
+        await this.command(['quit']);
+        stopped = true;
+      } catch {
+        // O processo pode já ter encerrado.
+      }
     }
 
-    this.mpvProcess.kill();
+    // Desvincula os processos antes de encerrá-los para que eventos tardios de
+    // "close" não sejam interpretados como fim natural nem acionem auto-play.
+    this.playbackBridgeProcess = null;
+    this.playbackMpvPid = null;
     this.mpvProcess = null;
-    return { stopped: true };
+
+    if (mpvPid && process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/PID', String(mpvPid), '/T', '/F'], {
+        windowsHide: true,
+        timeout: 10000
+      });
+      stopped = true;
+    }
+
+    if (bridgeProcess && !bridgeProcess.killed) {
+      bridgeProcess.kill();
+      stopped = true;
+    }
+
+    if (mpvProcess && !mpvProcess.killed) {
+      mpvProcess.kill();
+      stopped = true;
+    }
+
+    this.ipcPath = null;
+    this.playerState = createIdleState();
+    this.emitState();
+    this.stopRequested = false;
+
+    return stopped
+      ? { stopped: true }
+      : { stopped: false, message: 'Nenhuma reprodução iniciada pelo KitsuneDesk.' };
+  }
+
+  startPolling() {
+    this.stopPolling();
+    this.consecutivePollErrors = 0;
+    const tick = async () => {
+      try {
+        await this.refreshState();
+        this.consecutivePollErrors = 0;
+      } catch {
+        this.consecutivePollErrors += 1;
+        if (this.consecutivePollErrors >= 4) {
+          this.stopPolling();
+          const previous = this.playerState;
+          this.playerState = { ...previous, active: false, ended: true };
+          this.emitState();
+          this.emit('ended', { ...this.playerState });
+        }
+      }
+    };
+    this.pollTimer = setInterval(tick, 1000);
+    setTimeout(tick, 350);
+  }
+
+  stopPolling() {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = null;
+  }
+
+  async refreshState() {
+    if (!this.ipcPath) return this.getPlayerState();
+    const result = await this.sendMpvCommands([
+      ['get_property', 'pause'],
+      ['get_property', 'time-pos'],
+      ['get_property', 'duration'],
+      ['get_property', 'volume'],
+      ['get_property', 'media-title'],
+      ['get_property', 'eof-reached']
+    ]);
+
+    const [paused, position, duration, volume, mediaTitle, eofReached] = result;
+    const ended = Boolean(eofReached);
+    this.playerState = {
+      ...this.playerState,
+      active: !ended,
+      paused: Boolean(paused),
+      position: Number(position ?? this.playerState.position ?? 0),
+      duration: Number(duration ?? this.playerState.duration ?? 0),
+      volume: Number(volume ?? this.playerState.volume ?? 80),
+      mediaTitle: String(mediaTitle ?? this.playerState.mediaTitle ?? ''),
+      ended,
+      updatedAt: new Date().toISOString()
+    };
+    this.emitState();
+    if (ended) {
+      this.stopPolling();
+      this.emit('ended', { ...this.playerState });
+    }
+    return this.getPlayerState();
+  }
+
+  command(command) {
+    return this.sendMpvCommands([command]).then((result) => result[0]);
+  }
+
+  setProperty(property, value) {
+    return this.command(['set_property', property, value]);
+  }
+
+  sendMpvCommands(commands) {
+    if (!this.ipcPath) {
+      throw new AppError('PLAYER_NOT_ACTIVE', 'Nenhum episódio está sendo reproduzido.', {
+        status: 409
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const socket = net.createConnection(this.ipcPath);
+      let buffer = '';
+      const responses = new Map();
+      let settled = false;
+      const timer = setTimeout(() => finishError(new Error('Tempo limite do IPC do MPV.')), 2500);
+
+      const finishError = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.destroy();
+        reject(
+          error instanceof AppError
+            ? error
+            : new AppError('PLAYER_IPC_ERROR', 'Não foi possível controlar o MPV.', {
+                status: 502,
+                technicalMessage: error.message
+              })
+        );
+      };
+
+      const finishSuccess = () => {
+        if (settled || responses.size < commands.length) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.end();
+        const ordered = commands.map((_command, index) => responses.get(index + 1));
+        resolve(ordered);
+      };
+
+      socket.once('connect', () => {
+        commands.forEach((command, index) => {
+          socket.write(`${JSON.stringify({ command, request_id: index + 1 })}\n`);
+        });
+      });
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString('utf8');
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.request_id && parsed.error === 'success') {
+              responses.set(Number(parsed.request_id), parsed.data);
+            } else if (parsed.request_id && parsed.error && parsed.error !== 'success') {
+              finishError(new Error(`MPV: ${parsed.error}`));
+              return;
+            }
+          } catch {
+            // Eventos sem request_id são ignorados.
+          }
+        }
+        finishSuccess();
+      });
+      socket.once('error', finishError);
+      socket.once('close', () => {
+        if (!settled && responses.size < commands.length) {
+          finishError(new Error('Conexão IPC do MPV encerrada.'));
+        }
+      });
+    });
+  }
+
+  emitState() {
+    this.emit('state', { ...this.playerState });
+  }
+
+  async runBridgePlayback(payload, timeoutMs) {
+    const bridge = this.status();
+    if (!bridge.available || !bridge.path) {
+      throw new AppError(
+        'GOANIME_GUI_NOT_READY',
+        'A interface gráfica do GoAnime precisa ser ativada ou atualizada.',
+        { status: 424 }
+      );
+    }
+
+    if (this.playbackBridgeProcess && !this.playbackBridgeProcess.killed) {
+      await this.stop();
+      this.stopRequested = false;
+    }
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(bridge.path, ['play'], {
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      let stdoutBuffer = '';
+      let stderr = '';
+      let answered = false;
+
+      const timer = setTimeout(() => {
+        if (answered) return;
+        answered = true;
+        child.kill();
+        reject(
+          new AppError(
+            'SOURCE_TIMEOUT',
+            'O GoAnime demorou demais para preparar o vídeo. Tente outro resultado.',
+            { status: 504, technicalMessage: stderr }
+          )
+        );
+      }, timeoutMs);
+
+      const handleResponseLine = (line) => {
+        if (answered || !line.trim()) return;
+        let parsed;
+        try {
+          parsed = JSON.parse(line);
+        } catch {
+          return;
+        }
+
+        if (parsed.type === 'progress') {
+          this.emit('progress', {
+            stage: parsed.stage || 'source',
+            message: parsed.message || 'Consultando fontes...',
+            attempt: Number(parsed.attempt || 0),
+            total: Number(parsed.total || 0),
+            at: new Date().toISOString()
+          });
+          return;
+        }
+
+        answered = true;
+        clearTimeout(timer);
+
+        if (!parsed.ok) {
+          child.kill();
+          reject(
+            new AppError(
+              parsed.error?.code ?? 'GOANIME_ERROR',
+              parsed.error?.message ?? 'O GoAnime não conseguiu iniciar a reprodução.',
+              {
+                status: mapBridgeStatus(parsed.error?.code),
+                technicalMessage: parsed.error?.detail ?? stderr
+              }
+            )
+          );
+          return;
+        }
+
+        this.playbackBridgeProcess = child;
+        this.playbackMpvPid = Number(parsed.data?.pid ?? 0) || null;
+        resolve(parsed.data);
+      };
+
+      child.stdout.on('data', (chunk) => {
+        stdoutBuffer += chunk.toString('utf8');
+        const lines = stdoutBuffer.split(/\r?\n/);
+        stdoutBuffer = lines.pop() ?? '';
+        lines.forEach(handleResponseLine);
+      });
+
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString('utf8');
+        if (stderr.length > 16000) stderr = stderr.slice(-16000);
+      });
+
+      child.once('error', (error) => {
+        if (answered) return;
+        answered = true;
+        clearTimeout(timer);
+        reject(
+          new AppError('GOANIME_BRIDGE_ERROR', 'Não foi possível iniciar o motor do GoAnime.', {
+            status: 500,
+            technicalMessage: error.message
+          })
+        );
+      });
+
+      child.once('close', (code) => {
+        const wasCurrentPlayback = this.playbackBridgeProcess === child;
+        if (wasCurrentPlayback) {
+          this.playbackBridgeProcess = null;
+          this.playbackMpvPid = null;
+        }
+
+        if (answered) {
+          // Um bridge antigo pode encerrar depois que o próximo episódio já foi
+          // iniciado. Nesse caso ele não deve interromper o polling do novo MPV.
+          if (!wasCurrentPlayback || this.stopRequested) return;
+          this.stopPolling();
+          if (this.playerState.active) {
+            this.playerState = { ...this.playerState, active: false, ended: true };
+            this.emitState();
+            this.emit('ended', { ...this.playerState });
+          }
+          return;
+        }
+        if (stdoutBuffer.trim()) handleResponseLine(stdoutBuffer);
+        if (answered) return;
+
+        answered = true;
+        clearTimeout(timer);
+        reject(
+          new AppError('PLAYER_START_FAILED', 'O MPV encerrou antes de iniciar o episódio.', {
+            status: 502,
+            technicalMessage: stderr || `Bridge finalizado com código ${code ?? 'desconhecido'}.`
+          })
+        );
+      });
+
+      child.stdin.end(JSON.stringify(payload));
+    });
   }
 
   runBridge(command, payload, timeoutMs) {
     const bridge = this.status();
-
     if (!bridge.available || !bridge.path) {
       throw new AppError(
         'GOANIME_GUI_NOT_READY',
-        'A interface grafica do GoAnime ainda nao foi preparada. Clique em Ativar GoAnime GUI.',
+        'A interface gráfica do GoAnime ainda não foi preparada. Clique em instalar ou reparar.',
         { status: 424 }
       );
     }
@@ -158,7 +563,7 @@ class GoAnimeGuiService {
         reject(
           new AppError(
             'GOANIME_BRIDGE_ERROR',
-            'Nao foi possivel iniciar o motor grafico do GoAnime.',
+            'Não foi possível iniciar o motor gráfico do GoAnime.',
             {
               status: 500,
               technicalMessage: error.message
@@ -176,7 +581,7 @@ class GoAnimeGuiService {
           reject(
             new AppError(
               'GOANIME_BRIDGE_ERROR',
-              'O motor GoAnime retornou uma resposta invalida.',
+              'O motor GoAnime retornou uma resposta inválida.',
               {
                 status: 502,
                 technicalMessage: `${stdout}\n${stderr}`.trim()
@@ -190,7 +595,7 @@ class GoAnimeGuiService {
           reject(
             new AppError(
               parsed.error?.code ?? 'GOANIME_ERROR',
-              parsed.error?.message ?? 'O GoAnime nao conseguiu concluir esta operacao.',
+              parsed.error?.message ?? 'O GoAnime não conseguiu concluir esta operação.',
               {
                 status: mapBridgeStatus(parsed.error?.code),
                 technicalMessage: parsed.error?.detail ?? stderr
@@ -206,34 +611,35 @@ class GoAnimeGuiService {
       child.stdin.end(JSON.stringify(payload));
     });
   }
+}
 
-  launchMpv({ mpvPath, stream, anime, episode }) {
-    const args = [
-      '--force-window=yes',
-      '--hwdec=auto-safe',
-      '--keep-open=no',
-      '--save-position-on-quit',
-      `--title=KitsuneDesk - ${sanitizeTitle(anime.name)} - Episodio ${episode.number}`
-    ];
-
-    const metadata = stream?.metadata ?? {};
-    const referer =
-      metadata.referer ?? metadata.Referer ?? metadata.referrer ?? metadata.Referrer ?? null;
-
-    if (referer) {
-      args.push(`--http-header-fields=Referer: ${referer}`);
-    }
-
-    args.push(stream.url);
-
-    const child = spawn(mpvPath, args, {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: false
-    });
-    child.unref();
-    this.mpvProcess = child;
+function createMpvIpcPath() {
+  if (process.platform === 'win32') {
+    return `\\\\.\\pipe\\kitsunedesk-mpv-${process.pid}-${Date.now()}`;
   }
+  return path.join(os.tmpdir(), `kitsunedesk-mpv-${process.pid}-${Date.now()}.sock`);
+}
+
+function createIdleState() {
+  return {
+    active: false,
+    paused: false,
+    position: 0,
+    duration: 0,
+    volume: 80,
+    animeTitle: '',
+    episodeNumber: null,
+    episodeTitle: '',
+    source: '',
+    quality: '',
+    language: '',
+    mediaTitle: '',
+    fallbackUsed: false,
+    ended: false,
+    pid: null,
+    ipcPath: null,
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function parseBridgeResponse(stdout) {
@@ -272,7 +678,7 @@ function normalizeAnime(value) {
   };
 
   if (!normalized.url || !normalized.source) {
-    throw new AppError('INVALID_ANIME', 'O anime selecionado nao possui dados suficientes.', {
+    throw new AppError('INVALID_ANIME', 'O anime selecionado não possui dados suficientes.', {
       status: 400
     });
   }
@@ -295,7 +701,7 @@ function normalizeEpisode(value) {
   };
 
   if (!normalized.number) {
-    throw new AppError('INVALID_EPISODE', 'O episodio selecionado e invalido.', { status: 400 });
+    throw new AppError('INVALID_EPISODE', 'O episódio selecionado é inválido.', { status: 400 });
   }
 
   return normalized;
@@ -315,14 +721,13 @@ function mapBridgeStatus(code) {
   if (code === 'ANIME_NOT_FOUND' || code === 'EPISODES_NOT_FOUND') return 404;
   if (code === 'SOURCE_TIMEOUT') return 504;
   if (code === 'SOURCE_DNS_ERROR' || code === 'STREAM_UNAVAILABLE') return 502;
+  if (code === 'PLAYER_START_FAILED' || code === 'PLAYER_NOT_FOUND') return 502;
   if (code === 'SOURCE_UNSUPPORTED') return 422;
   return 500;
 }
 
-function sanitizeTitle(value) {
-  return String(value)
-    .replace(/[\r\n\t]+/g, ' ')
-    .slice(0, 120);
+function clamp(value, min, max, fallback) {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
 }
 
 module.exports = GoAnimeGuiService;
@@ -331,4 +736,11 @@ module.exports.constants = {
   BRIDGE_PATH,
   BRIDGE_VERSION,
   TOOLS_ROOT
+};
+module.exports.testHelpers = {
+  createMpvIpcPath,
+  normalizeAnime,
+  normalizeEpisode,
+  normalizeQuality,
+  parseBridgeResponse
 };

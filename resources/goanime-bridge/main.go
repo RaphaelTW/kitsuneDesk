@@ -1,27 +1,37 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+	"unicode"
 
 	"github.com/alvarorichard/Goanime/internal/models"
+	"github.com/alvarorichard/Goanime/internal/player"
 	"github.com/alvarorichard/Goanime/internal/scraper"
+	"github.com/alvarorichard/Goanime/internal/util"
 )
 
-const bridgeVersion = "1.0.0"
+const bridgeVersion = "1.4.0"
 
 type request struct {
-	Query    string     `json:"query"`
-	Language string     `json:"language"`
-	Quality  string     `json:"quality"`
-	Anime    animeDTO   `json:"anime"`
-	Episode  episodeDTO `json:"episode"`
+	Query         string     `json:"query"`
+	Language      string     `json:"language"`
+	Quality       string     `json:"quality"`
+	MpvPath       string     `json:"mpvPath"`
+	IPCPath       string     `json:"ipcPath"`
+	StartPosition float64    `json:"startPosition"`
+	Volume        int        `json:"volume"`
+	Anime         animeDTO   `json:"anime"`
+	Episode       episodeDTO `json:"episode"`
 }
 
 type response struct {
@@ -87,6 +97,15 @@ func main() {
 	}
 
 	command := strings.ToLower(strings.TrimSpace(os.Args[1]))
+	if command == "play" {
+		if err := playEpisode(req); err != nil {
+			code, message := classifyError(err)
+			writeResponse(response{OK: false, Error: &errorInfo{Code: code, Message: message, Detail: err.Error()}})
+			os.Exit(1)
+		}
+		return
+	}
+
 	data, err := runSilenced(func() (any, error) {
 		manager := scraper.NewScraperManager()
 
@@ -241,24 +260,91 @@ func resolveStream(manager *scraper.ScraperManager, req request) (streamDTO, err
 		return streamDTO{}, err
 	}
 
-	scr, err := manager.GetScraper(sourceType)
-	if err != nil {
-		return streamDTO{}, err
-	}
-
 	quality := normalizeQuality(req.Quality)
 	mode := normalizeMode(req.Language)
-	var streamURL string
-	var metadata map[string]string
+	episodeNumber := normalizeEpisodeNumber(req.Episode.Number)
 
-	if sourceType == scraper.AllAnimeType {
-		streamURL, metadata, err = scr.GetStreamURL(req.Anime.URL, req.Episode.Number, quality, mode)
-	} else {
-		streamURL, metadata, err = scr.GetStreamURL(req.Episode.URL)
+	util.GlobalQuality = quality
+	util.GlobalAudioLanguage = mode
+	util.SetGlobalAnimeSource(req.Anime.Source)
+	util.ClearGlobalReferer()
+
+	anime := models.Anime{
+		Name:      req.Anime.Name,
+		URL:       req.Anime.URL,
+		ImageURL:  req.Anime.ImageURL,
+		Source:    req.Anime.Source,
+		MediaType: parseMediaType(req.Anime.MediaType),
+		Year:      req.Anime.Year,
+		AnilistID: req.Anime.AnilistID,
+		MalID:     req.Anime.MalID,
+	}
+	episode := models.Episode{
+		Number: episodeNumber,
+		Num:    req.Episode.Num,
+		URL:    req.Episode.URL,
+		Title: models.TitleDetails{
+			Romaji: req.Episode.Title,
+		},
+		Aired:    req.Episode.Aired,
+		Duration: req.Episode.Duration,
+		IsFiller: req.Episode.IsFiller,
+		IsRecap:  req.Episode.IsRecap,
+		Synopsis: req.Episode.Synopsis,
 	}
 
-	if err != nil {
-		return streamDTO{}, err
+	metadata := map[string]string{
+		"source":           req.Anime.Source,
+		"requestedSource":  req.Anime.Source,
+		"requestedQuality": quality,
+		"requestedMode":    mode,
+		"resolvedSource":   req.Anime.Source,
+		"resolvedQuality":  quality,
+		"resolvedMode":     mode,
+		"fallbackUsed":     "false",
+	}
+
+	var streamURL string
+	var primaryErr error
+
+	if sourceType == scraper.AllAnimeType {
+		var providerMetadata map[string]string
+		streamURL, providerMetadata, primaryErr = resolveAllAnimeStream(
+			manager,
+			req.Anime.URL,
+			episodeNumber,
+			quality,
+			mode,
+		)
+		mergeMetadata(metadata, providerMetadata)
+	} else {
+		// Usa o mesmo resolvedor do GoAnime clássico para converter páginas
+		// intermediárias (Blogger, embeds e APIs) em URLs reproduzíveis.
+		streamURL, primaryErr = player.GetVideoURLForEpisodeEnhanced(&episode, &anime)
+	}
+
+	if primaryErr != nil || strings.TrimSpace(streamURL) == "" {
+		writeProgress("fallback", "Fonte principal indisponível. Tentando fontes alternativas...", 2, 3)
+		fallbackURL, fallbackMetadata, fallbackErr := resolveAlternateSource(
+			manager,
+			req,
+			episodeNumber,
+			quality,
+			mode,
+			sourceType,
+		)
+		if fallbackErr == nil && strings.TrimSpace(fallbackURL) != "" {
+			streamURL = fallbackURL
+			mergeMetadata(metadata, fallbackMetadata)
+			metadata["fallbackUsed"] = "true"
+		} else if primaryErr != nil {
+			if fallbackErr != nil {
+				return streamDTO{}, fmt.Errorf("fonte principal falhou: %v; fontes alternativas falharam: %w", primaryErr, fallbackErr)
+			}
+			return streamDTO{}, primaryErr
+		} else if fallbackErr != nil {
+			return streamDTO{}, fallbackErr
+		}
 	}
 
 	streamURL = strings.TrimSpace(streamURL)
@@ -271,14 +357,414 @@ func resolveStream(manager *scraper.ScraperManager, req request) (streamDTO, err
 		return streamDTO{}, errors.New("a fonte retornou um link de video invalido")
 	}
 
-	if metadata == nil {
-		metadata = make(map[string]string)
+	if strings.Contains(strings.ToLower(parsedURL.Host), "blogger.com") && strings.Contains(strings.ToLower(parsedURL.Path), "video.g") {
+		return streamDTO{}, errors.New("a fonte retornou uma pagina intermediaria do Blogger em vez do video")
 	}
-	metadata["source"] = req.Anime.Source
-	metadata["quality"] = quality
-	metadata["mode"] = mode
+
+	if referer := strings.TrimSpace(util.GetGlobalReferer()); referer != "" {
+		metadata["referer"] = referer
+	}
+	metadata["userAgent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/138 Safari/537.36"
 
 	return streamDTO{URL: streamURL, Metadata: metadata}, nil
+}
+
+func resolveAllAnimeStream(
+	manager *scraper.ScraperManager,
+	animeURL string,
+	episodeNumber string,
+	quality string,
+	requestedMode string,
+) (string, map[string]string, error) {
+	scr, err := manager.GetScraper(scraper.AllAnimeType)
+	if err != nil {
+		return "", nil, err
+	}
+
+	modes := uniqueStrings(requestedMode, alternateMode(requestedMode), "raw")
+	qualities := uniqueStrings(quality, "best")
+	var lastErr error
+	var attempts []string
+
+	for _, mode := range modes {
+		for _, candidateQuality := range qualities {
+			attempts = append(attempts, mode+"/"+candidateQuality)
+			streamURL, providerMetadata, streamErr := scr.GetStreamURL(
+				animeURL,
+				episodeNumber,
+				candidateQuality,
+				mode,
+			)
+			if streamErr != nil {
+				lastErr = streamErr
+				continue
+			}
+			if strings.TrimSpace(streamURL) == "" {
+				lastErr = fmt.Errorf("empty stream URL for mode %s and quality %s", mode, candidateQuality)
+				continue
+			}
+
+			metadata := map[string]string{
+				"resolvedSource":  "AllAnime",
+				"resolvedMode":    mode,
+				"resolvedQuality": candidateQuality,
+				"modeFallback":    strconv.FormatBool(mode != requestedMode),
+				"qualityFallback": strconv.FormatBool(candidateQuality != quality),
+			}
+			mergeMetadata(metadata, providerMetadata)
+			return streamURL, metadata, nil
+		}
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("no source URLs returned")
+	}
+	return "", nil, fmt.Errorf("AllAnime nao retornou stream para o episodio %s (tentativas: %s): %w", episodeNumber, strings.Join(attempts, ", "), lastErr)
+}
+
+func resolveAlternateSource(
+	manager *scraper.ScraperManager,
+	req request,
+	episodeNumber string,
+	quality string,
+	mode string,
+	originalType scraper.ScraperType,
+) (string, map[string]string, error) {
+	query := cleanAnimeSearchTitle(req.Anime.Name)
+	if len(query) < 2 {
+		return "", nil, errors.New("titulo insuficiente para procurar fonte alternativa")
+	}
+
+	order := alternateSourceOrder(originalType, mode)
+	wantedTitle := normalizeComparableTitle(query)
+	var lastErr error
+	attempted := 0
+
+	for _, sourceType := range order {
+		scr, err := manager.GetScraper(sourceType)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		results, err := scr.SearchAnime(query)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		for _, candidate := range results {
+			if candidate == nil || strings.TrimSpace(candidate.URL) == "" {
+				continue
+			}
+			if sourceType == originalType && strings.EqualFold(candidate.URL, req.Anime.URL) {
+				continue
+			}
+			if !titlesLikelySame(wantedTitle, normalizeComparableTitle(candidate.Name)) {
+				continue
+			}
+
+			attempted++
+			if attempted > 8 {
+				break
+			}
+
+			candidate.Source = sourceDisplayName(sourceType)
+			writeProgress("fallback", "Tentando fonte alternativa: "+candidate.Source, 2, 3)
+			util.SetGlobalAnimeSource(candidate.Source)
+			if sourceType == scraper.AllAnimeType {
+				streamURL, metadata, streamErr := resolveAllAnimeStream(
+					manager,
+					candidate.URL,
+					episodeNumber,
+					quality,
+					mode,
+				)
+				if streamErr == nil && strings.TrimSpace(streamURL) != "" {
+					metadata["originalSource"] = req.Anime.Source
+					metadata["resolvedSource"] = candidate.Source
+					metadata["fallbackReason"] = "primary-source-unavailable"
+					return streamURL, metadata, nil
+				}
+				lastErr = streamErr
+				continue
+			}
+
+			episodes, episodesErr := scr.GetAnimeEpisodes(candidate.URL)
+			if episodesErr != nil {
+				lastErr = episodesErr
+				continue
+			}
+			matchedEpisode, ok := findEpisodeByNumber(episodes, episodeNumber)
+			if !ok {
+				lastErr = fmt.Errorf("episodio %s nao encontrado em %s", episodeNumber, candidate.Source)
+				continue
+			}
+
+			streamURL, streamErr := player.GetVideoURLForEpisodeEnhanced(&matchedEpisode, candidate)
+			if streamErr != nil || strings.TrimSpace(streamURL) == "" {
+				if streamErr != nil {
+					lastErr = streamErr
+				} else {
+					lastErr = errors.New("fonte alternativa retornou stream vazio")
+				}
+				continue
+			}
+
+			return streamURL, map[string]string{
+				"originalSource":  req.Anime.Source,
+				"resolvedSource":  candidate.Source,
+				"resolvedMode":    mode,
+				"resolvedQuality": quality,
+				"fallbackReason":  "primary-source-unavailable",
+				"modeFallback":    "false",
+				"qualityFallback": "false",
+			}, nil
+		}
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("nenhuma fonte alternativa compativel foi encontrada")
+	}
+	return "", nil, lastErr
+}
+
+func alternateSourceOrder(original scraper.ScraperType, mode string) []scraper.ScraperType {
+	var preferred []scraper.ScraperType
+	if mode == "dub" {
+		preferred = []scraper.ScraperType{scraper.GoyabuType, scraper.AnimefireType, scraper.AllAnimeType}
+	} else {
+		preferred = []scraper.ScraperType{scraper.AllAnimeType, scraper.GoyabuType, scraper.AnimefireType}
+	}
+
+	result := make([]scraper.ScraperType, 0, len(preferred))
+	for _, item := range preferred {
+		if item != original {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func findEpisodeByNumber(episodes []models.Episode, wanted string) (models.Episode, bool) {
+	wanted = normalizeEpisodeNumber(wanted)
+	for _, episode := range episodes {
+		if normalizeEpisodeNumber(episode.Number) == wanted || (episode.Num > 0 && strconv.Itoa(episode.Num) == wanted) {
+			return episode, true
+		}
+	}
+	return models.Episode{}, false
+}
+
+func sourceDisplayName(sourceType scraper.ScraperType) string {
+	switch sourceType {
+	case scraper.AllAnimeType:
+		return "AllAnime"
+	case scraper.AnimefireType:
+		return "Animefire.io"
+	case scraper.GoyabuType:
+		return "Goyabu"
+	default:
+		return "Desconhecido"
+	}
+}
+
+func cleanAnimeSearchTitle(value string) string {
+	replacer := strings.NewReplacer(
+		"[PT-BR]", "", "[English]", "", "[Portuguese]", "", "[Português]", "",
+		"(Dublado)", "", "(Legendado)", "", "Dublado", "", "Legendado", "",
+		"[Movie]", "", "[TV]", "", "(Movie)", "", "(TV)", "", "(OVA)", "", "(ONA)", "",
+	)
+
+	parts := strings.Fields(replacer.Replace(value))
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		token := strings.Trim(part, "[](){}:;|-")
+		upper := strings.ToUpper(token)
+		if upper == "N/A" {
+			continue
+		}
+		if len(upper) >= 2 && len(upper) <= 3 && upper[0] == 'A' {
+			if _, err := strconv.Atoi(upper[1:]); err == nil {
+				continue
+			}
+		}
+		if strings.ContainsAny(token, ".,") {
+			if score, err := strconv.ParseFloat(strings.ReplaceAll(token, ",", "."), 64); err == nil && score >= 0 && score <= 10 {
+				continue
+			}
+		}
+		cleaned = append(cleaned, part)
+	}
+	return strings.TrimSpace(strings.Join(cleaned, " "))
+}
+
+func normalizeComparableTitle(value string) string {
+	value = strings.ToLower(cleanAnimeSearchTitle(value))
+	var builder strings.Builder
+	for _, char := range value {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) {
+			builder.WriteRune(char)
+		}
+	}
+	return builder.String()
+}
+
+func titlesLikelySame(wanted, candidate string) bool {
+	if wanted == "" || candidate == "" {
+		return false
+	}
+	if wanted == candidate {
+		return true
+	}
+	shorter, longer := wanted, candidate
+	if len(shorter) > len(longer) {
+		shorter, longer = longer, shorter
+	}
+	if len(shorter) < 6 || !strings.Contains(longer, shorter) {
+		return false
+	}
+	if len(shorter)*100 >= len(longer)*82 {
+		return true
+	}
+	// Títulos de temporadas costumam variar entre "4", "4th Season" e
+	// "Temporada 4". O número reduz o risco de confundir séries diferentes.
+	return strings.IndexFunc(shorter, unicode.IsDigit) >= 0
+}
+
+func alternateMode(mode string) string {
+	if mode == "dub" {
+		return "sub"
+	}
+	return "dub"
+}
+
+func uniqueStrings(values ...string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{})
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func mergeMetadata(target map[string]string, source map[string]string) {
+	for key, value := range source {
+		target[key] = value
+	}
+}
+
+func playEpisode(req request) error {
+	mpvPath := strings.TrimSpace(req.MpvPath)
+	if mpvPath == "" {
+		return errors.New("caminho do MPV nao informado")
+	}
+	if info, err := os.Stat(mpvPath); err != nil || info.IsDir() {
+		return fmt.Errorf("MPV nao encontrado em: %s", mpvPath)
+	}
+
+	writeProgress("primary", "Consultando a fonte principal...", 1, 3)
+	resolved, err := resolveStream(scraper.NewScraperManager(), req)
+	if err != nil {
+		return err
+	}
+	stream := resolved
+	if strings.TrimSpace(stream.URL) == "" {
+		return errors.New("o resolvedor nao retornou um stream valido")
+	}
+
+	writeProgress("player", "Stream encontrado. Iniciando o MPV...", 3, 3)
+	defer player.StopBloggerProxy()
+	args := buildMpvArgs(req, stream)
+	cmd := exec.Command(mpvPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stdout = nil
+	cmd.Stderr = &stderr
+	cmd.Stdin = nil
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("falha ao iniciar o MPV: %w", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case waitErr := <-done:
+		detail := strings.TrimSpace(stderr.String())
+		if detail == "" && waitErr != nil {
+			detail = waitErr.Error()
+		}
+		if detail == "" {
+			detail = "o MPV encerrou antes de iniciar a reproducao"
+		}
+		return fmt.Errorf("MPV encerrou antes de iniciar: %s", detail)
+	case <-time.After(1800 * time.Millisecond):
+		writeResponse(response{OK: true, Data: map[string]any{
+			"launched":         true,
+			"pid":              cmd.Process.Pid,
+			"ipcPath":          req.IPCPath,
+			"source":           stream.Metadata["resolvedSource"],
+			"requestedSource":  stream.Metadata["requestedSource"],
+			"quality":          stream.Metadata["resolvedQuality"],
+			"requestedQuality": stream.Metadata["requestedQuality"],
+			"mode":             stream.Metadata["resolvedMode"],
+			"requestedMode":    stream.Metadata["requestedMode"],
+			"fallbackUsed":     stream.Metadata["fallbackUsed"] == "true" || stream.Metadata["modeFallback"] == "true" || stream.Metadata["qualityFallback"] == "true",
+		}})
+	}
+
+	// Mantem o bridge e qualquer proxy local do GoAnime ativos enquanto o MPV toca.
+	_ = <-done
+	return nil
+}
+
+func buildMpvArgs(req request, stream streamDTO) []string {
+	episodeNumber := normalizeEpisodeNumber(req.Episode.Number)
+	args := []string{
+		"--force-window=yes",
+		"--hwdec=auto-safe",
+		"--keep-open=no",
+		"--save-position-on-quit",
+		"--msg-level=all=warn",
+		fmt.Sprintf("--title=KitsuneDesk - %s - Episodio %s", sanitizeTitle(req.Anime.Name), episodeNumber),
+	}
+
+	if ipcPath := strings.TrimSpace(req.IPCPath); ipcPath != "" {
+		args = append(args, "--input-ipc-server="+ipcPath)
+	}
+	if req.StartPosition > 0 {
+		args = append(args, fmt.Sprintf("--start=%.3f", req.StartPosition))
+	}
+	if req.Volume >= 0 && req.Volume <= 100 {
+		args = append(args, fmt.Sprintf("--volume=%d", req.Volume))
+	}
+
+	var headers []string
+	if referer := strings.TrimSpace(stream.Metadata["referer"]); referer != "" {
+		headers = append(headers, "Referer: "+referer)
+	}
+	if userAgent := strings.TrimSpace(stream.Metadata["userAgent"]); userAgent != "" {
+		headers = append(headers, "User-Agent: "+userAgent)
+	}
+	if len(headers) > 0 {
+		args = append(args, "--http-header-fields="+strings.Join(headers, ","))
+	}
+
+	return append(args, "--", stream.URL)
+}
+
+func sanitizeTitle(value string) string {
+	replacer := strings.NewReplacer("\\", "-", "/", "-", ":", "-", "*", "-", "?", "", "\"", "", "<", "", ">", "", "|", "-")
+	return strings.TrimSpace(replacer.Replace(value))
 }
 
 func toAnimeDTO(anime *models.Anime) animeDTO {
@@ -319,6 +805,7 @@ func toAnimeDTO(anime *models.Anime) animeDTO {
 }
 
 func toEpisodeDTO(episode models.Episode) episodeDTO {
+	number := normalizeEpisodeNumber(episode.Number)
 	title := episode.Title.English
 	if title == "" {
 		title = episode.Title.Romaji
@@ -326,12 +813,12 @@ func toEpisodeDTO(episode models.Episode) episodeDTO {
 	if title == "" {
 		title = episode.Title.Japanese
 	}
-	if title == "" {
-		title = "Episodio " + episode.Number
+	if isGenericEpisodeTitle(title, number) {
+		title = ""
 	}
 
 	return episodeDTO{
-		Number:   episode.Number,
+		Number:   number,
 		Num:      episode.Num,
 		URL:      episode.URL,
 		Title:    title,
@@ -340,6 +827,43 @@ func toEpisodeDTO(episode models.Episode) episodeDTO {
 		IsFiller: episode.IsFiller,
 		IsRecap:  episode.IsRecap,
 		Synopsis: stripHTML(episode.Synopsis),
+	}
+}
+
+func normalizeEpisodeNumber(value string) string {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	prefixes := []string{"episódio ", "episodio ", "episode ", "ep. ", "ep "}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return strings.TrimSpace(value[len(prefix):])
+		}
+	}
+	return value
+}
+
+func isGenericEpisodeTitle(title, number string) bool {
+	cleanTitle := strings.ToLower(strings.TrimSpace(title))
+	cleanNumber := strings.ToLower(strings.TrimSpace(number))
+	if cleanTitle == "" {
+		return true
+	}
+	for _, prefix := range []string{"episódio ", "episodio ", "episode ", "ep. ", "ep "} {
+		if cleanTitle == prefix+cleanNumber {
+			return true
+		}
+	}
+	return false
+}
+
+func parseMediaType(value string) models.MediaType {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "movie", "filme":
+		return models.MediaTypeMovie
+	case "tv", "series", "serie":
+		return models.MediaTypeTV
+	default:
+		return models.MediaTypeAnime
 	}
 }
 
@@ -424,13 +948,34 @@ func classifyError(err error) (string, string) {
 		return "ANIME_NOT_FOUND", "Nenhum anime foi encontrado com esse nome."
 	case strings.Contains(message, "nenhum episodio"), strings.Contains(message, "no episodes"):
 		return "EPISODES_NOT_FOUND", "Nenhum episodio foi encontrado para esse titulo."
-	case strings.Contains(message, "link de video"), strings.Contains(message, "stream"):
-		return "STREAM_UNAVAILABLE", "A fonte encontrou o episodio, mas nao entregou um link de video valido."
+	case strings.Contains(message, "mpv"), strings.Contains(message, "player"):
+		return "PLAYER_START_FAILED", "O MPV nao conseguiu iniciar a reproducao. Reinstale o GoAnime ou verifique o player."
+	case strings.Contains(message, "link de video"),
+		strings.Contains(message, "stream"),
+		strings.Contains(message, "source urls"),
+		strings.Contains(message, "no source url"),
+		strings.Contains(message, "no suitable quality"),
+		strings.Contains(message, "video unavailable"),
+		strings.Contains(message, "blogger video unavailable"):
+		return "STREAM_UNAVAILABLE", "A fonte encontrou o episodio, mas nao entregou um link de video valido. Tente outro resultado ou o GoAnime classico."
 	case strings.Contains(message, "fonte nao suportada"):
 		return "SOURCE_UNSUPPORTED", "Esse resultado ainda nao e suportado pela interface grafica. Abra-o no GoAnime classico."
 	default:
 		return "GOANIME_ERROR", "O GoAnime nao conseguiu concluir esta operacao."
 	}
+}
+
+func writeProgress(stage, message string, attempt, total int) {
+	payload := map[string]any{
+		"type":    "progress",
+		"stage":   stage,
+		"message": message,
+		"attempt": attempt,
+		"total":   total,
+	}
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(payload)
 }
 
 func writeResponse(value response) {

@@ -2,6 +2,9 @@ appId: br.com.kitsunedesk.local
 productName: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
 asar: true
+asarUnpack:
+  - scripts/windows/**/*
+  - resources/goanime-bridge/**/*
 npmRebuild: true
 
 directories:
@@ -28,3 +31,10 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: KitsuneDesk
   runAfterFinish: true
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: RaphaelTW
+  repo: kitsuneDesk
+  releaseType: release

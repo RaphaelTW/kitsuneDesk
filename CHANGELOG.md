@@ -1,6 +1,147 @@
 # Changelog
 
+## [0.6.1] - 2026-07-08
+
+### Corrigido
+
+- Removidas referências acidentais a um registro npm interno do arquivo `package-lock.json`.
+- Todas as dependências agora são baixadas pelo registro público oficial `registry.npmjs.org`.
+- Adicionado `.npmrc` com tentativas automáticas e tempo limite ampliado para conexões instáveis.
+- Corrigido o erro `ETIMEDOUT` ao instalar `electron-updater`, `builder-util-runtime`, `lodash.escaperegexp`, `lodash.isequal` e `tiny-typed-emitter`.
+
+## [0.6.0] - 2026-07-08
+
+### Adicionado
+
+- Biblioteca individual por usuário com **Continuar assistindo**, favoritos, lista “Quero assistir”, histórico, estatísticas e marcação de episódios concluídos.
+- Persistência do episódio, posição, duração, idioma, qualidade, fonte e dados do anime para retomada posterior.
+- Configurações persistentes de provedor, idioma, resolução, áudio, volume, reprodução automática, posição, tema, pasta de downloads e atualização automática.
+- Controles do MPV no KitsuneDesk: pausar, continuar, avançar, retroceder, volume, barra de progresso, episódio anterior, próximo episódio e encerramento.
+- Reprodução automática do próximo episódio e retomada na posição salva.
+- Painel de saúde dos provedores e registro local de episódios com problema.
+- Área de diagnóstico com verificação do GoAnime, bridge, MPV, banco, cache, componentes e exportação de relatório JSON.
+- Reparação do `better-sqlite3`, limpeza de cache e restauração dos componentes sem apagar histórico ou configurações.
+- Perfis separados, administração de usuários, primeiro administrador criado no primeiro acesso e bloqueio persistente depois de cinco tentativas inválidas.
+- Controle parental por perfil, PIN de 4 a 8 números e liberação temporária de conteúdo protegido.
+- FAST Anime VSR movido definitivamente para **Ferramentas**, fora do seletor de provedores.
+- Atualização automática do aplicativo por releases do GitHub usando `electron-updater`.
+- Workflow do GitHub Actions para lint, formatação, testes, instalador do Windows, artefatos e publicação por tag.
+- Suíte inicial de testes para autenticação, configurações, bridge, fallback, instalação, reprodução e migrações.
+
+### Corrigido
+
+- Bridge GoAnime atualizado para `1.4.0`, com IPC do MPV, volume inicial, posição de retomada e manutenção do proxy durante a reprodução.
+- Eventos tardios de um MPV anterior não interrompem mais o próximo episódio.
+- Episódios concluídos deixam de aparecer em “Continuar assistindo”.
+- O desenvolvimento prepara automaticamente o `better-sqlite3` para a versão instalada do Electron, mantendo o modo de compatibilidade caso o reparo falhe.
+- User-Agent dos instaladores e verificações atualizado para a versão 0.6.0.
+
+### Segurança
+
+- Removida a conta padrão `admin/admin123`.
+- Senhas armazenadas com bcrypt e exigência mínima de oito caracteres, uma letra e um número.
+- Proteção contra desativar ou rebaixar o último administrador ativo.
+
 Todas as alterações relevantes do KitsuneDesk serão registradas neste arquivo.
+
+## [0.5.2] - 2026-07-08
+
+### Corrigido
+
+- Corrigido o erro `no source URLs found for episode 1` no GoAnime com interface gráfica.
+- O bridge tenta automaticamente os modos legendado, dublado e `raw` quando a fonte selecionada não entrega URLs no idioma solicitado.
+- A qualidade escolhida passa a usar `Melhor disponível` como fallback quando a resolução específica não existir.
+- Adicionado fallback para outra fonte compatível do mesmo anime e episódio antes de encerrar a reprodução.
+- Erros `no source URLs` e `no suitable quality` agora são classificados como fonte de vídeo indisponível, em vez de erro genérico do GoAnime.
+- A confirmação do MPV informa quando idioma, qualidade ou fonte alternativa foram usados.
+- Adicionado o comando opcional `npm run rebuild:native` para recompilar `better-sqlite3` para o ABI do Electron e evitar o aviso `NODE_MODULE_VERSION`.
+
+### Alterado
+
+- Bridge gráfico atualizado para a versão 1.3.0; a instalação automática recompila somente o bridge incompatível.
+- Versão do aplicativo atualizada para 0.5.2.
+
+## [0.5.1] - 2026-07-08
+
+### Corrigido
+
+- Corrigida a falha `Não é possível converter o valor para o tipo System.String` ao preparar o bridge do GoAnime GUI.
+- Eventos de progresso agora são enviados diretamente ao `stdout`, sem contaminarem os valores retornados pelas funções PowerShell.
+- Saída do Scoop é encaminhada ao visor da instalação sem transformar caminhos de executáveis em arrays.
+- Scripts temporários agora são gravados em UTF-8 com BOM para compatibilidade com Windows PowerShell 5.1.
+- Corrigidos textos corrompidos como `grÃ¡fica` e `instalaÃ§Ã£o` no monitor de instalação.
+- Mensagens de erro deixam de ser repetidas pelo formato expandido do `Write-Error`.
+
+### Mantido
+
+- Instalação silenciosa dentro do KitsuneDesk, barra de progresso e visor de componentes.
+- GoAnime clássico, GoAnime GUI, anime-cli-br, ani-cli experimental e FAST Anime VSR.
+
+## [0.5.0] - 2026-07-08
+
+### Adicionado
+
+- Instalação automática dos quatro grupos: GoAnime completo, anime-cli-br, ani-cli experimental e FAST Anime VSR.
+- Painel de instalação dentro do Electron, sem abrir PowerShell ou Windows Terminal.
+- Barra de progresso percentual, etapa atual, monitor de eventos e lista explicando para que serve cada componente.
+- Estados visuais para componente pendente, em andamento, já instalado, instalado, aviso, erro e cancelado.
+- Instalações executadas em segundo plano com eventos IPC seguros entre o processo principal e o renderer.
+- Botões para ocultar a instalação sem interromper e para cancelar a árvore do processo.
+- Runtime Go portátil baixado apenas quando o bridge gráfico precisa ser compilado.
+- Instalação do GoAnime portátil com MPV gerenciado localmente quando necessário.
+- Instalação automática de Python 3.12 e VLC para o anime-cli-br.
+- Instalação automática de Scoop, Git Bash, fzf, FFmpeg, MPV e OpenSSL para o ani-cli.
+- Instalação automática de Python 3.10, FFmpeg, bibliotecas e PyTorch para FAST Anime VSR.
+
+### Alterado
+
+- Os instaladores agora verificam cada dependência e ignoram o que já estiver funcionando.
+- Winget deixou de ser requisito para a configuração dos provedores.
+- O status é atualizado automaticamente ao concluir uma instalação.
+- FAST Anime VSR pode ficar com o ambiente base pronto mesmo sem CUDA ativa; a interface informa a situação da aceleração.
+- GoAnime GUI e GoAnime clássico compartilham a ação “GoAnime completo”, mantendo os dois modos disponíveis.
+
+### Corrigido
+
+- Eliminado o erro “Go não encontrado e winget indisponível” por meio do runtime Go portátil.
+- Evitada a abertura de terminais que poderia confundir usuários durante a instalação.
+- Erros dos scripts agora retornam código diferente de zero e aparecem no visor da interface.
+
+## [0.4.1] - 2026-07-08
+
+- Corrigida a reprodução do GoAnime gráfico: o bridge agora usa o resolvedor completo do GoAnime, inicia o MPV e permanece ativo enquanto o vídeo toca, preservando proxies locais necessários por fontes como Blogger/Goyabu.
+- O aviso de sucesso só aparece depois que o MPV confirma um processo ativo.
+- Corrigido o texto duplicado “Episódio Episódio 1”.
+- Quando um bridge antigo estiver instalado, a interface exige atualização para a versão compatível antes de pesquisar.
+
+### Adicionado
+
+- Seletor principal de provedor na Home.
+- GoAnime com interface gráfica definido como opção principal e selecionado por padrão.
+- GoAnime clássico disponível no mesmo formulário de pesquisa.
+- anime-cli-br, FAST Anime VSR e ani-cli experimental disponíveis no seletor.
+- Cartão dinâmico com descrição, prontidão e ação de instalação/reparo do provedor escolhido.
+- Abertura assistida do ambiente FAST Anime VSR em PowerShell e no Explorador de Arquivos.
+- Resolver gráfico atualizado para usar a mesma extração e proxy de vídeo do GoAnime clássico.
+- O bridge permanece ativo durante a reprodução para manter proxies locais de fontes como Blogger/Goyabu.
+- Atualização obrigatória do bridge gráfico para a versão 1.2.0.
+
+### Ajustado
+
+- Idioma e resolução permanecem visíveis no fluxo principal.
+- `Melhor disponível` passa a ser explicitamente a resolução padrão.
+- Idioma e resolução são desativados apenas quando a ferramenta selecionada não oferece esses controles.
+- O botão principal muda de texto e comportamento conforme o provedor escolhido.
+- Corrigido o texto duplicado `Episódio Episódio 1` em fontes PT-BR.
+- Erros do MPV agora são exibidos em vez de informar que o player abriu sem confirmação.
+- A área avançada foi mantida como atalho adicional para instalação, reparo e abertura manual.
+
+### Mantido
+
+- Interface gráfica interna do GoAnime.
+- Fluxo clássico original do GoAnime no terminal.
+- Botões para voltar à Home e pesquisar outro anime.
+- GoAnime como primeira recomendação do KitsuneDesk.
 
 ## [0.4.0] - 2026-07-08
 

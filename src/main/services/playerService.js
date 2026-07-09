@@ -2,10 +2,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { EventEmitter } = require('events');
 const dns = require('dns').promises;
 const https = require('https');
 const AppError = require('../utils/AppError');
 const GoAnimeGuiService = require('./goAnimeGuiService');
+const InstallationService = require('./installationService');
 
 const SUPPORTED_PROVIDERS = new Set(['auto', 'goanime', 'anime-cli-br', 'ani-cli']);
 const SUPPORTED_INSTALL_TARGETS = new Set([
@@ -18,9 +20,20 @@ const SUPPORTED_INSTALL_TARGETS = new Set([
 const SUPPORTED_QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
 const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
 
-class PlayerService {
-  constructor() {
+class PlayerService extends EventEmitter {
+  constructor({ settingsService = null, libraryService = null } = {}) {
+    super();
     this.goAnimeGui = new GoAnimeGuiService();
+    this.installationService = new InstallationService();
+    this.settingsService = settingsService;
+    this.libraryService = libraryService;
+    this.currentPlayback = null;
+    this.lastProgressSaveAt = 0;
+    this.autoNextInProgress = false;
+
+    this.goAnimeGui.on('state', (state) => this.handlePlayerState(state));
+    this.goAnimeGui.on('ended', (state) => this.handlePlaybackEnded(state));
+    this.goAnimeGui.on('progress', (progress) => this.emit('source-progress', progress));
   }
 
   /**
@@ -49,18 +62,50 @@ class PlayerService {
    * @param {unknown} payload
    * @returns {Promise<object>}
    */
-  playEpisode(payload) {
+  async playEpisode(payload) {
     const status = this.status();
 
     if (!status.providers.goAnime.ready) {
       throw new AppError(
         'GOANIME_GUI_NOT_READY',
-        'A interface grafica do GoAnime ainda nao esta pronta. Clique em Ativar GoAnime GUI.',
+        'A interface gráfica do GoAnime ainda não está pronta. Use Instalar ou reparar.',
         { status: 424 }
       );
     }
 
-    return this.goAnimeGui.playEpisode(payload, status.dependencies.mpv.path);
+    const settings = this.getUserSettings();
+    const episodes = Array.isArray(payload?.episodes) ? payload.episodes : [];
+    const episodeIndex = Number.isInteger(payload?.episodeIndex)
+      ? payload.episodeIndex
+      : episodes.findIndex((item) => String(item?.number) === String(payload?.episode?.number));
+    const startPosition = settings.rememberPosition
+      ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
+      : 0;
+
+    const result = await this.goAnimeGui.playEpisode(
+      {
+        ...payload,
+        startPosition,
+        volume: settings.playerVolume
+      },
+      status.dependencies.mpv.path
+    );
+
+    this.currentPlayback = {
+      providerId: 'goanime-gui',
+      anime: payload.anime,
+      episode: payload.episode,
+      episodes,
+      episodeIndex,
+      language: payload?.language === 'dub' ? 'dub' : 'sub',
+      quality: String(payload?.quality || settings.defaultQuality || 'auto'),
+      source: result.source || payload?.anime?.source || '',
+      startedAt: new Date().toISOString()
+    };
+    this.lastProgressSaveAt = 0;
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    this.emit('playback-started', { ...result, context: this.currentPlayback });
+    return result;
   }
 
   /**
@@ -102,6 +147,56 @@ class PlayerService {
       provider,
       providerName: 'ani-cli experimental',
       terminal
+    };
+  }
+
+  /**
+   * Abre uma ferramenta local que nao funciona como provedor de streaming.
+   *
+   * @param {unknown} payload
+   * @returns {{launched: boolean, tool: string, toolName: string, terminal: string, scriptPath: string}}
+   */
+  openTool(payload) {
+    const tool = String(payload?.tool ?? '');
+    if (tool !== 'fast-anime-vsr') {
+      throw new AppError('TOOL_UNAVAILABLE', 'A ferramenta solicitada nao e suportada.', {
+        status: 400
+      });
+    }
+
+    const status = this.status();
+    const fast = status.tools.fastAnimeVsr;
+
+    if (!fast.installed || !fast.path) {
+      throw new AppError(
+        'TOOL_UNAVAILABLE',
+        'FAST Anime VSR ainda nao foi preparado. Use o botao Preparar / reparar ambiente.',
+        { status: 424 }
+      );
+    }
+
+    if (!fast.ready) {
+      throw new AppError(
+        'TOOL_UNAVAILABLE',
+        `FAST Anime VSR ainda nao esta pronto. ${fast.runtime.message}`,
+        { status: 424 }
+      );
+    }
+
+    const terminal = choosePowerShellTerminal(status);
+    if (!terminal.path) {
+      throw new AppError('TOOL_UNAVAILABLE', 'PowerShell nao foi encontrado.', { status: 424 });
+    }
+
+    const scriptPath = writeFastAnimeVsrOpenScript(fast);
+    launchPowerShellScript({ terminal, scriptPath });
+
+    return {
+      launched: true,
+      tool,
+      toolName: 'FAST Anime VSR',
+      terminal: terminal.name,
+      scriptPath
     };
   }
 
@@ -190,6 +285,7 @@ class PlayerService {
           name: 'FAST Anime VSR',
           installed: fastAnimeVsr.installed,
           ready: fastAnimeVsr.ready,
+          accelerated: fastAnimeVsr.accelerated,
           path: fastAnimeVsr.path,
           runtime: fastAnimeVsr.runtime,
           description:
@@ -216,87 +312,237 @@ class PlayerService {
       },
       installCommands: {
         goAnimeGui: [
-          'Instala ou confirma GoAnime + MPV',
-          'Instala Go 1.26 ou superior',
-          'Compila o bridge grafico oficial baseado no codigo do GoAnime v1.8.5'
+          'Instalacao automatica e silenciosa de GoAnime + MPV',
+          'Runtime Go portatil somente quando o bridge precisar ser compilado',
+          'Progresso e verificacao exibidos dentro do KitsuneDesk'
         ],
         animeCliBr: [
-          'Ambiente Python dedicado do KitsuneDesk',
-          'VLC Media Player',
-          'Verificacao da disponibilidade do AnimeFire antes de abrir'
+          'Python 3.12 isolado e VLC instalados automaticamente',
+          'Codigo e dependencias preparados sem usar o Python global',
+          'Aviso claro quando a fonte AnimeFire estiver indisponivel'
         ],
         aniCli: [
-          'scoop install git',
-          'scoop bucket add extras',
-          'scoop install ani-cli fzf ffmpeg mpv openssl'
+          'Scoop, Git Bash, fzf, FFmpeg, MPV e OpenSSL',
+          'Instalacao oculta com progresso dentro do aplicativo',
+          'Aviso preservado sobre a instabilidade das fontes externas'
         ],
         fastAnimeVsr: [
-          'Python 3.10 localizado pelo PATH, registro ou instalador oficial',
-          'NVIDIA GPU, CUDA, cuDNN e PyTorch conforme a placa de video'
+          'Python 3.10, FFmpeg, bibliotecas e PyTorch',
+          'Deteccao de NVIDIA/CUDA ao final da preparacao',
+          'Ambiente base concluido mesmo quando a aceleracao nao estiver ativa'
         ]
       }
     };
   }
 
   /**
-   * Abre o instalador do provedor ou ferramenta escolhida.
+   * Executa a instalacao automatica em segundo plano e transmite o progresso ao renderer.
    *
    * @param {unknown} payload
-   * @returns {{launched: boolean, provider: string, terminal: string, scriptPath: string}}
+   * @param {Electron.WebContents} webContents
+   * @returns {{started: boolean, jobId: string, provider: string, hidden: true}}
    */
-  installDependencies(payload) {
+  installDependencies(payload, webContents) {
     const provider = normalizeInstallProvider(payload);
-    const status = this.status();
-    const terminal = choosePowerShellTerminal(status);
-    const scriptPath = createInstallScript(provider);
+    return this.installationService.start(provider, webContents);
+  }
 
-    if (!terminal.path) {
-      throw new AppError(
-        'PROVIDER_UNAVAILABLE',
-        'PowerShell nao foi encontrado para abrir o instalador.',
-        { status: 424 }
-      );
-    }
-
-    launchPowerShellScript({ terminal, scriptPath });
-
-    return {
-      launched: true,
-      provider,
-      terminal: terminal.name,
-      scriptPath
-    };
+  /** @param {unknown} payload */
+  cancelInstallation(payload) {
+    return this.installationService.cancel(payload?.jobId);
   }
 
   pause() {
-    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+    return this.goAnimeGui.pause();
   }
 
   resume() {
-    return this.notImplemented('O MPV continua com os controles nativos de reproducao.');
+    return this.goAnimeGui.resume();
+  }
+
+  togglePause() {
+    return this.goAnimeGui.togglePause();
+  }
+
+  seek(payload) {
+    return this.goAnimeGui.seek(payload?.seconds, payload?.mode);
+  }
+
+  setVolume(payload) {
+    return this.goAnimeGui.setVolume(payload?.volume);
+  }
+
+  playbackState() {
+    return {
+      ...this.goAnimeGui.getPlayerState(),
+      context: this.currentPlayback
+    };
   }
 
   next() {
-    return this.notImplemented('Escolha o proximo episodio diretamente na lista do KitsuneDesk.');
+    return this.playAdjacent(1);
   }
 
   previous() {
-    return this.notImplemented('Escolha o episodio anterior diretamente na lista do KitsuneDesk.');
+    return this.playAdjacent(-1);
   }
 
-  stop() {
-    return this.goAnimeGui.stop();
+  async stop() {
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    const result = await this.goAnimeGui.stop();
+    this.currentPlayback = null;
+    return result;
   }
 
-  /**
-   * @param {string} message
-   * @returns {{available: false, message: string}}
-   */
-  notImplemented(message) {
+  async playAdjacent(direction) {
+    const context = this.currentPlayback;
+    if (!context || !Array.isArray(context.episodes) || context.episodes.length === 0) {
+      throw new AppError(
+        'EPISODE_NAVIGATION_UNAVAILABLE',
+        'A lista de episódios não está disponível para esta reprodução.',
+        { status: 409 }
+      );
+    }
+
+    const currentIndex = Number.isInteger(context.episodeIndex) ? context.episodeIndex : 0;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= context.episodes.length) {
+      return {
+        available: false,
+        message:
+          direction > 0 ? 'Este é o último episódio disponível.' : 'Este é o primeiro episódio.'
+      };
+    }
+
+    await this.persistPlayback(this.goAnimeGui.getPlayerState());
+    await this.goAnimeGui.stop();
+    return this.playEpisode({
+      anime: context.anime,
+      episode: context.episodes[targetIndex],
+      episodes: context.episodes,
+      episodeIndex: targetIndex,
+      language: context.language,
+      quality: context.quality,
+      resumePosition: 0
+    });
+  }
+
+  async providerHealth() {
+    const status = this.status();
+    let animeFireOnline = false;
+    let animeFireMessage = 'AnimeFire indisponível';
+    try {
+      await assertAnimeFireReachable();
+      animeFireOnline = true;
+      animeFireMessage = 'Online';
+    } catch (error) {
+      animeFireMessage = error.publicMessage || error.message || animeFireMessage;
+    }
+
     return {
-      available: false,
-      message
+      checkedAt: new Date().toISOString(),
+      providers: [
+        {
+          id: 'goanime-gui',
+          name: 'GoAnime GUI',
+          state: status.providers.goAnime.ready ? 'online' : 'offline',
+          message: status.providers.goAnime.ready ? 'Online' : 'Bridge ou MPV não está pronto'
+        },
+        {
+          id: 'goanime',
+          name: 'GoAnime clássico',
+          state: status.providers.goAnime.classicReady ? 'online' : 'offline',
+          message: status.providers.goAnime.classicReady
+            ? 'Online'
+            : 'GoAnime ou MPV não está pronto'
+        },
+        {
+          id: 'anime-cli-br',
+          name: 'anime-cli-br',
+          state: animeFireOnline && status.providers.animeCliBr.ready ? 'online' : 'offline',
+          message: status.providers.animeCliBr.ready
+            ? animeFireMessage
+            : 'Dependências não instaladas'
+        },
+        {
+          id: 'ani-cli',
+          name: 'ani-cli',
+          state: status.providers.aniCli.ready ? 'unstable' : 'offline',
+          message: status.providers.aniCli.ready
+            ? 'Instável: depende de fontes externas'
+            : 'Dependências não instaladas'
+        }
+      ]
     };
+  }
+
+  getUserSettings() {
+    try {
+      return (
+        this.settingsService?.get() ?? {
+          playerVolume: 80,
+          autoPlayNext: false,
+          rememberPosition: true,
+          defaultQuality: 'auto'
+        }
+      );
+    } catch {
+      return {
+        playerVolume: 80,
+        autoPlayNext: false,
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      };
+    }
+  }
+
+  handlePlayerState(state) {
+    this.emit('state', { ...state, context: this.currentPlayback });
+    const now = Date.now();
+    if (this.currentPlayback && now - this.lastProgressSaveAt >= 10000) {
+      this.lastProgressSaveAt = now;
+      void this.persistPlayback(state);
+    }
+  }
+
+  async handlePlaybackEnded(state) {
+    if (!this.currentPlayback) return;
+    await this.persistPlayback({ ...state, completed: true });
+    const settings = this.getUserSettings();
+    if (!settings.autoPlayNext || this.autoNextInProgress) return;
+    this.autoNextInProgress = true;
+    try {
+      await this.playAdjacent(1);
+    } catch {
+      // O fim da lista não é tratado como falha de reprodução.
+    } finally {
+      this.autoNextInProgress = false;
+    }
+  }
+
+  async persistPlayback(state) {
+    if (!this.libraryService || !this.currentPlayback) return;
+    const context = this.currentPlayback;
+    try {
+      await this.libraryService.savePlayback({
+        providerId: context.providerId,
+        animeId: context.anime?.url,
+        animeTitle: context.anime?.name,
+        animeCover: context.anime?.imageUrl,
+        episodeNumber: context.episode?.num || Number.parseFloat(context.episode?.number) || 1,
+        episodeTitle: context.episode?.title || context.episode?.number || '',
+        language: context.language,
+        quality: context.quality,
+        position: state?.position || 0,
+        duration: state?.duration || context.episode?.duration || 0,
+        source: state?.source || context.source || '',
+        completed: Boolean(state?.completed || state?.ended),
+        animePayload: context.anime || {},
+        episodePayload: context.episode || {}
+      });
+    } catch {
+      // A reprodução não deve ser interrompida por uma falha de histórico.
+    }
   }
 }
 
@@ -328,26 +574,6 @@ function normalizePlayPayload(payload) {
 function normalizeInstallProvider(payload) {
   const provider = String(payload?.provider ?? 'goanime');
   return SUPPORTED_INSTALL_TARGETS.has(provider) ? provider : 'goanime';
-}
-
-/**
- * @param {string} provider
- * @returns {string}
- */
-function createInstallScript(provider) {
-  switch (provider) {
-    case 'goanime-gui':
-      return writeGoAnimeGuiInstallScript();
-    case 'anime-cli-br':
-      return writeAnimeCliBrInstallScript();
-    case 'ani-cli':
-      return writeAniCliInstallScript();
-    case 'fast-anime-vsr':
-      return writeFastAnimeVsrInstallScript();
-    case 'goanime':
-    default:
-      return writeGoAnimeInstallScript();
-  }
 }
 
 /**
@@ -521,7 +747,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.4.0', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.6.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();
@@ -789,140 +1015,47 @@ function launchPowerShellScript({ terminal, scriptPath }) {
 }
 
 /**
- * Copia um script PowerShell versionado para a pasta temporaria.
+ * Cria uma sessao PowerShell posicionada na ferramenta FAST Anime VSR.
+ * O usuario pode ajustar o config.py e iniciar o processamento manualmente.
  *
- * @param {string} fileName
+ * @param {object} fast
  * @returns {string}
  */
-function copyPowerShellInstaller(fileName) {
-  const sourcePath = path.join(__dirname, '..', '..', '..', 'scripts', 'windows', fileName);
+function writeFastAnimeVsrOpenScript(fast) {
+  const scriptPath = path.join(
+    os.tmpdir(),
+    `kitsunedesk-fast-vsr-open-${process.pid}-${Date.now()}.ps1`
+  );
+  const root = String(fast.path).replace(/'/g, "''");
+  const venvPython = String(fast.venvPython ?? '').replace(/'/g, "''");
+  const script = `$ErrorActionPreference = 'Continue'
+$projectRoot = '${root}'
+$venvPython = '${venvPython}'
 
-  if (!fs.existsSync(sourcePath)) {
-    throw new AppError(
-      'PROVIDER_UNAVAILABLE',
-      `O script de instalacao ${fileName} nao foi encontrado.`,
-      { status: 500 }
-    );
-  }
-
-  const targetPath = path.join(os.tmpdir(), `kitsunedesk-${process.pid}-${Date.now()}-${fileName}`);
-
-  fs.writeFileSync(targetPath, fs.readFileSync(sourcePath, 'utf8'), 'utf8');
-  return targetPath;
-}
-
-/** @returns {string} */
-function writeGoAnimeInstallScript() {
-  const scriptPath = path.join(os.tmpdir(), 'kitsunedesk-install-goanime.ps1');
-  const script = `$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
-
-Write-Host 'KitsuneDesk - Instalador oficial do GoAnime' -ForegroundColor Cyan
-Write-Host 'O pacote oficial inclui o GoAnime e o MPV.' -ForegroundColor DarkCyan
+Set-Location -LiteralPath $projectRoot
+Write-Host 'KitsuneDesk - FAST Anime VSR' -ForegroundColor Cyan
+Write-Host 'Esta ferramenta melhora arquivos de video locais e nao pesquisa animes.' -ForegroundColor DarkCyan
 Write-Host ''
+Write-Host "Pasta do projeto: $projectRoot" -ForegroundColor Gray
 
-try {
-  $headers = @{ 'User-Agent' = 'KitsuneDesk' }
-  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/alvarorichard/GoAnime/releases/latest' -Headers $headers
-  $asset = $release.assets |
-    Where-Object { $_.name -match '^GoAnime-Installer-.*\\.exe$' -or $_.name -eq 'GoAnimeInstaller.exe' } |
-    Select-Object -First 1
-
-  if (-not $asset) {
-    throw 'O instalador do Windows nao foi encontrado na release mais recente.'
-  }
-
-  $installerPath = Join-Path $env:TEMP $asset.name
-  Write-Host "Baixando $($asset.name)..." -ForegroundColor Yellow
-  Invoke-WebRequest -Uri $asset.browser_download_url -Headers $headers -OutFile $installerPath
-
-  if (-not (Test-Path $installerPath) -or (Get-Item $installerPath).Length -lt 1MB) {
-    throw 'O arquivo baixado parece invalido ou incompleto.'
-  }
-
-  Write-Host 'Abrindo o instalador. Mantenha marcada a opcao Add GoAnime and MPV to PATH.' -ForegroundColor Yellow
-  Start-Process -FilePath $installerPath -Verb RunAs -Wait
-
-  $goAnimePath = Join-Path $env:ProgramFiles 'GoAnime\\goanime.exe'
-  if (Test-Path $goAnimePath) {
-    Write-Host ''
-    Write-Host 'GoAnime instalado com sucesso.' -ForegroundColor Green
-    Write-Host 'Volte ao KitsuneDesk e clique em Atualizar status.' -ForegroundColor Green
-  } else {
-    Write-Host ''
-    Write-Host 'O instalador terminou, mas o executavel ainda nao foi localizado.' -ForegroundColor Yellow
-  }
-} catch {
-  Write-Host ''
-  Write-Host "Falha ao instalar o GoAnime: $($_.Exception.Message)" -ForegroundColor Red
-  Write-Host 'Pagina oficial: https://github.com/alvarorichard/GoAnime/releases/latest'
+if (Test-Path -LiteralPath $venvPython) {
+  Write-Host 'Ambiente Python dedicado encontrado.' -ForegroundColor Green
+} else {
+  Write-Host 'O ambiente Python dedicado nao foi encontrado.' -ForegroundColor Yellow
 }
+
+Start-Process explorer.exe -ArgumentList $projectRoot
+Write-Host ''
+Write-Host '1. Coloque ou selecione o video de entrada conforme o config.py.' -ForegroundColor Yellow
+Write-Host '2. Ajuste as configuracoes de GPU e caminho do arquivo.' -ForegroundColor Yellow
+Write-Host '3. Para iniciar, execute:' -ForegroundColor Yellow
+Write-Host '   & $venvPython main.py' -ForegroundColor White
+Write-Host ''
+Write-Host 'Esta janela permanecera aberta para voce usar a ferramenta.' -ForegroundColor Green
 `;
 
   fs.writeFileSync(scriptPath, script, 'utf8');
   return scriptPath;
-}
-
-/** @returns {string} */
-function writeGoAnimeGuiInstallScript() {
-  const installerSource = path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'scripts',
-    'windows',
-    'install-goanime-gui.ps1'
-  );
-  const bridgeSource = path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'resources',
-    'goanime-bridge',
-    'main.go'
-  );
-
-  if (!fs.existsSync(installerSource) || !fs.existsSync(bridgeSource)) {
-    throw new AppError(
-      'PROVIDER_UNAVAILABLE',
-      'Os arquivos necessarios para ativar o GoAnime GUI nao foram encontrados.',
-      { status: 500 }
-    );
-  }
-
-  const bridgeTarget = path.join(
-    os.tmpdir(),
-    `kitsunedesk-${process.pid}-${Date.now()}-goanime-bridge-main.go`
-  );
-  const scriptTarget = path.join(
-    os.tmpdir(),
-    `kitsunedesk-${process.pid}-${Date.now()}-install-goanime-gui.ps1`
-  );
-
-  fs.copyFileSync(bridgeSource, bridgeTarget);
-  const escapedBridgePath = bridgeTarget.replace(/'/g, "''");
-  const script = fs
-    .readFileSync(installerSource, 'utf8')
-    .replace('__BRIDGE_SOURCE_PATH__', escapedBridgePath);
-  fs.writeFileSync(scriptTarget, script, 'utf8');
-  return scriptTarget;
-}
-
-/** @returns {string} */
-function writeAnimeCliBrInstallScript() {
-  return copyPowerShellInstaller('install-anime-cli-br.ps1');
-}
-
-/** @returns {string} */
-function writeAniCliInstallScript() {
-  return copyPowerShellInstaller('install-ani-cli.ps1');
-}
-
-/** @returns {string} */
-function writeFastAnimeVsrInstallScript() {
-  return copyPowerShellInstaller('prepare-fast-anime-vsr.ps1');
 }
 
 /** @returns {{available: boolean, path: string | null}} */
@@ -1142,11 +1275,13 @@ function findFastAnimeVsr(dependencies) {
   const venvPython = root ? path.join(root, '.venv', 'Scripts', 'python.exe') : null;
   const runtime = probeFastAnimeVsrRuntime(venvPython);
 
+  const ready = Boolean(root && runtime.configured && dependencies.ffmpeg.available);
+  const accelerated = Boolean(ready && dependencies.nvidia.available && runtime.cuda);
+
   return {
     installed: Boolean(root),
-    ready: Boolean(
-      root && runtime.configured && dependencies.ffmpeg.available && dependencies.nvidia.available
-    ),
+    ready,
+    accelerated,
     path: root,
     venvPython: venvPython && fs.existsSync(venvPython) ? venvPython : null,
     runtime,
@@ -1169,7 +1304,7 @@ function probeFastAnimeVsrRuntime(pythonPath) {
   const result = spawnSync(pythonPath, ['-c', code], {
     encoding: 'utf8',
     windowsHide: true,
-    timeout: 5000
+    timeout: 15000
   });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   const configured = result.status === 0;
