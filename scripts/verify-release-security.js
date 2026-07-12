@@ -25,8 +25,6 @@ expect(
   builder,
   'Executável precisa ser assinado/editado pelo electron-builder.'
 );
-expect(/signDlls:\s*true/, builder, 'DLLs precisam entrar no fluxo de assinatura.');
-expect(/verifyUpdateCodeSignature:\s*true/, builder, 'Atualizador precisa verificar assinatura.');
 expect(
   /não hospeda|nao hospeda/i,
   terms,
@@ -55,7 +53,7 @@ if (errors.length > 0) {
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Requisitos de segurança e distribuição validados.');
+console.log('Requisitos de distribuição validados.');
 
 function expect(pattern, content, message) {
   if (!pattern.test(content)) errors.push(message);

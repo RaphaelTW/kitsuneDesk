@@ -29,9 +29,6 @@ test('configuração do electron-builder possui uma única fonte', () => {
   assert.match(packageJson.scripts['release:build'], /--publish never/);
 
   assert.match(builderConfig, /artifactName:\s*KitsuneDesk-Setup-\$\{version\}\.\$\{ext\}/);
-  assert.match(builderConfig, /verifyUpdateCodeSignature:\s*true/);
-  assert.match(builderConfig, /signAndEditExecutable:\s*true/);
-  assert.match(builderConfig, /signDlls:\s*true/);
   assert.match(builderConfig, /license:\s*docs\/INSTALLER_TERMS\.txt/);
   assert.match(builderConfig, /oneClick:\s*false/);
   assert.match(builderConfig, /installerLanguages:[\s\S]*pt_BR[\s\S]*en_US/);
@@ -41,18 +38,15 @@ test('configuração do electron-builder possui uma única fonte', () => {
   assert.match(builderConfig, /repo:\s*kitsuneDesk/);
 });
 
-test('workflow só publica release com metadados, assinatura e teste de atualização', () => {
+test('workflow só publica release com metadados e teste de atualização', () => {
   assert.match(workflow, /npm run release:verify-artifacts/);
   assert.match(workflow, /npm run test:e2e:electron/);
-  assert.match(workflow, /npm run release:verify-signing/);
   assert.match(workflow, /npm run providers:bundle/);
   assert.match(
     workflow,
     /test-installed-update\.ps1 -PreviousTag v0\.12\.0 -ValidateRollback -ValidateInterruptedDownload/
   );
-  assert.match(workflow, /Get-AuthenticodeSignature/);
 
-  assert.match(workflow, /CSC_LINK:\s*\$\{\{ secrets\.WINDOWS_CSC_LINK \}\}/);
   assert.match(
     workflow,
     /PROVIDER_MANIFEST_PRIVATE_KEY:\s*\$\{\{ secrets\.PROVIDER_MANIFEST_PRIVATE_KEY \}\}/
@@ -68,8 +62,7 @@ test('termos e validações de segurança cobrem distribuição responsável', (
   assert.match(installerTerms, /não hospeda|nao hospeda/i);
   assert.match(installerTerms, /provedores.*online|online providers/i);
   assert.match(installerTerms, /concorda|aceite/i);
-  assert.match(installerTerms, /Authenticode|assinatura/i);
-  assert.match(releaseSecurity, /signAndEditExecutable/);
+  assert.match(installerTerms, /SmartScreen|assinatura|editor desconhecido/i);
   assert.match(releaseSecurity, /ValidateRollback/);
   assert.match(providersBundle, /PROVIDER_MANIFEST_PRIVATE_KEY/);
   assert.match(providersBundle, /manifest\.sig/);

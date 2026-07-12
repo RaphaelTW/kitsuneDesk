@@ -23,9 +23,6 @@ files:
 
 win:
   icon: assets/icons/icon.ico
-  verifyUpdateCodeSignature: true
-  signAndEditExecutable: true
-  signDlls: true
   target:
     - target: nsis
       arch:

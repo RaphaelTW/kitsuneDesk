@@ -1,7 +1,7 @@
 {
   "name": "kitsunedesk",
   "version": "0.14.0",
-  "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com MPV externo padrão, player embutido opcional, perfis locais, backups agendados, instalação assinada e atualização automática pelo GitHub.",
+  "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com MPV externo padrão, player embutido opcional, perfis locais, backups agendados, instalador Windows assistido e atualização automática pelo GitHub.",
   "main": "src/main/main.js",
   "author": "Laurentino",
   "license": "MIT",
@@ -27,9 +27,9 @@
     "release:build": "electron-builder --config electron-builder.yml --win --publish never",
     "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
     "providers:bundle": "node scripts/verify-provider-bundles.js",
-    "release:win": "npm run release:verify && npm run release:security && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
+    "release:win": "npm run release:verify && npm run release:security && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
     "validate": "npm run lint && npm run format:check && npm test",
-    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run release:security && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
+    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run release:security && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
     "release:security": "node scripts/verify-release-security.js"
   },
   "dependencies": {
