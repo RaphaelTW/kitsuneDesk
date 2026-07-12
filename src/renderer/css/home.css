@@ -1767,3 +1767,34 @@ body[data-theme='light'] .update-release-notes pre {
     gap: 0.8rem;
   }
 }
+.embedded-player {
+  position: fixed;
+  inset: 5vh 5vw 120px;
+  z-index: 1050;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: #050509;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+}
+.embedded-player.is-hidden {
+  display: none;
+}
+.embedded-player-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.embedded-player-heading button {
+  color: inherit;
+  border: 0;
+  background: transparent;
+  font-size: 1.2rem;
+}
+.embedded-player video {
+  width: 100%;
+  height: calc(100% - 38px);
+  background: #000;
+  border-radius: 12px;
+}

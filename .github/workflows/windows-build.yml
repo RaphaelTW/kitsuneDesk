@@ -50,10 +50,27 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
-        run: npm run release:build
+        run: npm run providers:bundle && npm run release:build
 
       - name: Verify installer, blockmap and latest.yml
         run: npm run release:verify-artifacts
+
+      - name: Verify installer Authenticode signature
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $signature = Get-AuthenticodeSignature "dist/KitsuneDesk-Setup-$version.exe"
+          if ($signature.Status -ne 'Valid') {
+            throw "Assinatura Authenticode inválida: $($signature.Status)"
+          }
+
+      - name: Test installed upgrade from previous GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/test-installed-update.ps1 -PreviousTag v0.11.1
 
       - name: Publish GitHub release assets
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}

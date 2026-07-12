@@ -4,7 +4,9 @@ param(
   [string]$Provider,
 
   [Parameter(Mandatory = $true)]
-  [string]$BridgeSourcePath
+  [string]$BridgeSourcePath,
+
+  [string]$OfflineBundlePath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -642,6 +644,14 @@ try {
   Ensure-Directory -Path $ToolsRoot
   Ensure-Directory -Path $RuntimesRoot
   Ensure-Directory -Path $DownloadsRoot
+
+  $offlineProvider = if ($OfflineBundlePath) { Join-Path $OfflineBundlePath $Provider } else { '' }
+  if ($offlineProvider -and (Test-Path -LiteralPath $offlineProvider)) {
+    Send-Step 10 'offline-bundle' 'installing' 'Instalando pacote offline verificado...' 'Evita downloads dos componentes opcionais.'
+    Copy-Item -Path (Join-Path $offlineProvider '*') -Destination $ToolsRoot -Recurse -Force
+    Send-KitsuneEvent -Type 'complete' -Percent 100 -Component 'offline-bundle' -State 'installed' -Message 'Pacote offline instalado com sucesso.'
+    exit 0
+  }
 
   switch ($Provider) {
     'goanime' { Install-GoAnimeStack }

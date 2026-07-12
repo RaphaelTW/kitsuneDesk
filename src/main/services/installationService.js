@@ -62,7 +62,9 @@ class InstallationService {
       '-Provider',
       target,
       '-BridgeSourcePath',
-      files.bridgePath
+      files.bridgePath,
+      '-OfflineBundlePath',
+      files.offlineBundlePath || ''
     ];
 
     const child = spawn(powershellPath, args, {
@@ -283,7 +285,8 @@ function prepareInstallerFiles(jobId) {
   const installerText = fs.readFileSync(installerSource, 'utf8').replace(/^\uFEFF/, '');
   fs.writeFileSync(scriptPath, `\uFEFF${installerText}`, 'utf8');
   fs.copyFileSync(bridgeSource, bridgePath);
-  return { scriptPath, bridgePath };
+  const offlineBundlePath = findPackagedFile(path.join('resources', 'providers'));
+  return { scriptPath, bridgePath, offlineBundlePath };
 }
 
 function findPackagedFile(relativePath) {

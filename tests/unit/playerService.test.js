@@ -51,7 +51,7 @@ test('reprodução externa aplica volume, posição e salva histórico', async (
   assert.equal(saved[0].animeTitle, 'Teste');
 });
 
-test('configuração antiga de player integrado não altera o modo estável externo', async () => {
+test('player embutido resolve o stream sem iniciar o MPV', async () => {
   const service = new PlayerService({
     settingsService: {
       get: () => ({
@@ -68,13 +68,7 @@ test('configuração antiga de player integrado não altera o modo estável exte
     dependencies: { mpv: { path: 'C:/mpv.exe' } }
   });
   service.goAnimeGui = {
-    playEpisode: async (payload) => ({
-      source: 'AllAnime',
-      quality: 'best',
-      mode: 'sub',
-      pid: 99,
-      payload
-    }),
+    resolveStream: async () => ({ url: 'https://cdn.example/video.m3u8', metadata: {} }),
     getPlayerState: () => ({ active: true, position: 0, duration: 0 })
   };
 
@@ -86,9 +80,10 @@ test('configuração antiga de player integrado não altera o modo estável exte
     episodeIndex: 0
   });
 
-  assert.equal(result.playerMode, 'external');
-  assert.equal(result.embedded, false);
+  assert.equal(result.playerMode, 'embedded');
+  assert.equal(result.embedded, true);
   assert.equal(result.embeddedFallback, false);
+  assert.equal(result.streamUrl, 'https://cdn.example/video.m3u8');
 });
 
 test('fila de reproducao pode ser reordenada', async () => {

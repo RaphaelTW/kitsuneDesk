@@ -4,11 +4,8 @@ const signingPassword = process.env.CSC_KEY_PASSWORD || process.env.WINDOWS_CSC_
 const hasCertificate = Boolean(signingLink.trim() && signingPassword.trim());
 
 if (!hasCertificate) {
-  console.warn('Certificado de assinatura Windows não configurado.');
-  console.warn('A versão será gerada sem assinatura digital.');
-  console.warn('O Windows poderá exibir o aviso de editor desconhecido.');
-
-  process.exit(0);
+  console.error('Certificado de assinatura Windows obrigatório para publicar uma release.');
+  process.exit(1);
 }
 
 console.log('Assinatura Windows configurada para o electron-builder.');

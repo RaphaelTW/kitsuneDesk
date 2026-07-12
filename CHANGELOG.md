@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0] - 2026-07-12
+
+### Adicionado
+
+- Player HTML5 embutido opcional; o MPV externo permanece como padrão estável.
+- Termos exibidos pelo instalador esclarecendo que o KitsuneDesk não hospeda conteúdo.
+- Pacotes offline assistidos para provedores opcionais, com manifesto SHA-256.
+- Teste de upgrade instalado a partir da release anterior no GitHub Actions.
+
+### Alterado
+
+- Backups passam a preservar também a preferência de modo do player.
+- Releases exigem certificado Authenticode e o atualizador verifica a assinatura.
+- Documentação e processo de publicação atualizados para a v0.12.0.
+
 ## [0.11.1] - 2026-07-09
 
 ### Corrigido

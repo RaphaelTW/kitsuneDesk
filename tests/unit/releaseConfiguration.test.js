@@ -22,9 +22,8 @@ test('configuração do electron-builder possui uma única fonte', () => {
 
   assert.match(builderConfig, /artifactName:\s*KitsuneDesk-Setup-\$\{version\}\.\$\{ext\}/);
 
-  assert.match(builderConfig, /verifyUpdateCodeSignature:\s*false/);
-
-  assert.doesNotMatch(builderConfig, /publisherName:/);
+  assert.match(builderConfig, /verifyUpdateCodeSignature:\s*true/);
+  assert.match(builderConfig, /license:\s*docs\/INSTALLER_TERMS\.txt/);
 
   assert.match(builderConfig, /provider:\s*github/);
   assert.match(builderConfig, /owner:\s*RaphaelTW/);
@@ -35,6 +34,8 @@ test('workflow só publica release com metadados do atualizador', () => {
   assert.match(workflow, /npm run release:verify-artifacts/);
   assert.match(workflow, /npm run test:e2e:electron/);
   assert.match(workflow, /npm run release:verify-signing/);
+  assert.match(workflow, /test-installed-update\.ps1/);
+  assert.match(workflow, /Get-AuthenticodeSignature/);
 
   assert.match(workflow, /CSC_LINK:\s*\$\{\{ secrets\.WINDOWS_CSC_LINK \}\}/);
 

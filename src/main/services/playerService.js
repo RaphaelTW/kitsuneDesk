@@ -119,6 +119,29 @@ class PlayerService extends EventEmitter {
       ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
       : 0;
 
+    if (settings.playerMode === 'embedded') {
+      const stream = await this.goAnimeGui.resolveStream(payload);
+      const embeddedResult = {
+        launched: true,
+        provider: 'goanime-gui',
+        providerName: 'GoAnime GUI',
+        player: 'HTML5',
+        anime: payload.anime?.name || '',
+        episode: payload.episode?.number || '',
+        source: payload.anime?.source || '',
+        quality: payload?.quality || settings.defaultQuality || 'auto',
+        mode: payload?.language === 'dub' ? 'dub' : 'sub',
+        streamUrl: stream.url,
+        streamMetadata: stream.metadata || {},
+        resumedAt: startPosition,
+        embedded: true,
+        embeddedFallback: false,
+        playerMode: 'embedded'
+      };
+      this.emit('playback-started', embeddedResult);
+      return embeddedResult;
+    }
+
     const result = await this.goAnimeGui.playEpisode(
       {
         ...payload,

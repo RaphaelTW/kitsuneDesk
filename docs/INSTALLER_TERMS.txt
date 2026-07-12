@@ -1,0 +1,13 @@
+TERMOS DE USO E AVISO SOBRE CONTEÚDO — KITSUNEDESK
+
+Ao instalar ou usar o KitsuneDesk, você concorda com estes termos.
+
+1. O KitsuneDesk é somente uma interface agregadora. Ele não hospeda, armazena, transmite, vende nem distribui animes, vídeos ou streams.
+2. Resultados, metadados, episódios e endereços de reprodução são obtidos de provedores e projetos online independentes, que já disponibilizam esse conteúdo. O KitsuneDesk apenas reúne o acesso em uma única interface.
+3. O desenvolvedor não controla disponibilidade, legalidade, segurança, qualidade ou licenciamento do conteúdo oferecido por terceiros. Cada provedor possui seus próprios termos e políticas.
+4. O usuário é responsável por cumprir a legislação aplicável em sua região e por utilizar somente fontes e conteúdos aos quais tenha direito de acesso.
+5. O aplicativo pode abrir links, baixar componentes opcionais e reproduzir mídia fornecida por terceiros. Verifique a procedência e mantenha o sistema protegido.
+6. O software é fornecido sem garantias, nos limites permitidos pela licença MIT e pela legislação aplicável. O uso é por conta e risco do usuário.
+7. O KitsuneDesk não é afiliado, patrocinado ou aprovado por estúdios, distribuidoras, serviços de streaming ou provedores externos, salvo quando declarado expressamente.
+
+Licença do aplicativo: MIT. Licenças e avisos dos componentes de terceiros estão em THIRD_PARTY.md.

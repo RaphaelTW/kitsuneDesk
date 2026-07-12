@@ -77,7 +77,7 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.theme, 'dracula');
   assert.equal(settings.defaultLanguage, 'dub');
   assert.equal(settings.playerVolume, 100);
-  assert.equal(settings.playerMode, 'external');
+  assert.equal(settings.playerMode, 'embedded');
   assert.equal(settings.autoPlayNext, true);
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);

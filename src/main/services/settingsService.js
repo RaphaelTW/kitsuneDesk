@@ -49,7 +49,7 @@ class SettingsService {
         : current.defaultQuality,
       autoPlayNext: Boolean(payload?.autoPlayNext),
       playerVolume: clamp(Number(payload?.playerVolume), 0, 100, current.playerVolume),
-      playerMode: 'external',
+      playerMode: payload?.playerMode === 'embedded' ? 'embedded' : 'external',
       theme: THEMES.has(payload?.theme) ? payload.theme : current.theme,
       downloadsPath: normalizePath(payload?.downloadsPath),
       audioPreference: LANGUAGES.has(payload?.audioPreference)
@@ -98,7 +98,7 @@ function mapSettings(row) {
     defaultQuality: row?.default_quality || 'auto',
     autoPlayNext: Boolean(row?.auto_play_next),
     playerVolume: Number(row?.player_volume ?? 80),
-    playerMode: 'external',
+    playerMode: row?.player_mode === 'embedded' ? 'embedded' : 'external',
     theme: row?.theme || 'dark',
     downloadsPath: row?.downloads_path || '',
     audioPreference: row?.audio_preference || row?.default_language || 'sub',

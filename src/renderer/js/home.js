@@ -620,11 +620,24 @@ async function launchEpisode(payload) {
       }
     };
 
+    if (result.embedded && result.streamUrl) {
+      const video = $('embedded-video');
+      $('embedded-player-title').textContent =
+        `${payload.anime?.name || 'Anime'} · Episódio ${payload.episode?.number || ''}`;
+      $('embedded-player').classList.remove('is-hidden');
+      video.src = result.streamUrl;
+      video.volume = Math.max(0, Math.min(1, Number(state.settings?.playerVolume ?? 80) / 100));
+      video.currentTime = Number(result.resumedAt || 0);
+      await video.play();
+    }
+
     showToast({
       title: result.fallbackUsed ? 'Fonte alternativa utilizada' : 'Reprodução iniciada',
       message: result.fallbackUsed
         ? `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`
-        : 'O episódio foi aberto em uma janela externa do MPV.',
+        : result.embedded
+          ? 'O episódio foi aberto no player embutido opcional.'
+          : 'O episódio foi aberto em uma janela externa do MPV.',
       variant: result.fallbackUsed ? 'warning' : 'success'
     });
   } catch (error) {
@@ -737,6 +750,13 @@ async function exportHistoryCsv() {
 }
 
 function bindPlayer() {
+  $('embedded-player-close').addEventListener('click', () => {
+    const video = $('embedded-video');
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    $('embedded-player').classList.add('is-hidden');
+  });
   $('player-toggle').addEventListener('click', async () => {
     const result = await animeDesk.player.togglePause();
     if (!result.ok) notifyResultError(result);
@@ -1088,6 +1108,7 @@ async function hydrateSettings() {
 function renderSettingsForm(settings) {
   if (!settings) return;
   $('setting-provider').value = settings.defaultProvider || 'goanime-gui';
+  $('setting-player-mode').value = settings.playerMode === 'embedded' ? 'embedded' : 'external';
   $('setting-language').value = settings.defaultLanguage || 'sub';
   $('setting-quality').value = settings.defaultQuality || 'auto';
   $('setting-audio').value = settings.audioPreference || 'sub';
@@ -1109,6 +1130,7 @@ function renderSettingsForm(settings) {
 function readSettingsForm() {
   return {
     defaultProvider: $('setting-provider').value,
+    playerMode: $('setting-player-mode').value,
     defaultLanguage: $('setting-language').value,
     defaultQuality: $('setting-quality').value,
     audioPreference: $('setting-audio').value,

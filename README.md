@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.11.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.12.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -16,15 +16,24 @@
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-24-339933?style=for-the-badge&logo=node.js&logoColor=white">
 </p>
 
-> O KitsuneDesk não hospeda vídeos. A disponibilidade de títulos, idiomas, episódios e fontes depende dos projetos e serviços externos utilizados.
+> O KitsuneDesk não hospeda, armazena nem distribui vídeos ou streams. Ele apenas consulta conteúdo já disponibilizado por provedores online independentes e reúne os acessos em uma única interface. Disponibilidade, direitos e termos de uso pertencem a cada provedor.
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0110) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0110) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0120) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0120) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.11.0
+## Novidades da versão 0.12.0
 
-A v0.11.0 foca em abertura mais rápida, cache visual mais forte e novas identidades visuais.
+A v0.12.0 conclui os itens de distribuição, portabilidade e reprodução planejados para esta etapa.
+
+- player embutido HTML5 opcional, com o MPV externo mantido como padrão estável e recomendado;
+- backup de biblioteca e perfis preservando temas, provedores e modo do player;
+- termos de uso obrigatórios no instalador, com aviso explícito sobre conteúdo de terceiros;
+- assinatura Authenticode obrigatória no pipeline de release e verificação de assinatura nas atualizações;
+- teste automatizado que instala a release anterior e atualiza para o novo instalador em um Windows real do GitHub Actions;
+- empacotamento assistido de provedores offline, com manifesto de arquivos e hashes SHA-256.
+
+Também permanecem disponíveis os recursos entregues na série 0.11:
 
 - novos temas: Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave;
 - snapshot local da Home, preferências e mini player para exibir a interface imediatamente ao abrir;
@@ -148,9 +157,9 @@ Abra **[`docs/fluxo-interativo.html`](docs/fluxo-interativo.html)** no navegador
 
 </details>
 
-## Player Stable
+## Modos do player
 
-O vídeo é exibido pela janela tradicional do MPV. O KitsuneDesk continua conectado ao player por IPC para atualizar o progresso e executar os controles.
+O MPV externo continua selecionado por padrão. O KitsuneDesk se conecta a ele por IPC para atualizar o progresso e executar os controles. Nas configurações, o usuário pode optar pelo player embutido experimental; fontes incompatíveis podem exigir o retorno ao MPV.
 
 ```text
 KitsuneDesk resolve o stream
@@ -213,27 +222,27 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.11.0.exe
+dist\KitsuneDesk-Setup-0.12.0.exe
 ```
 
-## Publicar a versão 0.11.0
+## Publicar a versão 0.12.0
 
 Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` no GitHub Actions para assinar o instalador Windows.
 
 ```powershell
 git add .
-git commit -m "feat: publica KitsuneDesk v0.11.0"
+git commit -m "feat: publica KitsuneDesk v0.12.0"
 git push origin main
 
-git tag -a v0.11.0 -m "KitsuneDesk v0.11.0"
-git push origin v0.11.0
+git tag -a v0.12.0 -m "KitsuneDesk v0.12.0"
+git push origin v0.12.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.11.0.exe
-KitsuneDesk-Setup-0.11.0.exe.blockmap
+KitsuneDesk-Setup-0.12.0.exe
+KitsuneDesk-Setup-0.12.0.exe.blockmap
 latest.yml
 ```
 
@@ -243,15 +252,15 @@ O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio,
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.11.0 --no-git-tag-version
+npm version 0.13.0 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "feat: publica KitsuneDesk v0.11.0"
+git commit -m "feat: publica KitsuneDesk v0.13.0"
 git push origin main
 
-git tag -a v0.11.0 -m "KitsuneDesk v0.11.0"
-git push origin v0.11.0
+git tag -a v0.13.0 -m "KitsuneDesk v0.13.0"
+git push origin v0.13.0
 ```
 
 </details>
@@ -280,11 +289,11 @@ tests/                testes unitários, integração e E2E Electron
 
 ## Melhorias recomendadas para as próximas versões
 
-- assinatura digital do instalador Windows para reduzir alertas de editor desconhecido;
-- player embutido opcional, mantendo MPV externo como modo estável;
-- importação/exportação completa das preferências de temas, perfis e provedores;
-- testes automatizados de atualização via GitHub Release em instalação real;
-- empacotamento assistido dos provedores opcionais para instalação offline.
+- aprimorar compatibilidade do player embutido com HLS, cabeçalhos e codecs não suportados nativamente pelo Chromium;
+- permitir agendar backups criptografados e validar restaurações automaticamente;
+- publicar checksums assinados dos pacotes offline opcionais;
+- ampliar o teste instalado para validar também rollback e recuperação após download interrompido;
+- oferecer tradução da interface e dos termos do instalador.
 
 ## Limitações conhecidas
 

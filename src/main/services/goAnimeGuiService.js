@@ -86,6 +86,20 @@ class GoAnimeGuiService extends EventEmitter {
     return this.runBridge('episodes', { anime, language }, 45000);
   }
 
+  async resolveStream(payload) {
+    const anime = normalizeAnime(payload?.anime);
+    const episode = normalizeEpisode(payload?.episode);
+    const language = payload?.language === 'dub' ? 'dub' : 'sub';
+    const quality = normalizeQuality(payload?.quality);
+    const stream = await this.runBridge('stream', { anime, episode, language, quality }, 90000);
+    if (!stream?.url || !/^https?:\/\//i.test(stream.url)) {
+      throw new AppError('STREAM_UNAVAILABLE', 'A fonte não forneceu um stream compatível.', {
+        status: 502
+      });
+    }
+    return stream;
+  }
+
   async playEpisode(payload, mpvPath) {
     const anime = normalizeAnime(payload?.anime);
     const episode = normalizeEpisode(payload?.episode);

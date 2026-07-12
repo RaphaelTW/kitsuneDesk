@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https: http:; font-src 'self'; connect-src 'self';"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https: http:; media-src 'self' blob: https: http:; font-src 'self'; connect-src 'self' https: http:;"
     />
     <title>KitsuneDesk</title>
     <link rel="stylesheet" href="../vendor/bootstrap/css/bootstrap.min.css" />
@@ -20,7 +20,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.11.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.12.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -524,6 +524,13 @@
                     >
                   </div>
                   <label
+                    ><span>Modo do player</span
+                    ><select class="form-select" id="setting-player-mode">
+                      <option value="external">MPV externo (padrão e estável)</option>
+                      <option value="embedded">Embutido (opcional/experimental)</option>
+                    </select></label
+                  >
+                  <label
                     ><span>Provedor padrão</span
                     ><select class="form-select" id="setting-provider">
                       <option value="goanime-gui">GoAnime GUI</option>
@@ -864,6 +871,15 @@
       </div>
     </div>
 
+    <section class="embedded-player is-hidden" id="embedded-player" aria-label="Player embutido">
+      <div class="embedded-player-heading">
+        <strong id="embedded-player-title">Player embutido</strong
+        ><button id="embedded-player-close" type="button" aria-label="Fechar player">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <video id="embedded-video" controls playsinline></video>
+    </section>
     <section class="mini-player is-hidden" id="mini-player" aria-label="Controles de reprodução">
       <div class="mini-player-meta">
         <img id="player-cover" src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" />
