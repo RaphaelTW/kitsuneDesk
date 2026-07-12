@@ -49,7 +49,8 @@ const state = {
   updateBannerDismissed: false,
   telemetryPage: 1,
   telemetryPages: 1,
-  telemetryFacetsLoaded: false
+  telemetryFacetsLoaded: false,
+  scheduledBackupChecked: false
 };
 
 const modals = {};
@@ -635,10 +636,12 @@ async function launchEpisode(payload) {
       title: result.fallbackUsed ? 'Fonte alternativa utilizada' : 'Reprodução iniciada',
       message: result.fallbackUsed
         ? `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`
-        : result.embedded
-          ? 'O episódio foi aberto no player embutido opcional.'
-          : 'O episódio foi aberto em uma janela externa do MPV.',
-      variant: result.fallbackUsed ? 'warning' : 'success'
+        : result.embeddedFallback
+          ? result.fallbackReason || 'O stream não era compatível com o player embutido; o MPV externo foi usado.'
+          : result.embedded
+            ? 'O episódio foi aberto no player embutido opcional.'
+            : 'O episódio foi aberto em uma janela externa do MPV.',
+      variant: result.fallbackUsed || result.embeddedFallback ? 'warning' : 'success'
     });
   } catch (error) {
     state.lastIssue = {
@@ -1076,6 +1079,7 @@ function bindSettings() {
     }
     state.settings = result.data;
     applyTheme(result.data.theme);
+    applyLanguage(result.data.uiLanguage);
     applySettingsToSearch();
     showToast({
       title: 'Configurações salvas',
@@ -1102,6 +1106,12 @@ async function hydrateSettings() {
   state.settings = result.data;
   renderSettingsForm(result.data);
   applyTheme(result.data.theme);
+  applyLanguage(result.data.uiLanguage);
+  renderBackupSchedule(result.data);
+  if (!state.scheduledBackupChecked) {
+    state.scheduledBackupChecked = true;
+    void runDueScheduledBackup(false);
+  }
   applySettingsToSearch();
 }
 
@@ -1118,6 +1128,7 @@ function renderSettingsForm(settings) {
   $('setting-autoplay').checked = Boolean(settings.autoPlayNext);
   $('setting-remember').checked = settings.rememberPosition !== false;
   $('setting-theme').value = settings.theme || 'dark';
+  $('setting-ui-language').value = settings.uiLanguage || 'pt-BR';
   $('setting-updates').checked = settings.checkUpdates !== false;
   $('setting-telemetry').checked = Boolean(settings.localTelemetryEnabled);
   $('setting-parental').checked = Boolean(settings.parentalControlEnabled);
@@ -1139,6 +1150,10 @@ function readSettingsForm() {
     autoPlayNext: $('setting-autoplay').checked,
     rememberPosition: $('setting-remember').checked,
     theme: $('setting-theme').value,
+    uiLanguage: $('setting-ui-language').value,
+    backupFrequency: $('backup-frequency').value,
+    backupDirectory: $('backup-directory').value,
+    backupIncludeProfiles: $('backup-include-profiles').checked,
     checkUpdates: $('setting-updates').checked,
     localTelemetryEnabled: $('setting-telemetry').checked,
     parentalControlEnabled: $('setting-parental').checked,
@@ -1152,6 +1167,10 @@ function applySettingsToSearch() {
   $('language-filter').value = state.settings.defaultLanguage || 'sub';
   $('quality-filter').value = state.settings.defaultQuality || 'auto';
   updateSelectedProviderStatus();
+}
+
+function applyLanguage(language) {
+  document.documentElement.lang = language === 'en-US' ? 'en-US' : 'pt-BR';
 }
 
 function applyTheme(theme) {
@@ -1480,6 +1499,84 @@ function bindBackup() {
     notifyResult(await animeDesk.cache.clear());
     await hydrateCacheSummary();
   });
+  $('save-backup-schedule-button').addEventListener('click', saveBackupSchedule);
+  $('run-scheduled-backup-button').addEventListener('click', () => runDueScheduledBackup(true));
+}
+
+function renderBackupSchedule(settings = state.settings) {
+  if (!settings) return;
+  $('backup-frequency').value = settings.backupFrequency || 'off';
+  $('backup-directory').value = settings.backupDirectory || '';
+  $('backup-include-profiles').checked = Boolean(settings.backupIncludeProfiles);
+  $('backup-schedule-status').textContent = formatBackupScheduleStatus(settings);
+}
+
+async function saveBackupSchedule() {
+  const includeProfiles = $('backup-include-profiles').checked;
+  let password = '';
+  if (includeProfiles && !state.settings?.backupProfileSecretConfigured) {
+    password = window.prompt(
+      'Digite uma senha com pelo menos 8 caracteres para proteger os perfis agendados:'
+    );
+    if (!password) return;
+  }
+  const result = await animeDesk.backup.configureSchedule({
+    frequency: $('backup-frequency').value,
+    directory: $('backup-directory').value,
+    includeProfiles,
+    password
+  });
+  if (!result.ok) return notifyResultError(result);
+  showToast({
+    title: 'Backup agendado',
+    message: 'Agendamento salvo. O próximo backup será validado automaticamente.',
+    variant: 'success'
+  });
+  await hydrateSettings();
+}
+
+async function runDueScheduledBackup(force) {
+  const result = await animeDesk.backup.runScheduled(Boolean(force));
+  if (!result.ok) {
+    if (force) notifyResultError(result);
+    return;
+  }
+  if (result.data?.skipped) {
+    if (force) {
+      showToast({
+        title: 'Backup não executado',
+        message: result.data.reason || 'Agendamento desativado.',
+        variant: 'info'
+      });
+    }
+    return;
+  }
+  showToast({
+    title: 'Backup validado',
+    message: result.data?.profiles?.valid
+      ? 'Biblioteca e perfis criptografados foram exportados e validados.'
+      : 'Biblioteca exportada e validada.',
+    variant: result.data?.ok === false ? 'warning' : 'success'
+  });
+  await hydrateSettings();
+}
+
+function formatBackupScheduleStatus(settings = {}) {
+  if (!settings.backupFrequency || settings.backupFrequency === 'off') return 'Agendamento desativado.';
+  const last = settings.backupLastRunAt
+    ? new Date(settings.backupLastRunAt).toLocaleString()
+    : 'ainda não executado';
+  const nextRunAt = calculateNextBackupRun(settings.backupFrequency, settings.backupLastRunAt);
+  const next = nextRunAt ? new Date(nextRunAt).toLocaleString() : 'na próxima abertura';
+  return `Último backup: ${last}. Próximo: ${next}.`;
+}
+
+function calculateNextBackupRun(frequency, lastRunAt) {
+  const intervals = { daily: 86400000, weekly: 604800000, monthly: 2592000000 };
+  const interval = intervals[frequency];
+  const last = Date.parse(lastRunAt || '');
+  if (!interval || !Number.isFinite(last)) return null;
+  return new Date(last + interval).toISOString();
 }
 
 async function hydrateCacheSummary() {

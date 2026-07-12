@@ -46,6 +46,11 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
   assert.ok(settingsColumns.includes('parental_pin_hash'));
   assert.ok(settingsColumns.includes('player_mode'));
   assert.ok(settingsColumns.includes('local_telemetry_enabled'));
+  assert.ok(settingsColumns.includes('ui_language'));
+  assert.ok(settingsColumns.includes('backup_frequency'));
+  assert.ok(settingsColumns.includes('backup_directory'));
+  assert.ok(settingsColumns.includes('backup_secret_encrypted'));
+  assert.ok(settingsColumns.includes('backup_last_status'));
   const defaultMode = database
     .prepare("SELECT dflt_value FROM pragma_table_info('settings') WHERE name = 'player_mode'")
     .get();

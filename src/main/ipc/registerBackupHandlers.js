@@ -56,6 +56,18 @@ function registerBackupHandlers(ipcMain, backupController) {
       return backupController.importProfiles(result.filePaths[0], payload?.password);
     })
   );
+
+  ipcMain.handle('backup:schedule-status', () =>
+    handleRequest('BACKUP', async () => backupController.scheduleStatus())
+  );
+
+  ipcMain.handle('backup:configure-schedule', (_event, payload) =>
+    handleRequest('BACKUP', async () => backupController.configureSchedule(payload))
+  );
+
+  ipcMain.handle('backup:run-scheduled', (_event, payload) =>
+    handleRequest('BACKUP', async () => backupController.runScheduled(payload))
+  );
 }
 
 module.exports = { registerBackupHandlers };

@@ -1,10 +1,17 @@
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 const AppError = require('../utils/AppError');
-const { requireAdmin, requireUserId } = require('./authService');
 
 const LIBRARY_FORMAT = 'kitsunedesk-library';
 const PROFILE_FORMAT = 'kitsunedesk-profiles-encrypted';
+const PROFILE_PAYLOAD_FORMAT = 'kitsunedesk-profiles';
+const BACKUP_FREQUENCIES = new Set(['off', 'daily', 'weekly', 'monthly']);
+const SCHEDULE_INTERVAL_MS = Object.freeze({
+  daily: 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+  monthly: 30 * 24 * 60 * 60 * 1000
+});
 
 class BackupService {
   constructor({ app, database, sessionRepository }) {
@@ -14,31 +21,9 @@ class BackupService {
   }
 
   exportLibrary(filePath) {
-    const userId = requireUserId(this.sessionRepository);
-    const profile = this.database.get(
-      `SELECT id, username, name, role, profile_color, avatar_seed, avatar_style, parental_level
-       FROM users WHERE id = ?`,
-      [userId]
-    );
-    const payload = {
-      format: LIBRARY_FORMAT,
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      appVersion: this.app.getVersion(),
-      profile,
-      data: {
-        favorites: this.database.all('SELECT * FROM favorites WHERE user_id = ?', [userId]),
-        watchlist: this.database.all('SELECT * FROM watchlist WHERE user_id = ?', [userId]),
-        history: this.database.all('SELECT * FROM watch_history WHERE user_id = ?', [userId]),
-        playbackSessions: this.database.all('SELECT * FROM playback_sessions WHERE user_id = ?', [
-          userId
-        ]),
-        settings: sanitizeSettings(
-          this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId])
-        )
-      }
-    };
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+    const userId = getAuthHelpers().requireUserId(this.sessionRepository);
+    const payload = this.createLibraryPayload(userId);
+    writeJson(filePath, payload);
     return {
       exported: true,
       path: filePath,
@@ -47,13 +32,9 @@ class BackupService {
   }
 
   importLibrary(filePath, mode = 'merge') {
-    const userId = requireUserId(this.sessionRepository);
-    const payload = parseJsonFile(filePath);
-    if (payload?.format !== LIBRARY_FORMAT || payload?.version !== 1) {
-      throw new AppError('BACKUP_INVALID', 'O arquivo não é um backup de biblioteca válido.', {
-        status: 400
-      });
-    }
+    const userId = getAuthHelpers().requireUserId(this.sessionRepository);
+    const validation = this.validateLibraryBackup(filePath);
+    const payload = validation.payload;
     const importMode = mode === 'replace' ? 'replace' : 'merge';
     if (importMode === 'replace') {
       for (const table of ['favorites', 'watchlist', 'watch_history', 'playback_sessions']) {
@@ -71,50 +52,23 @@ class BackupService {
       imported: true,
       mode: importMode,
       path: filePath,
-      summary: summarizeLibrary(payload.data || {})
+      summary: validation.summary
     };
   }
 
   exportProfilesEncrypted(filePath, password) {
-    requireAdmin(this.sessionRepository);
+    getAuthHelpers().requireAdmin(this.sessionRepository);
     const secret = normalizeBackupPassword(password);
-    const users = this.database.all('SELECT * FROM users ORDER BY id');
-    const payload = {
-      format: 'kitsunedesk-profiles',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      appVersion: this.app.getVersion(),
-      users: users.map((user) => ({
-        ...user,
-        settings: this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id])
-      }))
-    };
-    const encrypted = encryptPayload(payload, secret);
-    fs.writeFileSync(filePath, JSON.stringify(encrypted, null, 2), 'utf8');
-    return { exported: true, path: filePath, profiles: users.length, encrypted: true };
+    const result = this.writeProfilesEncrypted(filePath, secret);
+    this.validateProfilesBackup(filePath, secret);
+    return result;
   }
 
   importProfilesEncrypted(filePath, password) {
-    const currentAdmin = requireAdmin(this.sessionRepository);
+    const currentAdmin = getAuthHelpers().requireAdmin(this.sessionRepository);
     const secret = normalizeBackupPassword(password);
-    const container = parseJsonFile(filePath);
-    if (container?.format !== PROFILE_FORMAT || container?.version !== 1) {
-      throw new AppError('BACKUP_INVALID', 'O arquivo criptografado não é compatível.', {
-        status: 400
-      });
-    }
-    let payload;
-    try {
-      payload = decryptPayload(container, secret);
-    } catch (error) {
-      throw new AppError('BACKUP_PASSWORD_INVALID', 'Senha incorreta ou backup alterado.', {
-        status: 401,
-        technicalMessage: error.message
-      });
-    }
-    if (payload?.format !== 'kitsunedesk-profiles' || !Array.isArray(payload.users)) {
-      throw new AppError('BACKUP_INVALID', 'O conteúdo do backup não é válido.', { status: 400 });
-    }
+    const validation = this.validateProfilesBackup(filePath, secret);
+    const payload = validation.payload;
 
     let imported = 0;
     let updated = 0;
@@ -185,6 +139,193 @@ class BackupService {
     }
     return { imported: true, createdProfiles: imported, updatedProfiles: updated };
   }
+
+  scheduleStatus() {
+    const userId = getAuthHelpers().requireUserId(this.sessionRepository);
+    const row = this.getSettingsRow(userId);
+    return mapSchedule(row, this.defaultBackupDirectory());
+  }
+
+  configureSchedule(payload = {}) {
+    const userId = getAuthHelpers().requireUserId(this.sessionRepository);
+    const current = this.getSettingsRow(userId);
+    const frequency = BACKUP_FREQUENCIES.has(payload.frequency)
+      ? payload.frequency
+      : current.backup_frequency || 'off';
+    const directory = normalizeDirectory(payload.directory || current.backup_directory);
+    const includeProfiles = Boolean(payload.includeProfiles);
+    let encryptedSecret = current.backup_secret_encrypted || null;
+
+    if (includeProfiles) {
+      getAuthHelpers().requireAdmin(this.sessionRepository);
+      if (payload.password) {
+        encryptedSecret = protectLocalSecret(normalizeBackupPassword(payload.password));
+      }
+      if (!encryptedSecret) {
+        throw new AppError(
+          'BACKUP_PASSWORD_REQUIRED',
+          'Informe uma senha para ativar backup criptografado de perfis no agendamento.',
+          { status: 400 }
+        );
+      }
+    } else if (payload.clearProfilePassword) {
+      encryptedSecret = null;
+    }
+
+    this.database.run(
+      `UPDATE settings
+       SET backup_frequency = ?, backup_directory = ?, backup_include_profiles = ?,
+           backup_secret_encrypted = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [frequency, directory, includeProfiles ? 1 : 0, encryptedSecret, userId]
+    );
+    return this.scheduleStatus();
+  }
+
+  runScheduledBackup(payload = {}) {
+    const userId = getAuthHelpers().requireUserId(this.sessionRepository);
+    const row = this.getSettingsRow(userId);
+    const schedule = mapSchedule(row, this.defaultBackupDirectory());
+    const force = Boolean(payload.force);
+
+    if (schedule.frequency === 'off') {
+      return { skipped: true, reason: 'Agendamento desativado.', schedule };
+    }
+    if (!force && !isBackupDue(schedule.frequency, row.backup_last_run_at)) {
+      return { skipped: true, reason: 'Backup ainda dentro da janela configurada.', schedule };
+    }
+
+    const directory = schedule.directory || this.defaultBackupDirectory();
+    fs.mkdirSync(directory, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const libraryPath = path.join(directory, `kitsunedesk-biblioteca-auto-${stamp}.json`);
+    const libraryPayload = this.createLibraryPayload(userId);
+    writeJson(libraryPath, libraryPayload);
+    const libraryValidation = this.validateLibraryBackup(libraryPath);
+
+    const status = {
+      ok: true,
+      ranAt: new Date().toISOString(),
+      library: {
+        path: libraryPath,
+        valid: libraryValidation.valid,
+        summary: libraryValidation.summary
+      },
+      profiles: null
+    };
+
+    if (schedule.includeProfiles) {
+      try {
+        getAuthHelpers().requireAdmin(this.sessionRepository);
+        const password = unprotectLocalSecret(row.backup_secret_encrypted);
+        const profilePath = path.join(directory, `kitsunedesk-perfis-auto-${stamp}.kitsunebackup`);
+        const profileResult = this.writeProfilesEncrypted(profilePath, password);
+        const profileValidation = this.validateProfilesBackup(profilePath, password);
+        status.profiles = {
+          path: profilePath,
+          valid: profileValidation.valid,
+          profiles: profileResult.profiles
+        };
+      } catch (error) {
+        status.ok = false;
+        status.profiles = {
+          valid: false,
+          message: error.publicMessage || error.message || 'Falha no backup de perfis.'
+        };
+      }
+    }
+
+    this.database.run(
+      `UPDATE settings
+       SET backup_last_run_at = ?, backup_last_status = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [status.ranAt, JSON.stringify(status), userId]
+    );
+
+    return { backedUp: true, schedule: this.scheduleStatus(), ...status };
+  }
+
+  validateLibraryBackup(filePath) {
+    const payload = parseJsonFile(filePath);
+    if (payload?.format !== LIBRARY_FORMAT || payload?.version !== 1) {
+      throw new AppError('BACKUP_INVALID', 'O arquivo não é um backup de biblioteca válido.', {
+        status: 400
+      });
+    }
+    return { valid: true, path: filePath, payload, summary: summarizeLibrary(payload.data || {}) };
+  }
+
+  validateProfilesBackup(filePath, password) {
+    const secret = normalizeBackupPassword(password);
+    const container = parseJsonFile(filePath);
+    if (container?.format !== PROFILE_FORMAT || container?.version !== 1) {
+      throw new AppError('BACKUP_INVALID', 'O arquivo criptografado não é compatível.', {
+        status: 400
+      });
+    }
+    let payload;
+    try {
+      payload = decryptPayload(container, secret);
+    } catch (error) {
+      throw new AppError('BACKUP_PASSWORD_INVALID', 'Senha incorreta ou backup alterado.', {
+        status: 401,
+        technicalMessage: error.message
+      });
+    }
+    if (payload?.format !== PROFILE_PAYLOAD_FORMAT || !Array.isArray(payload.users)) {
+      throw new AppError('BACKUP_INVALID', 'O conteúdo do backup não é válido.', { status: 400 });
+    }
+    return { valid: true, path: filePath, payload, profiles: payload.users.length };
+  }
+
+  createLibraryPayload(userId) {
+    const profile = this.database.get(
+      `SELECT id, username, name, role, profile_color, avatar_seed, avatar_style, parental_level
+       FROM users WHERE id = ?`,
+      [userId]
+    );
+    return {
+      format: LIBRARY_FORMAT,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: this.app.getVersion(),
+      profile,
+      data: {
+        favorites: this.database.all('SELECT * FROM favorites WHERE user_id = ?', [userId]),
+        watchlist: this.database.all('SELECT * FROM watchlist WHERE user_id = ?', [userId]),
+        history: this.database.all('SELECT * FROM watch_history WHERE user_id = ?', [userId]),
+        playbackSessions: this.database.all('SELECT * FROM playback_sessions WHERE user_id = ?', [
+          userId
+        ]),
+        settings: sanitizeSettings(this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId]))
+      }
+    };
+  }
+
+  writeProfilesEncrypted(filePath, password) {
+    const users = this.database.all('SELECT * FROM users ORDER BY id');
+    const payload = {
+      format: PROFILE_PAYLOAD_FORMAT,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: this.app.getVersion(),
+      users: users.map((user) => ({
+        ...user,
+        settings: sanitizeSettings(this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id]))
+      }))
+    };
+    const encrypted = encryptPayload(payload, password);
+    writeJson(filePath, encrypted);
+    return { exported: true, path: filePath, profiles: users.length, encrypted: true };
+  }
+
+  getSettingsRow(userId) {
+    return this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId]) || {};
+  }
+
+  defaultBackupDirectory() {
+    return path.join(this.app.getPath('userData'), 'backups');
+  }
 }
 
 function encryptPayload(payload, password) {
@@ -241,6 +382,11 @@ function parseJsonFile(filePath) {
   }
 }
 
+function writeJson(filePath, payload) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+}
+
 function summarizeLibrary(data) {
   return {
     favorites: Array.isArray(data?.favorites) ? data.favorites.length : 0,
@@ -254,6 +400,7 @@ function sanitizeSettings(settings) {
   if (!settings) return null;
   const safe = { ...settings };
   delete safe.parental_pin_hash;
+  delete safe.backup_secret_encrypted;
   delete safe.id;
   delete safe.user_id;
   return safe;
@@ -362,8 +509,9 @@ function importSettings(database, userId, settings) {
        user_id, default_language, default_quality, auto_play_next, player_volume, theme,
        default_provider, downloads_path, audio_preference, parental_control_enabled,
        parental_pin_hash, max_content_rating, remember_position, check_updates,
-       player_mode, local_telemetry_enabled, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       player_mode, local_telemetry_enabled, ui_language, backup_frequency,
+       backup_directory, backup_include_profiles, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(user_id) DO UPDATE SET
        default_language = excluded.default_language,
        default_quality = excluded.default_quality,
@@ -380,6 +528,10 @@ function importSettings(database, userId, settings) {
        check_updates = excluded.check_updates,
        player_mode = excluded.player_mode,
        local_telemetry_enabled = excluded.local_telemetry_enabled,
+       ui_language = excluded.ui_language,
+       backup_frequency = excluded.backup_frequency,
+       backup_directory = excluded.backup_directory,
+       backup_include_profiles = excluded.backup_include_profiles,
        updated_at = CURRENT_TIMESTAMP`,
     [
       userId,
@@ -397,11 +549,102 @@ function importSettings(database, userId, settings) {
       settings.remember_position !== 0 ? 1 : 0,
       settings.check_updates !== 0 ? 1 : 0,
       settings.player_mode === 'embedded' ? 'embedded' : 'external',
-      settings.local_telemetry_enabled ? 1 : 0
+      settings.local_telemetry_enabled ? 1 : 0,
+      settings.ui_language === 'en-US' ? 'en-US' : 'pt-BR',
+      BACKUP_FREQUENCIES.has(settings.backup_frequency) ? settings.backup_frequency : 'off',
+      settings.backup_directory || '',
+      settings.backup_include_profiles ? 1 : 0
     ]
   );
+}
+
+function normalizeDirectory(value) {
+  const directory = String(value || '').trim();
+  return directory ? path.normalize(directory).slice(0, 500) : '';
+}
+
+
+function getAuthHelpers() {
+  return require('./authService');
+}
+
+function mapSchedule(row, fallbackDirectory) {
+  const lastStatus = parseStatus(row?.backup_last_status);
+  return {
+    frequency: BACKUP_FREQUENCIES.has(row?.backup_frequency) ? row.backup_frequency : 'off',
+    directory: row?.backup_directory || fallbackDirectory,
+    includeProfiles: Boolean(row?.backup_include_profiles),
+    profileSecretConfigured: Boolean(row?.backup_secret_encrypted),
+    lastRunAt: row?.backup_last_run_at || null,
+    lastStatus,
+    nextRunAt: nextRunAt(row?.backup_frequency, row?.backup_last_run_at)
+  };
+}
+
+function parseStatus(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { ok: false, message: String(value) };
+  }
+}
+
+function isBackupDue(frequency, lastRunAt) {
+  if (frequency === 'off') return false;
+  const interval = SCHEDULE_INTERVAL_MS[frequency];
+  if (!interval) return false;
+  const last = Date.parse(lastRunAt || '');
+  return !Number.isFinite(last) || Date.now() - last >= interval;
+}
+
+function nextRunAt(frequency, lastRunAt) {
+  if (frequency === 'off') return null;
+  const interval = SCHEDULE_INTERVAL_MS[frequency];
+  if (!interval) return null;
+  const last = Date.parse(lastRunAt || '');
+  if (!Number.isFinite(last)) return new Date().toISOString();
+  return new Date(last + interval).toISOString();
+}
+
+function getSafeStorage() {
+  try {
+    return require('electron').safeStorage;
+  } catch {
+    return null;
+  }
+}
+
+function protectLocalSecret(secret) {
+  const safeStorage = getSafeStorage();
+  if (!safeStorage?.isEncryptionAvailable?.()) {
+    throw new AppError(
+      'BACKUP_SECRET_UNAVAILABLE',
+      'O Windows não liberou o cofre local para salvar a senha do backup agendado.',
+      { status: 424 }
+    );
+  }
+  return Buffer.from(safeStorage.encryptString(secret)).toString('base64');
+}
+
+function unprotectLocalSecret(value) {
+  const safeStorage = getSafeStorage();
+  if (!value || !safeStorage?.isEncryptionAvailable?.()) {
+    throw new AppError(
+      'BACKUP_SECRET_UNAVAILABLE',
+      'A senha local do backup agendado não está disponível.',
+      { status: 424 }
+    );
+  }
+  return safeStorage.decryptString(Buffer.from(value, 'base64'));
 }
 
 module.exports = BackupService;
 module.exports.encryptPayload = encryptPayload;
 module.exports.decryptPayload = decryptPayload;
+module.exports.testHelpers = {
+  isBackupDue,
+  nextRunAt,
+  mapSchedule,
+  sanitizeSettings
+};

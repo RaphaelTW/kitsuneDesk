@@ -6,6 +6,8 @@ const { requireUserId } = require('./authService');
 const PROVIDERS = new Set(['goanime-gui', 'goanime', 'anime-cli-br', 'ani-cli']);
 const LANGUAGES = new Set(['sub', 'dub']);
 const QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
+const UI_LANGUAGES = new Set(['pt-BR', 'en-US']);
+const BACKUP_FREQUENCIES = new Set(['off', 'daily', 'weekly', 'monthly']);
 const THEMES = new Set([
   'dark',
   'light',
@@ -61,7 +63,13 @@ class SettingsService {
         : current.maxContentRating,
       rememberPosition: payload?.rememberPosition !== false,
       checkUpdates: payload?.checkUpdates !== false,
-      localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled)
+      localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled),
+      uiLanguage: UI_LANGUAGES.has(payload?.uiLanguage) ? payload.uiLanguage : current.uiLanguage,
+      backupFrequency: BACKUP_FREQUENCIES.has(payload?.backupFrequency)
+        ? payload.backupFrequency
+        : current.backupFrequency,
+      backupDirectory: normalizePath(payload?.backupDirectory || current.backupDirectory),
+      backupIncludeProfiles: Boolean(payload?.backupIncludeProfiles) && current.backupProfileSecretConfigured
     };
     this.settingsRepository.update(userId, settings);
     return this.get();
@@ -107,8 +115,26 @@ function mapSettings(row) {
     maxContentRating: row?.max_content_rating || '18',
     rememberPosition: row?.remember_position !== 0,
     checkUpdates: row?.check_updates !== 0,
-    localTelemetryEnabled: Boolean(row?.local_telemetry_enabled)
+    localTelemetryEnabled: Boolean(row?.local_telemetry_enabled),
+    uiLanguage: row?.ui_language === 'en-US' ? 'en-US' : 'pt-BR',
+    backupFrequency: BACKUP_FREQUENCIES.has(row?.backup_frequency)
+      ? row.backup_frequency
+      : 'off',
+    backupDirectory: row?.backup_directory || '',
+    backupIncludeProfiles: Boolean(row?.backup_include_profiles),
+    backupProfileSecretConfigured: Boolean(row?.backup_secret_encrypted),
+    backupLastRunAt: row?.backup_last_run_at || null,
+    backupLastStatus: parseStatus(row?.backup_last_status)
   };
+}
+
+function parseStatus(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { ok: false, message: String(value) };
+  }
 }
 
 function normalizePin(value) {

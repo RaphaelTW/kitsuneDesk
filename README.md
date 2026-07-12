@@ -2,10 +2,10 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.12.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.14.0 Stable</h1>
 
 <p align="center">
-  Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
+  Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual, busca mais rápida e reprodução estável com MPV externo como padrão.
 </p>
 
 <p align="center">
@@ -16,37 +16,41 @@
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-24-339933?style=for-the-badge&logo=node.js&logoColor=white">
 </p>
 
-> O KitsuneDesk não hospeda, armazena nem distribui vídeos ou streams. Ele apenas consulta conteúdo já disponibilizado por provedores online independentes e reúne os acessos em uma única interface. Disponibilidade, direitos e termos de uso pertencem a cada provedor.
+> O KitsuneDesk não hospeda, armazena, transmite, vende nem distribui vídeos, episódios ou streams. Ele apenas consulta conteúdo já disponibilizado por provedores online independentes e reúne os acessos em uma única interface. Disponibilidade, direitos, legalidade e termos de uso pertencem a cada provedor e à responsabilidade do usuário.
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0120) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0120) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0140) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0140) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.12.0
+## Novidades da versão 0.14.0
 
-A v0.12.0 conclui os itens de distribuição, portabilidade e reprodução planejados para esta etapa.
+A v0.14.0 pula a série 0.13 e fecha as melhorias planejadas no README anterior, com foco em velocidade, distribuição segura e instalação mais transparente.
 
-- player embutido HTML5 opcional, com o MPV externo mantido como padrão estável e recomendado;
-- backup de biblioteca e perfis preservando temas, provedores e modo do player;
-- termos de uso obrigatórios no instalador, com aviso explícito sobre conteúdo de terceiros;
-- assinatura Authenticode obrigatória no pipeline de release e verificação de assinatura nas atualizações;
-- teste automatizado que instala a release anterior e atualiza para o novo instalador em um Windows real do GitHub Actions;
-- empacotamento assistido de provedores offline, com manifesto de arquivos e hashes SHA-256.
+- busca e verificação de provedores mais rápidas: cache do status do bridge GoAnime, timeout curto na checagem, deduplicação de pesquisas simultâneas e reaproveitamento de cache local/stale;
+- sistema mais rápido ao abrir e pesquisar: o app evita revalidar binários externos a cada ação, reduz probes de rede longos e mantém resultados de pesquisa/episódios em cache com expiração;
+- player embutido opcional mais seguro: arquivos diretos compatíveis (`mp4`, `webm`, `ogg`) podem abrir no HTML5, mas HLS, headers especiais e formatos incertos voltam automaticamente para o MPV externo;
+- MPV externo continua sendo o padrão recomendado e o fallback estável para maior compatibilidade;
+- backups criptografados agendados: frequência diária, semanal ou mensal, diretório configurável, opção de incluir perfis locais com senha protegida pelo cofre do Windows e validação automática do backup gerado;
+- importação/exportação preserva biblioteca, temas, provedores, modo do player, idioma da interface e preferências locais sem exportar segredos como PIN parental ou senha criptografada do agendamento;
+- pacotes offline opcionais de provedores agora têm manifesto com SHA-256 e suporte a assinatura Ed25519 do manifesto em releases;
+- workflow de release testa atualização instalada a partir da versão anterior, valida rollback e simula recuperação após download interrompido;
+- instalador NSIS exibe termos obrigatórios antes de instalar, com aviso claro de que o KitsuneDesk não hospeda nada e apenas integra provedores online já existentes;
+- termos do instalador em português com resumo em inglês e configuração para idiomas `pt_BR` e `en_US`;
+- assinatura Authenticode obrigatória no pipeline de release com `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD`, validação por `Get-AuthenticodeSignature` e bloqueio da publicação se a assinatura estiver ausente.
 
-Também permanecem disponíveis os recursos entregues na série 0.11:
+> Importante sobre o Windows Defender/SmartScreen: o projeto agora exige assinatura digital no pipeline, mas o Windows só deixa de mostrar alertas de editor desconhecido quando o instalador é assinado com um certificado Authenticode válido e ganha reputação. Sem certificado real configurado nos secrets, nenhuma alteração de código consegue garantir que o Windows reconheça o arquivo como seguro.
 
-- novos temas: Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave;
+Também permanecem disponíveis os recursos entregues nas séries 0.11 e 0.12:
+
+- temas Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave;
 - snapshot local da Home, preferências e mini player para exibir a interface imediatamente ao abrir;
 - hidratação assíncrona de informações do app, configurações, biblioteca, playback e atualização;
 - aquecimento em segundo plano do cache de capas exibidas na Home;
-- cache offline dos avatares selecionados também no renderer, evitando tentativa remota na abertura;
-- cache de capas e avatares com janela de expiração/stale mais clara e limpeza automática de arquivos antigos;
-- cache local de pesquisas e episódios com expiração e fallback offline;
+- cache offline dos avatares selecionados também no renderer;
 - backup da biblioteca em JSON com restauração por mesclagem ou substituição;
 - backup criptografado de perfis usando `scrypt` e `AES-256-GCM`;
-- gerenciamento visual da telemetria local com filtros, paginação, exclusão e exportação.
-
-A reprodução continua estável em uma janela externa do MPV, e o atualizador automático permanece compatível com `latest.yml`, `.blockmap` e instalador NSIS.
+- gerenciamento visual da telemetria local com filtros, paginação, exclusão e exportação;
+- atualização automática compatível com `latest.yml`, `.blockmap` e instalador NSIS.
 
 ## Prévia
 
@@ -108,25 +112,29 @@ flowchart TD
     E --> M{Perfil administrador?}
     M -- Sim --> N[Gerenciar usuários]
 
-    F --> O[Escolher provedor, idioma e qualidade]
-    O --> P[Selecionar resultado]
-    P --> Q[Listar episódios]
-    Q --> R{Stream disponível?}
-    R -- Não --> S[Tentar idioma, qualidade ou fonte alternativa]
-    S --> R
-    R -- Sim --> T[Abrir MPV em janela externa]
-    T --> U[Controlar pelo mini player do KitsuneDesk]
-    U --> V[Salvar posição, duração e histórico]
-    V --> W{Próximo automático?}
-    W -- Sim --> Q
-    W -- Não --> E
+    F --> O[Cache local e deduplicação]
+    O --> P[Bridge GoAnime com status cacheado]
+    P --> Q[Selecionar resultado]
+    Q --> R[Listar episódios]
+    R --> S{Modo player?}
+    S -- MPV padrão --> T[Abrir MPV externo]
+    S -- Embutido opcional --> U{Stream HTML5 compatível?}
+    U -- Sim --> V[Reproduzir no player embutido]
+    U -- Não --> T
+    T --> W[Controlar pelo mini player]
+    V --> W
+    W --> X[Salvar posição, duração e histórico]
+    X --> Y{Próximo automático?}
+    Y -- Sim --> R
+    Y -- Não --> E
 
-    J --> X[Instalar ou reparar componentes]
-    L --> Y[Executar diagnóstico]
-    L --> Z[Verificar atualização]
-    Z --> AA{Nova versão?}
-    AA -- Sim --> AB[Baixar em segundo plano]
-    AB --> AC[Instalar e reiniciar]
+    J --> Z[Instalar ou reparar componentes]
+    K --> BA[Backup manual ou agendado]
+    L --> BB[Executar diagnóstico]
+    L --> BC[Verificar atualização]
+    BC --> BD{Nova versão?}
+    BD -- Sim --> BE[Baixar em segundo plano]
+    BE --> BF[Instalar e reiniciar]
 ```
 
 ### Fluxo interativo
@@ -137,12 +145,12 @@ Abra **[`docs/fluxo-interativo.html`](docs/fluxo-interativo.html)** no navegador
 
 | Área | Recursos principais |
 |---|---|
-| Reprodução | MPV externo, pausa, volume, busca, progresso, anterior, próximo e retomada |
+| Reprodução | MPV externo padrão, player embutido opcional, fallback automático, pausa, volume, busca, progresso, anterior, próximo e retomada |
 | Biblioteca | Continuar assistindo, favoritos, Quero assistir, histórico e estatísticas |
-| Pesquisa | GoAnime GUI, idioma, resolução, episódios, capas e fallback de fontes |
+| Pesquisa | GoAnime GUI, cache local, deduplicação de chamadas, idioma, resolução, episódios, capas e fallback de fontes |
 | Administração | Usuários, funções, ativação, redefinição de senha e proteção do último administrador |
-| Segurança | Bloqueio após tentativas inválidas, PIN parental, CSP, sandbox e isolamento de contexto |
-| Manutenção | Diagnóstico, reparo, limpeza de cache, relatório técnico e atualização automática |
+| Segurança | Bloqueio após tentativas inválidas, PIN parental, CSP, sandbox, isolamento de contexto, termos do instalador e assinatura de release |
+| Manutenção | Diagnóstico, reparo, limpeza de cache, relatório técnico, backup agendado e atualização automática |
 
 <details>
 <summary><strong>Provedores e ferramentas</strong></summary>
@@ -159,21 +167,21 @@ Abra **[`docs/fluxo-interativo.html`](docs/fluxo-interativo.html)** no navegador
 
 ## Modos do player
 
-O MPV externo continua selecionado por padrão. O KitsuneDesk se conecta a ele por IPC para atualizar o progresso e executar os controles. Nas configurações, o usuário pode optar pelo player embutido experimental; fontes incompatíveis podem exigir o retorno ao MPV.
+O MPV externo continua selecionado por padrão. O KitsuneDesk se conecta a ele por IPC para atualizar o progresso e executar os controles. Nas configurações, o usuário pode optar pelo player embutido experimental.
 
 ```text
 KitsuneDesk resolve o stream
         ↓
-Bridge inicia o MPV externo
+Se for arquivo direto compatível, pode abrir no player HTML5
+        ↓
+Se for HLS, exigir headers ou formato incerto, volta para o MPV externo
         ↓
 IPC acompanha posição, duração e estado
-        ↓
-Mini player envia pausa, volume, seek, anterior e próximo
         ↓
 SQLite salva o progresso por usuário
 ```
 
-Esse modelo reduz incompatibilidades com drivers, composição de janelas do Windows e superfícies nativas do Electron.
+Esse modelo mantém o MPV como caminho estável e reduz incompatibilidades com codecs, HLS, cabeçalhos HTTP especiais, drivers e composição de janelas do Windows.
 
 ## Executar em desenvolvimento
 
@@ -216,54 +224,65 @@ npm run rebuild:native
 ```powershell
 npm install
 npm run validate
-npm run build:win
+npm run release:win
 ```
 
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.12.0.exe
+dist\KitsuneDesk-Setup-0.14.0.exe
 ```
 
-## Publicar a versão 0.12.0
+Para uma release pública assinada, configure antes no GitHub Actions:
 
-Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` no GitHub Actions para assinar o instalador Windows.
+```text
+WINDOWS_CSC_LINK
+WINDOWS_CSC_KEY_PASSWORD
+PROVIDER_MANIFEST_PRIVATE_KEY
+PROVIDER_MANIFEST_PUBLIC_KEY opcional
+```
+
+`WINDOWS_CSC_LINK` precisa apontar para um certificado Authenticode válido, normalmente em `.p12`/`.pfx` codificado em base64 ou URL segura compatível com o `electron-builder`. Sem esse certificado, o instalador até pode ser gerado localmente, mas a release marcada por tag deve falhar por segurança.
+
+## Publicar a versão 0.14.0
 
 ```powershell
+git status
 git add .
-git commit -m "feat: publica KitsuneDesk v0.12.0"
+git commit -m "feat: publica KitsuneDesk v0.14.0 com performance e release segura"
 git push origin main
 
-git tag -a v0.12.0 -m "KitsuneDesk v0.12.0"
-git push origin v0.12.0
+git tag -a v0.14.0 -m "KitsuneDesk v0.14.0"
+git push origin v0.14.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.12.0.exe
-KitsuneDesk-Setup-0.12.0.exe.blockmap
+KitsuneDesk-Setup-0.14.0.exe
+KitsuneDesk-Setup-0.14.0.exe.blockmap
 latest.yml
 ```
 
-O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio, apontando para uma versão incorreta ou se a assinatura digital não estiver configurada.
+O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio, apontando para uma versão incorreta, se o instalador não estiver assinado ou se o manifesto dos provedores offline não puder ser assinado em uma tag de release.
 
-<details>
-<summary><strong>Publicar a próxima versão</strong></summary>
+Se precisar criar a Release manualmente depois de subir a tag:
 
 ```powershell
-npm version 0.13.0 --no-git-tag-version
-npm run validate
-
-git add .
-git commit -m "feat: publica KitsuneDesk v0.13.0"
-git push origin main
-
-git tag -a v0.13.0 -m "KitsuneDesk v0.13.0"
-git push origin v0.13.0
+gh release create v0.14.0 `
+  --repo RaphaelTW/kitsuneDesk `
+  --title "KitsuneDesk v0.14.0" `
+  --notes "KitsuneDesk v0.14.0: busca e verificação mais rápidas, backup criptografado agendado, player embutido com fallback para MPV, termos obrigatórios no instalador, manifesto assinado dos provedores offline e release Windows assinada." `
+  --latest
 ```
 
-</details>
+Para anexar os artefatos gerados localmente:
+
+```powershell
+gh release upload v0.14.0 .\dist\KitsuneDesk-Setup-0.14.0.exe .\dist\KitsuneDesk-Setup-0.14.0.exe.blockmap .\dist\latest.yml `
+  --repo RaphaelTW/kitsuneDesk `
+  --clobber
+```
 
 ## Estrutura principal
 
@@ -273,35 +292,40 @@ src/main/
   database/          SQLite e migrações
   ipc/               canais seguros entre renderer e processo principal
   repositories/      acesso e persistência de dados
-  services/          autenticação, player, biblioteca, diagnóstico e atualização
+  services/          autenticação, player, biblioteca, diagnóstico, backup e atualização
 src/renderer/
   pages/              login, troca de senha e aplicação principal
   js/                 interface, eventos e componentes
   css/                layout, temas e animações
 resources/
   goanime-bridge/     bridge Go e inicialização do MPV externo
-  providers/          componentes instalados localmente
+  providers/          componentes instalados localmente e manifesto offline
 scripts/windows/      instalação e reparo de dependências
-docs/                 fluxo interativo
+scripts/              validações de release, assinatura, provedores e update instalado
+docs/                 fluxo interativo e termos do instalador
 tests/                testes unitários, integração e E2E Electron
-.github/workflows/    validação, build e releases
+.github/workflows/    validação, build, assinatura e releases
 ```
 
 ## Melhorias recomendadas para as próximas versões
 
-- aprimorar compatibilidade do player embutido com HLS, cabeçalhos e codecs não suportados nativamente pelo Chromium;
-- permitir agendar backups criptografados e validar restaurações automaticamente;
-- publicar checksums assinados dos pacotes offline opcionais;
-- ampliar o teste instalado para validar também rollback e recuperação após download interrompido;
-- oferecer tradução da interface e dos termos do instalador.
+- adicionar módulo opcional com `hls.js`/MSE para ampliar suporte do player embutido sem remover o MPV padrão;
+- gerar SBOM assinado e anexar hashes públicos de todos os artefatos da release;
+- adicionar painel de reputação/diagnóstico do instalador com instruções para certificado EV/OV e SmartScreen;
+- permitir destino de backup em nuvem escolhido pelo usuário, mantendo criptografia local antes do envio;
+- expandir a tradução completa da interface, mensagens de erro e documentação para mais idiomas;
+- criar testes E2E de busca com provedores simulados para medir regressões de tempo de resposta sem depender de fontes externas reais.
 
 ## Limitações conhecidas
 
 - episódios e streams dependem de fontes externas;
-- o MPV abre em uma janela separada nesta versão;
+- o KitsuneDesk não hospeda nada e não controla disponibilidade, legalidade, qualidade ou termos dos provedores online;
+- o MPV abre em uma janela separada quando usado como padrão/fallback;
+- o player embutido não é recomendado para HLS, headers especiais ou codecs não suportados pelo Chromium;
 - serviços oficiais com DRM são abertos no navegador;
 - o FAST Anime VSR depende de hardware, driver e runtime compatíveis;
 - o atualizador automático funciona em instalações geradas por uma Release pública;
+- Windows Defender/SmartScreen podem continuar exibindo alerta até a assinatura Authenticode ter certificado válido e reputação suficiente;
 - o modo de desenvolvimento não executa a instalação automática de atualizações.
 
 ## Licença

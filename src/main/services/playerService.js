@@ -22,7 +22,8 @@ const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
 const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const EPISODE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const STATUS_CACHE_TTL_MS = 60 * 1000;
-const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const HEALTH_CACHE_TTL_MS = 3 * 60 * 1000;
+const PROVIDER_PROBE_TIMEOUT_MS = 1800;
 
 class PlayerService extends EventEmitter {
   constructor({ settingsService = null, libraryService = null, cacheService = null } = {}) {
@@ -37,6 +38,8 @@ class PlayerService extends EventEmitter {
     this.currentPlayback = null;
     this.lastProgressSaveAt = 0;
     this.autoNextInProgress = false;
+    this.inFlightSearches = new Map();
+    this.inFlightEpisodes = new Map();
 
     this.goAnimeGui.on('state', (state) => this.handlePlayerState(state));
     this.goAnimeGui.on('ended', (state) => this.handlePlaybackEnded(state));
@@ -50,21 +53,30 @@ class PlayerService extends EventEmitter {
    * @returns {Promise<object[]>}
    */
   async searchAnimes(payload) {
-    const key = stableCacheKey(payload);
+    const key = stableCacheKey(normalizeSearchPayload(payload));
     const fresh = this.cacheService?.getJson('anime-search', key);
     if (fresh) return markCached(fresh.payload, fresh);
-    try {
-      const result = await this.goAnimeGui.search(payload);
-      this.cacheService?.setJson('anime-search', key, result, {
-        ttlMs: SEARCH_CACHE_TTL_MS,
-        staleTtlMs: SEARCH_CACHE_TTL_MS * 8
-      });
-      return result;
-    } catch (error) {
-      const stale = this.cacheService?.getJson('anime-search', key, { allowExpired: true });
-      if (stale?.stale) return markCached(stale.payload, stale, true);
-      throw error;
-    }
+
+    if (this.inFlightSearches.has(key)) return this.inFlightSearches.get(key);
+
+    const request = this.goAnimeGui
+      .search(payload)
+      .then((result) => {
+        this.cacheService?.setJson('anime-search', key, result, {
+          ttlMs: SEARCH_CACHE_TTL_MS,
+          staleTtlMs: SEARCH_CACHE_TTL_MS * 8
+        });
+        return result;
+      })
+      .catch((error) => {
+        const stale = this.cacheService?.getJson('anime-search', key, { allowExpired: true });
+        if (stale?.stale) return markCached(stale.payload, stale, true);
+        throw error;
+      })
+      .finally(() => this.inFlightSearches.delete(key));
+
+    this.inFlightSearches.set(key, request);
+    return request;
   }
 
   /**
@@ -77,18 +89,27 @@ class PlayerService extends EventEmitter {
     const key = stableCacheKey(payload);
     const fresh = this.cacheService?.getJson('anime-episodes', key);
     if (fresh) return markCached(fresh.payload, fresh);
-    try {
-      const result = await this.goAnimeGui.episodes(payload);
-      this.cacheService?.setJson('anime-episodes', key, result, {
-        ttlMs: EPISODE_CACHE_TTL_MS,
-        staleTtlMs: EPISODE_CACHE_TTL_MS * 12
-      });
-      return result;
-    } catch (error) {
-      const stale = this.cacheService?.getJson('anime-episodes', key, { allowExpired: true });
-      if (stale?.stale) return markCached(stale.payload, stale, true);
-      throw error;
-    }
+
+    if (this.inFlightEpisodes.has(key)) return this.inFlightEpisodes.get(key);
+
+    const request = this.goAnimeGui
+      .episodes(payload)
+      .then((result) => {
+        this.cacheService?.setJson('anime-episodes', key, result, {
+          ttlMs: EPISODE_CACHE_TTL_MS,
+          staleTtlMs: EPISODE_CACHE_TTL_MS * 12
+        });
+        return result;
+      })
+      .catch((error) => {
+        const stale = this.cacheService?.getJson('anime-episodes', key, { allowExpired: true });
+        if (stale?.stale) return markCached(stale.payload, stale, true);
+        throw error;
+      })
+      .finally(() => this.inFlightEpisodes.delete(key));
+
+    this.inFlightEpisodes.set(key, request);
+    return request;
   }
 
   /**
@@ -121,27 +142,67 @@ class PlayerService extends EventEmitter {
 
     if (settings.playerMode === 'embedded') {
       const stream = await this.goAnimeGui.resolveStream(payload);
-      const embeddedResult = {
-        launched: true,
-        provider: 'goanime-gui',
-        providerName: 'GoAnime GUI',
-        player: 'HTML5',
-        anime: payload.anime?.name || '',
-        episode: payload.episode?.number || '',
-        source: payload.anime?.source || '',
-        quality: payload?.quality || settings.defaultQuality || 'auto',
-        mode: payload?.language === 'dub' ? 'dub' : 'sub',
-        streamUrl: stream.url,
-        streamMetadata: stream.metadata || {},
-        resumedAt: startPosition,
-        embedded: true,
-        embeddedFallback: false,
-        playerMode: 'embedded'
+      const compatibility = classifyEmbeddedStream(stream);
+      if (compatibility.compatible) {
+        const embeddedResult = {
+          launched: true,
+          provider: 'goanime-gui',
+          providerName: 'GoAnime GUI',
+          player: 'HTML5',
+          anime: payload.anime?.name || '',
+          episode: payload.episode?.number || '',
+          source: payload.anime?.source || '',
+          quality: payload?.quality || settings.defaultQuality || 'auto',
+          mode: payload?.language === 'dub' ? 'dub' : 'sub',
+          streamUrl: stream.url,
+          streamMetadata: stream.metadata || {},
+          streamType: compatibility.type,
+          resumedAt: startPosition,
+          embedded: true,
+          embeddedFallback: false,
+          playerMode: 'embedded'
+        };
+        this.currentPlayback = buildPlaybackContext({
+          payload,
+          queue,
+          queueIndex,
+          settings,
+          playerMode: 'embedded',
+          source: embeddedResult.source
+        });
+        this.emit('playback-started', { ...embeddedResult, context: this.currentPlayback });
+        return embeddedResult;
+      }
+
+      const fallbackResult = await this.launchExternalPlayback({
+        payload,
+        status,
+        settings,
+        startPosition,
+        queue,
+        queueIndex
+      });
+      return {
+        ...fallbackResult,
+        embeddedFallback: true,
+        fallbackReason: compatibility.reason,
+        playerMode: 'external'
       };
-      this.emit('playback-started', embeddedResult);
-      return embeddedResult;
     }
 
+    const normalizedResult = await this.launchExternalPlayback({
+      payload,
+      status,
+      settings,
+      startPosition,
+      queue,
+      queueIndex
+    });
+
+    return normalizedResult;
+  }
+
+  async launchExternalPlayback({ payload, status, settings, startPosition, queue, queueIndex }) {
     const result = await this.goAnimeGui.playEpisode(
       {
         ...payload,
@@ -158,20 +219,14 @@ class PlayerService extends EventEmitter {
       playerMode: 'external'
     };
 
-    this.currentPlayback = {
-      providerId: 'goanime-gui',
-      anime: payload.anime,
-      episode: payload.episode,
-      episodes: queue,
-      episodeIndex: queueIndex,
+    this.currentPlayback = buildPlaybackContext({
+      payload,
       queue,
       queueIndex,
-      language: payload?.language === 'dub' ? 'dub' : 'sub',
-      quality: String(payload?.quality || settings.defaultQuality || 'auto'),
-      source: normalizedResult.source || payload?.anime?.source || '',
+      settings,
       playerMode: 'external',
-      startedAt: new Date().toISOString()
-    };
+      source: normalizedResult.source || payload?.anime?.source || ''
+    });
     this.lastProgressSaveAt = 0;
     await this.persistPlayback(this.goAnimeGui.getPlayerState());
     this.emit('playback-started', { ...normalizedResult, context: this.currentPlayback });
@@ -413,6 +468,7 @@ class PlayerService extends EventEmitter {
   invalidateStatusCache() {
     this.statusCache = null;
     this.healthCache = null;
+    this.goAnimeGui.invalidateStatusCache?.();
   }
 
   /**
@@ -563,18 +619,18 @@ class PlayerService extends EventEmitter {
       return this.healthCache.value;
     }
     const status = this.status(force);
-    let animeFireOnline = false;
-    let animeFireMessage = 'AnimeFire indisponível';
-    try {
-      await assertAnimeFireReachable();
-      animeFireOnline = true;
-      animeFireMessage = 'Online';
-    } catch (error) {
-      animeFireMessage = error.publicMessage || error.message || animeFireMessage;
-    }
+    const animeFireProbe = status.providers.animeCliBr.ready
+      ? probeAnimeFireReachable(PROVIDER_PROBE_TIMEOUT_MS)
+      : Promise.resolve({ online: false, message: 'Dependências não instaladas' });
+    const [animeFire] = await Promise.allSettled([animeFireProbe]);
+    const animeFireStatus =
+      animeFire.status === 'fulfilled'
+        ? animeFire.value
+        : { online: false, message: 'AnimeFire indisponível' };
 
     const value = {
       checkedAt: new Date().toISOString(),
+      ttlSeconds: Math.round(HEALTH_CACHE_TTL_MS / 1000),
       providers: [
         {
           id: 'goanime-gui',
@@ -593,9 +649,9 @@ class PlayerService extends EventEmitter {
         {
           id: 'anime-cli-br',
           name: 'anime-cli-br',
-          state: animeFireOnline && status.providers.animeCliBr.ready ? 'online' : 'offline',
+          state: animeFireStatus.online && status.providers.animeCliBr.ready ? 'online' : 'offline',
           message: status.providers.animeCliBr.ready
-            ? animeFireMessage
+            ? animeFireStatus.message
             : 'Dependências não instaladas'
         },
         {
@@ -711,6 +767,58 @@ function sameEpisode(left, right) {
   const leftTitle = String(left.title || '').trim();
   const rightTitle = String(right.title || '').trim();
   return Boolean(leftTitle && rightTitle && leftTitle === rightTitle);
+}
+
+function buildPlaybackContext({ payload, queue, queueIndex, settings, playerMode, source }) {
+  return {
+    providerId: 'goanime-gui',
+    anime: payload.anime,
+    episode: payload.episode,
+    episodes: queue,
+    episodeIndex: queueIndex,
+    queue,
+    queueIndex,
+    language: payload?.language === 'dub' ? 'dub' : 'sub',
+    quality: String(payload?.quality || settings.defaultQuality || 'auto'),
+    source: source || payload?.anime?.source || '',
+    playerMode,
+    startedAt: new Date().toISOString()
+  };
+}
+
+function classifyEmbeddedStream(stream) {
+  const url = String(stream?.url || '').trim().toLowerCase();
+  const metadata = stream?.metadata && typeof stream.metadata === 'object' ? stream.metadata : {};
+  const headers = metadata.headers || metadata.requestHeaders || stream?.headers;
+  if (headers && Object.keys(headers).length > 0) {
+    return {
+      compatible: false,
+      type: 'requires-headers',
+      reason: 'A fonte exige cabeçalhos HTTP personalizados; o MPV externo é mais compatível.'
+    };
+  }
+  if (/\.m3u8(?:$|[?#])/.test(url) || metadata.format === 'hls' || metadata.type === 'hls') {
+    return {
+      compatible: false,
+      type: 'hls',
+      reason: 'Stream HLS detectado; o Chromium pode falhar sem extensão MSE dedicada.'
+    };
+  }
+  if (/\.(mp4|webm|ogg|ogv)(?:$|[?#])/.test(url)) {
+    return { compatible: true, type: 'file' };
+  }
+  return {
+    compatible: false,
+    type: 'unknown',
+    reason: 'Formato do stream não identificado; usando MPV externo como fallback seguro.'
+  };
+}
+
+function normalizeSearchPayload(payload) {
+  return {
+    query: typeof payload?.query === 'string' ? payload.query.trim().toLowerCase() : '',
+    language: payload?.language === 'dub' ? 'dub' : 'sub'
+  };
 }
 
 /**
@@ -887,18 +995,29 @@ function writeGoAnimeLaunchScript({ executablePath, args, status }) {
  * @returns {Promise<void>}
  */
 async function assertAnimeFireReachable() {
+  const result = await probeAnimeFireReachable(5000);
+  if (result.online) return;
+  throw new AppError(
+    'ANIMEFIRE_UNAVAILABLE',
+    'A fonte animefire.net nao esta acessivel neste momento. O anime-cli-br nao foi aberto para evitar o traceback. Use o GoAnime GUI e tente novamente mais tarde.',
+    { status: 502, technicalMessage: result.technicalMessage || result.message }
+  );
+}
+
+async function probeAnimeFireReachable(timeoutMs) {
   try {
     await Promise.race([
       dns.lookup('animefire.net'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), 5000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), timeoutMs))
     ]);
-    await probeHttpsHost('https://animefire.net/', 7000);
+    await probeHttpsHost('https://animefire.net/', timeoutMs);
+    return { online: true, message: 'Online' };
   } catch (error) {
-    throw new AppError(
-      'ANIMEFIRE_UNAVAILABLE',
-      'A fonte animefire.net nao esta acessivel neste momento. O anime-cli-br nao foi aberto para evitar o traceback. Use o GoAnime GUI e tente novamente mais tarde.',
-      { status: 502, technicalMessage: error?.message ?? String(error) }
-    );
+    return {
+      online: false,
+      message: 'Fonte externa indisponível agora',
+      technicalMessage: error?.message ?? String(error)
+    };
   }
 }
 
@@ -914,7 +1033,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.11.0', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.14.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

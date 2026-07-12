@@ -13,7 +13,14 @@ const DEFAULTS = Object.freeze({
   max_content_rating: '18',
   remember_position: 1,
   check_updates: 1,
-  local_telemetry_enabled: 0
+  local_telemetry_enabled: 0,
+  ui_language: 'pt-BR',
+  backup_frequency: 'off',
+  backup_directory: '',
+  backup_include_profiles: 0,
+  backup_secret_encrypted: null,
+  backup_last_run_at: null,
+  backup_last_status: null
 });
 
 class SettingsRepository {
@@ -31,8 +38,9 @@ class SettingsRepository {
          user_id, default_language, default_quality, auto_play_next,
          player_volume, theme, default_provider, downloads_path,
          audio_preference, parental_control_enabled, max_content_rating,
-         remember_position, check_updates, player_mode, local_telemetry_enabled
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         remember_position, check_updates, player_mode, local_telemetry_enabled, ui_language, backup_frequency,
+         backup_directory, backup_include_profiles
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         DEFAULTS.default_language,
@@ -48,7 +56,11 @@ class SettingsRepository {
         DEFAULTS.remember_position,
         DEFAULTS.check_updates,
         DEFAULTS.player_mode,
-        DEFAULTS.local_telemetry_enabled
+        DEFAULTS.local_telemetry_enabled,
+        DEFAULTS.ui_language,
+        DEFAULTS.backup_frequency,
+        DEFAULTS.backup_directory,
+        DEFAULTS.backup_include_profiles
       ]
     );
   }
@@ -61,7 +73,8 @@ class SettingsRepository {
          auto_play_next = ?, player_volume = ?, theme = ?, downloads_path = ?,
          audio_preference = ?, parental_control_enabled = ?, max_content_rating = ?,
          remember_position = ?, check_updates = ?, player_mode = ?,
-         local_telemetry_enabled = ?, updated_at = CURRENT_TIMESTAMP
+         local_telemetry_enabled = ?, ui_language = ?, backup_frequency = ?,
+         backup_directory = ?, backup_include_profiles = ?, updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
         settings.defaultProvider,
@@ -78,8 +91,32 @@ class SettingsRepository {
         settings.checkUpdates ? 1 : 0,
         settings.playerMode,
         settings.localTelemetryEnabled ? 1 : 0,
+        settings.uiLanguage,
+        settings.backupFrequency,
+        settings.backupDirectory,
+        settings.backupIncludeProfiles ? 1 : 0,
         userId
       ]
+    );
+  }
+
+  updateBackupSecret(userId, encryptedSecret) {
+    this.createDefaultForUser(userId);
+    return this.database.run(
+      `UPDATE settings
+       SET backup_secret_encrypted = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [encryptedSecret || null, userId]
+    );
+  }
+
+  updateBackupStatus(userId, status) {
+    this.createDefaultForUser(userId);
+    return this.database.run(
+      `UPDATE settings
+       SET backup_last_run_at = ?, backup_last_status = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [new Date().toISOString(), JSON.stringify(status || {}), userId]
     );
   }
 

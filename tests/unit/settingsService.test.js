@@ -19,7 +19,14 @@ function createService() {
     max_content_rating: '18',
     remember_position: 1,
     check_updates: 1,
-    local_telemetry_enabled: 0
+    local_telemetry_enabled: 0,
+    ui_language: 'pt-BR',
+    backup_frequency: 'off',
+    backup_directory: '',
+    backup_include_profiles: 0,
+    backup_secret_encrypted: null,
+    backup_last_run_at: null,
+    backup_last_status: null
   };
   const repository = {
     createDefaultForUser() {},
@@ -42,7 +49,11 @@ function createService() {
         max_content_rating: input.maxContentRating,
         remember_position: input.rememberPosition ? 1 : 0,
         check_updates: input.checkUpdates ? 1 : 0,
-        local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0
+        local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0,
+        ui_language: input.uiLanguage,
+        backup_frequency: input.backupFrequency,
+        backup_directory: input.backupDirectory,
+        backup_include_profiles: input.backupIncludeProfiles ? 1 : 0
       };
     },
     updateParentalPin(_userId, hash) {
@@ -70,7 +81,11 @@ test('normaliza e persiste configurações do usuário', () => {
     maxContentRating: '14',
     rememberPosition: true,
     checkUpdates: false,
-    localTelemetryEnabled: true
+    localTelemetryEnabled: true,
+    uiLanguage: 'en-US',
+    backupFrequency: 'weekly',
+    backupDirectory: 'C:/Backups',
+    backupIncludeProfiles: true
   });
 
   assert.equal(settings.defaultProvider, 'ani-cli');
@@ -82,6 +97,10 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);
   assert.equal(settings.localTelemetryEnabled, true);
+  assert.equal(settings.uiLanguage, 'en-US');
+  assert.equal(settings.backupFrequency, 'weekly');
+  assert.match(settings.backupDirectory, /Backups$/);
+  assert.equal(settings.backupIncludeProfiles, false);
 });
 
 test('configura e valida PIN parental', async () => {
@@ -92,7 +111,7 @@ test('configura e valida PIN parental', async () => {
   await assert.rejects(() => service.verifyParentalPin({ pin: '9999' }), /PIN parental incorreto/);
 });
 
-test('aceita os novos temas da v0.11.0', () => {
+test('aceita os temas adicionais mantidos na v0.14.0', () => {
   const service = createService();
   for (const theme of [
     'older-brother-core',

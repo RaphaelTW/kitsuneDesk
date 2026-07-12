@@ -212,7 +212,7 @@ function downloadBuffer(url, redirects = 0) {
       url,
       {
         headers: {
-          'User-Agent': 'KitsuneDesk/0.11.0',
+          'User-Agent': 'KitsuneDesk/0.14.0',
           Accept: 'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8'
         },
         timeout: 10_000

@@ -20,7 +20,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.12.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.14.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -614,6 +614,12 @@
                       <option value="cyberpunk">Cyberpunk</option>
                       <option value="synthwave">Synthwave</option>
                     </select></label
+                  ><label
+                    ><span>Idioma da interface</span
+                    ><select class="form-select" id="setting-ui-language">
+                      <option value="pt-BR">Português do Brasil</option>
+                      <option value="en-US">English</option>
+                    </select></label
                   ><label class="switch-inline"
                     ><input id="setting-updates" type="checkbox" checked /><span
                       >Verificar atualizacoes automaticamente</span
@@ -721,6 +727,47 @@
                       ><small>Remove resultados, capas e avatares armazenados.</small></span
                     >
                   </button>
+                </div>
+                <div class="backup-schedule-panel">
+                  <div>
+                    <strong>Backup agendado e validação automática</strong>
+                    <small
+                      >A biblioteca é exportada em JSON e validada logo após o backup. Perfis
+                      podem ser incluídos em arquivo criptografado usando o cofre local do
+                      Windows.</small
+                    >
+                  </div>
+                  <div class="settings-grid backup-schedule-grid">
+                    <label
+                      ><span>Frequência</span
+                      ><select class="form-select" id="backup-frequency">
+                        <option value="off">Desativado</option>
+                        <option value="daily">Diário</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="monthly">Mensal</option>
+                      </select></label
+                    ><label
+                      ><span>Pasta dos backups</span
+                      ><input
+                        class="form-control"
+                        id="backup-directory"
+                        placeholder="Vazio = pasta segura do app"
+                    /></label>
+                    <label class="switch-inline"
+                      ><input id="backup-include-profiles" type="checkbox" /><span
+                        >Incluir perfis criptografados</span
+                      ></label
+                    >
+                  </div>
+                  <div class="backup-schedule-actions">
+                    <button class="btn btn-outline-light" id="save-backup-schedule-button" type="button">
+                      Salvar agendamento
+                    </button>
+                    <button class="btn btn-outline-light" id="run-scheduled-backup-button" type="button">
+                      Executar agora e validar
+                    </button>
+                    <span id="backup-schedule-status">Agendamento não carregado.</span>
+                  </div>
                 </div>
                 <div class="cache-summary" id="cache-summary">Calculando uso do cache...</div>
               </section>

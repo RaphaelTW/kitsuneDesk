@@ -24,6 +24,8 @@ files:
 win:
   icon: assets/icons/icon.ico
   verifyUpdateCodeSignature: true
+  signAndEditExecutable: true
+  signDlls: true
   target:
     - target: nsis
       arch:
@@ -31,6 +33,10 @@ win:
 
 nsis:
   license: docs/INSTALLER_TERMS.txt
+  installerLanguages:
+    - pt_BR
+    - en_US
+  language: '1046'
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

@@ -253,6 +253,22 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_failure_telemetry_filters
         ON failure_telemetry(user_id, scope, event, created_at DESC);
     `
+  },
+  {
+    id: 9,
+    name: 'v014-backup-schedule-and-language',
+    sql: `
+      ALTER TABLE settings ADD COLUMN ui_language TEXT NOT NULL DEFAULT 'pt-BR';
+      ALTER TABLE settings ADD COLUMN backup_frequency TEXT NOT NULL DEFAULT 'off';
+      ALTER TABLE settings ADD COLUMN backup_directory TEXT NOT NULL DEFAULT '';
+      ALTER TABLE settings ADD COLUMN backup_include_profiles INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE settings ADD COLUMN backup_secret_encrypted TEXT;
+      ALTER TABLE settings ADD COLUMN backup_last_run_at TEXT;
+      ALTER TABLE settings ADD COLUMN backup_last_status TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_settings_backup_schedule
+        ON settings(backup_frequency, backup_last_run_at);
+    `
   }
 ];
 

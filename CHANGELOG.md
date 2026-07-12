@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.14.0] - 2026-07-12
+
+### Adicionado
+
+- Backup criptografado agendado com frequência diária, semanal ou mensal, diretório configurável, proteção da senha pelo cofre local do Windows e validação automática do arquivo gerado.
+- Player embutido opcional com detecção de compatibilidade; arquivos diretos podem usar HTML5 e HLS/headers/formatos incertos voltam automaticamente para o MPV externo.
+- Manifesto offline de provedores com SHA-256 e suporte a assinatura Ed25519 em releases.
+- Termos obrigatórios do instalador em português com resumo em inglês, exigindo aceite e explicando que o KitsuneDesk não hospeda conteúdo.
+- Validação de segurança de release para assinatura Authenticode, termos, manifesto de provedores, rollback e recuperação de download interrompido.
+
+### Melhorado
+
+- Pesquisa e verificação de provedores ficaram mais rápidas com cache do status do bridge GoAnime, deduplicação de buscas simultâneas e probes de rede com timeout curto.
+- Fluxo de update instalado agora valida atualização a partir da versão anterior, rollback e cenário de download interrompido.
+- Importação/exportação preserva preferências de tema, idioma, provedor, modo do player e backups, sem exportar segredos locais.
+- Workflow Windows passa a exigir assinatura do executável e DLLs, valida `Get-AuthenticodeSignature` e bloqueia release assinada incorretamente.
+
+### Alterado
+
+- Versão do aplicativo atualizada para `0.14.0`, pulando a série `0.13.x`.
+- README, termos do instalador e comandos de release atualizados para `v0.14.0`.
+
 ## [0.12.0] - 2026-07-12
 
 ### Adicionado

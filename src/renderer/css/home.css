@@ -1593,7 +1593,7 @@ body[data-theme='light'] .update-release-notes pre {
   }
 }
 
-/* v0.11.0 Stable - identidade neon azul/roxo e player MPV externo */
+/* v0.14.0 Stable - identidade neon azul/roxo e player MPV externo */
 :root {
   --neon-blue: #27b8ff;
   --neon-violet: #8b5cf6;
@@ -1797,4 +1797,36 @@ body[data-theme='light'] .update-release-notes pre {
   height: calc(100% - 38px);
   background: #000;
   border-radius: 12px;
+}
+
+.backup-schedule-panel {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--panel-strong), transparent 18%);
+}
+
+.backup-schedule-panel small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.backup-schedule-grid {
+  align-items: end;
+}
+
+.backup-schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#backup-schedule-status {
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }

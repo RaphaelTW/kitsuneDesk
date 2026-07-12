@@ -79,7 +79,10 @@ const channels = Object.freeze({
   backupExportLibrary: 'backup:export-library',
   backupImportLibrary: 'backup:import-library',
   backupExportProfiles: 'backup:export-profiles',
-  backupImportProfiles: 'backup:import-profiles'
+  backupImportProfiles: 'backup:import-profiles',
+  backupScheduleStatus: 'backup:schedule-status',
+  backupConfigureSchedule: 'backup:configure-schedule',
+  backupRunScheduled: 'backup:run-scheduled'
 });
 
 function invoke(channel, payload) {
@@ -207,7 +210,10 @@ const animeDeskApi = Object.freeze({
     exportLibrary: () => invoke(channels.backupExportLibrary),
     importLibrary: (mode = 'merge') => invoke(channels.backupImportLibrary, { mode }),
     exportProfiles: (password) => invoke(channels.backupExportProfiles, { password }),
-    importProfiles: (password) => invoke(channels.backupImportProfiles, { password })
+    importProfiles: (password) => invoke(channels.backupImportProfiles, { password }),
+    scheduleStatus: () => invoke(channels.backupScheduleStatus),
+    configureSchedule: (payload) => invoke(channels.backupConfigureSchedule, payload),
+    runScheduled: (force = false) => invoke(channels.backupRunScheduled, { force })
   })
 });
 

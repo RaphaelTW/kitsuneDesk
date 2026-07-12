@@ -14,6 +14,8 @@ const TOOLS_ROOT = path.join(
 );
 const BRIDGE_DIRECTORY = path.join(TOOLS_ROOT, 'goanime-bridge');
 const BRIDGE_PATH = path.join(BRIDGE_DIRECTORY, 'goanime-bridge.exe');
+const BRIDGE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
+const BRIDGE_STATUS_PROBE_TIMEOUT_MS = 1200;
 
 class GoAnimeGuiService extends EventEmitter {
   constructor() {
@@ -26,9 +28,13 @@ class GoAnimeGuiService extends EventEmitter {
     this.consecutivePollErrors = 0;
     this.playerState = createIdleState();
     this.stopRequested = false;
+    this.bridgeStatusCache = null;
   }
 
-  status() {
+  status(force = false) {
+    if (!force && this.bridgeStatusCache && this.bridgeStatusCache.expiresAt > Date.now()) {
+      return this.bridgeStatusCache.value;
+    }
     const candidates = [
       BRIDGE_PATH,
       path.join(process.cwd(), 'resources', 'goanime-bridge', 'goanime-bridge.exe'),
@@ -37,18 +43,19 @@ class GoAnimeGuiService extends EventEmitter {
     const bridgePath = candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 
     if (!bridgePath) {
-      return {
+      return this.rememberBridgeStatus({
         available: false,
+        installed: false,
         path: null,
         version: null,
         expectedVersion: BRIDGE_VERSION
-      };
+      });
     }
 
     const probe = spawnSync(bridgePath, ['--version'], {
       encoding: 'utf8',
       windowsHide: true,
-      timeout: 5000
+      timeout: BRIDGE_STATUS_PROBE_TIMEOUT_MS
     });
     const output = `${probe.stdout ?? ''}${probe.stderr ?? ''}`.trim();
     const versionMatch = output.match(/([0-9]+\.[0-9]+\.[0-9]+)/);
@@ -56,15 +63,25 @@ class GoAnimeGuiService extends EventEmitter {
     const executableHealthy = probe.status === 0;
     const versionCompatible = executableHealthy && version === BRIDGE_VERSION;
 
-    return {
+    return this.rememberBridgeStatus({
       available: versionCompatible,
       installed: executableHealthy,
       needsUpdate: executableHealthy && !versionCompatible,
       path: bridgePath,
       version,
       expectedVersion: BRIDGE_VERSION,
-      output
-    };
+      output,
+      checkedAt: new Date().toISOString()
+    });
+  }
+
+  rememberBridgeStatus(value) {
+    this.bridgeStatusCache = { value, expiresAt: Date.now() + BRIDGE_STATUS_CACHE_TTL_MS };
+    return value;
+  }
+
+  invalidateStatusCache() {
+    this.bridgeStatusCache = null;
   }
 
   async search(payload) {
@@ -77,13 +94,13 @@ class GoAnimeGuiService extends EventEmitter {
       });
     }
 
-    return this.runBridge('search', { query, language }, 45000);
+    return this.runBridge('search', { query, language }, 25000);
   }
 
   async episodes(payload) {
     const anime = normalizeAnime(payload?.anime);
     const language = payload?.language === 'dub' ? 'dub' : 'sub';
-    return this.runBridge('episodes', { anime, language }, 45000);
+    return this.runBridge('episodes', { anime, language }, 30000);
   }
 
   async resolveStream(payload) {

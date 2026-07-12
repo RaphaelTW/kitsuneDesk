@@ -68,7 +68,7 @@ test('player embutido resolve o stream sem iniciar o MPV', async () => {
     dependencies: { mpv: { path: 'C:/mpv.exe' } }
   });
   service.goAnimeGui = {
-    resolveStream: async () => ({ url: 'https://cdn.example/video.m3u8', metadata: {} }),
+    resolveStream: async () => ({ url: 'https://cdn.example/video.mp4', metadata: {} }),
     getPlayerState: () => ({ active: true, position: 0, duration: 0 })
   };
 
@@ -83,7 +83,50 @@ test('player embutido resolve o stream sem iniciar o MPV', async () => {
   assert.equal(result.playerMode, 'embedded');
   assert.equal(result.embedded, true);
   assert.equal(result.embeddedFallback, false);
-  assert.equal(result.streamUrl, 'https://cdn.example/video.m3u8');
+  assert.equal(result.streamUrl, 'https://cdn.example/video.mp4');
+  assert.equal(result.streamType, 'file');
+});
+
+
+test('player embutido volta para MPV quando o stream exige HLS ou headers', async () => {
+  let externalLaunched = false;
+  const service = new PlayerService({
+    settingsService: {
+      get: () => ({
+        playerVolume: 80,
+        playerMode: 'embedded',
+        rememberPosition: true,
+        defaultQuality: 'auto'
+      })
+    },
+    libraryService: { savePlayback: async () => {} }
+  });
+  service.status = () => ({
+    providers: { goAnime: { ready: true } },
+    dependencies: { mpv: { path: 'C:/mpv.exe' } }
+  });
+  service.goAnimeGui = {
+    resolveStream: async () => ({ url: 'https://cdn.example/video.m3u8', metadata: { format: 'hls' } }),
+    playEpisode: async () => {
+      externalLaunched = true;
+      return { source: 'AllAnime', quality: 'best', mode: 'sub', pid: 77 };
+    },
+    getPlayerState: () => ({ active: true, position: 0, duration: 0 })
+  };
+
+  const episode = { number: '1', num: 1, title: 'Piloto' };
+  const result = await service.playEpisode({
+    anime: { name: 'Teste', url: 'abc123', source: 'AllAnime' },
+    episode,
+    episodes: [episode],
+    episodeIndex: 0
+  });
+
+  assert.equal(externalLaunched, true);
+  assert.equal(result.playerMode, 'external');
+  assert.equal(result.embedded, false);
+  assert.equal(result.embeddedFallback, true);
+  assert.match(result.fallbackReason, /HLS|MPV/i);
 });
 
 test('fila de reproducao pode ser reordenada', async () => {

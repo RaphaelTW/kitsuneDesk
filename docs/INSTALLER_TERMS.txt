@@ -1,13 +1,19 @@
 TERMOS DE USO E AVISO SOBRE CONTEÚDO — KITSUNEDESK
 
-Ao instalar ou usar o KitsuneDesk, você concorda com estes termos.
+Ao instalar, marcar a opção de concordância e usar o KitsuneDesk, você declara que leu e aceita estes termos. Se não concordar, cancele a instalação.
 
-1. O KitsuneDesk é somente uma interface agregadora. Ele não hospeda, armazena, transmite, vende nem distribui animes, vídeos ou streams.
-2. Resultados, metadados, episódios e endereços de reprodução são obtidos de provedores e projetos online independentes, que já disponibilizam esse conteúdo. O KitsuneDesk apenas reúne o acesso em uma única interface.
-3. O desenvolvedor não controla disponibilidade, legalidade, segurança, qualidade ou licenciamento do conteúdo oferecido por terceiros. Cada provedor possui seus próprios termos e políticas.
+1. O KitsuneDesk é somente uma interface agregadora. Ele não hospeda, armazena, transmite, vende nem distribui animes, vídeos, links, arquivos, catálogos proprietários ou streams.
+2. Resultados, metadados, episódios, capas e endereços de reprodução são obtidos de provedores e projetos online independentes, que já disponibilizam esse conteúdo fora do KitsuneDesk. O aplicativo apenas reúne acessos em uma única interface local.
+3. O desenvolvedor não controla disponibilidade, legalidade, segurança, qualidade, licenciamento, remoções, anúncios ou alterações dos provedores externos. Cada provedor possui seus próprios termos, políticas e responsabilidades.
 4. O usuário é responsável por cumprir a legislação aplicável em sua região e por utilizar somente fontes e conteúdos aos quais tenha direito de acesso.
-5. O aplicativo pode abrir links, baixar componentes opcionais e reproduzir mídia fornecida por terceiros. Verifique a procedência e mantenha o sistema protegido.
-6. O software é fornecido sem garantias, nos limites permitidos pela licença MIT e pela legislação aplicável. O uso é por conta e risco do usuário.
-7. O KitsuneDesk não é afiliado, patrocinado ou aprovado por estúdios, distribuidoras, serviços de streaming ou provedores externos, salvo quando declarado expressamente.
+5. O aplicativo pode abrir links, baixar componentes opcionais e reproduzir mídia fornecida por terceiros. Verifique a procedência das fontes, mantenha o Windows e o antivírus atualizados e use apenas provedores confiáveis.
+6. O instalador oficial deve ser assinado digitalmente por certificado Authenticode configurado no pipeline de release. A assinatura reduz alertas de editor desconhecido e permite verificar a integridade do arquivo, mas a reputação do Microsoft SmartScreen também depende de histórico público de downloads e confiança acumulada.
+7. Backups locais, telemetria local e preferências ficam no computador do usuário, salvo exportação manual ou uso de sincronização externa configurada pelo próprio usuário.
+8. O software é fornecido sem garantias, nos limites permitidos pela licença MIT e pela legislação aplicável. O uso é por conta e risco do usuário.
+9. O KitsuneDesk não é afiliado, patrocinado ou aprovado por estúdios, distribuidoras, serviços de streaming ou provedores externos, salvo quando declarado expressamente.
 
 Licença do aplicativo: MIT. Licenças e avisos dos componentes de terceiros estão em THIRD_PARTY.md.
+
+ENGLISH SUMMARY
+
+By installing, selecting the agreement option and using KitsuneDesk, you accept these terms. KitsuneDesk does not host, store, sell, transmit or distribute anime, videos, files or streams. It only aggregates access to content and metadata already provided by independent online providers. You are responsible for using lawful sources available to you. The official Windows installer is expected to be Authenticode-signed in the release pipeline; this helps integrity and publisher reputation, but Microsoft SmartScreen reputation also depends on public trust history.
