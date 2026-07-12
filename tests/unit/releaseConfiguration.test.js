@@ -46,11 +46,17 @@ test('workflow só publica release com metadados, assinatura e teste de atualiza
   assert.match(workflow, /npm run test:e2e:electron/);
   assert.match(workflow, /npm run release:verify-signing/);
   assert.match(workflow, /npm run providers:bundle/);
-  assert.match(workflow, /test-installed-update\.ps1 -PreviousTag v0\.12\.0 -ValidateRollback -ValidateInterruptedDownload/);
+  assert.match(
+    workflow,
+    /test-installed-update\.ps1 -PreviousTag v0\.12\.0 -ValidateRollback -ValidateInterruptedDownload/
+  );
   assert.match(workflow, /Get-AuthenticodeSignature/);
 
   assert.match(workflow, /CSC_LINK:\s*\$\{\{ secrets\.WINDOWS_CSC_LINK \}\}/);
-  assert.match(workflow, /PROVIDER_MANIFEST_PRIVATE_KEY:\s*\$\{\{ secrets\.PROVIDER_MANIFEST_PRIVATE_KEY \}\}/);
+  assert.match(
+    workflow,
+    /PROVIDER_MANIFEST_PRIVATE_KEY:\s*\$\{\{ secrets\.PROVIDER_MANIFEST_PRIVATE_KEY \}\}/
+  );
 
   assert.match(workflow, /dist\/latest\.yml/);
   assert.match(workflow, /gh release create[\s\S]*--latest/);

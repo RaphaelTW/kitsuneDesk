@@ -297,7 +297,9 @@ class BackupService {
         playbackSessions: this.database.all('SELECT * FROM playback_sessions WHERE user_id = ?', [
           userId
         ]),
-        settings: sanitizeSettings(this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId]))
+        settings: sanitizeSettings(
+          this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId])
+        )
       }
     };
   }
@@ -311,7 +313,9 @@ class BackupService {
       appVersion: this.app.getVersion(),
       users: users.map((user) => ({
         ...user,
-        settings: sanitizeSettings(this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id]))
+        settings: sanitizeSettings(
+          this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id])
+        )
       }))
     };
     const encrypted = encryptPayload(payload, password);
@@ -562,7 +566,6 @@ function normalizeDirectory(value) {
   const directory = String(value || '').trim();
   return directory ? path.normalize(directory).slice(0, 500) : '';
 }
-
 
 function getAuthHelpers() {
   return require('./authService');

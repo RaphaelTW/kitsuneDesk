@@ -637,7 +637,8 @@ async function launchEpisode(payload) {
       message: result.fallbackUsed
         ? `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`
         : result.embeddedFallback
-          ? result.fallbackReason || 'O stream não era compatível com o player embutido; o MPV externo foi usado.'
+          ? result.fallbackReason ||
+            'O stream não era compatível com o player embutido; o MPV externo foi usado.'
           : result.embedded
             ? 'O episódio foi aberto no player embutido opcional.'
             : 'O episódio foi aberto em uma janela externa do MPV.',
@@ -1562,7 +1563,8 @@ async function runDueScheduledBackup(force) {
 }
 
 function formatBackupScheduleStatus(settings = {}) {
-  if (!settings.backupFrequency || settings.backupFrequency === 'off') return 'Agendamento desativado.';
+  if (!settings.backupFrequency || settings.backupFrequency === 'off')
+    return 'Agendamento desativado.';
   const last = settings.backupLastRunAt
     ? new Date(settings.backupLastRunAt).toLocaleString()
     : 'ainda não executado';

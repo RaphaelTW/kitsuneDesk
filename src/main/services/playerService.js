@@ -787,7 +787,9 @@ function buildPlaybackContext({ payload, queue, queueIndex, settings, playerMode
 }
 
 function classifyEmbeddedStream(stream) {
-  const url = String(stream?.url || '').trim().toLowerCase();
+  const url = String(stream?.url || '')
+    .trim()
+    .toLowerCase();
   const metadata = stream?.metadata && typeof stream.metadata === 'object' ? stream.metadata : {};
   const headers = metadata.headers || metadata.requestHeaders || stream?.headers;
   if (headers && Object.keys(headers).length > 0) {

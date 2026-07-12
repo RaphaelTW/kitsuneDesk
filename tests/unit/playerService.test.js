@@ -87,7 +87,6 @@ test('player embutido resolve o stream sem iniciar o MPV', async () => {
   assert.equal(result.streamType, 'file');
 });
 
-
 test('player embutido volta para MPV quando o stream exige HLS ou headers', async () => {
   let externalLaunched = false;
   const service = new PlayerService({
@@ -106,7 +105,10 @@ test('player embutido volta para MPV quando o stream exige HLS ou headers', asyn
     dependencies: { mpv: { path: 'C:/mpv.exe' } }
   });
   service.goAnimeGui = {
-    resolveStream: async () => ({ url: 'https://cdn.example/video.m3u8', metadata: { format: 'hls' } }),
+    resolveStream: async () => ({
+      url: 'https://cdn.example/video.m3u8',
+      metadata: { format: 'hls' }
+    }),
     playEpisode: async () => {
       externalLaunched = true;
       return { source: 'AllAnime', quality: 'best', mode: 'sub', pid: 77 };

@@ -20,7 +20,6 @@ test('backup de perfis usa criptografia autenticada', () => {
   assert.throws(() => decryptPayload(encrypted, 'SenhaIncorreta!'));
 });
 
-
 test('agenda de backup calcula vencimento e próximo horário', () => {
   assert.equal(testHelpers.isBackupDue('off'), false);
   assert.equal(testHelpers.isBackupDue('daily', '2000-01-01T00:00:00.000Z'), true);

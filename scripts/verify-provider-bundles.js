@@ -45,7 +45,9 @@ if (privateKey.trim()) {
   const signature = crypto.sign(null, Buffer.from(canonicalManifest), keyObject).toString('base64');
   fs.writeFileSync(signaturePath, `${signature}\n`, 'utf8');
   if (publicKey.trim()) fs.writeFileSync(publicKeyPath, publicKey.replace(/\\n/g, '\n'), 'utf8');
-  console.log(`${manifest.files.length} arquivo(s) de provedores offline verificados e manifesto assinado.`);
+  console.log(
+    `${manifest.files.length} arquivo(s) de provedores offline verificados e manifesto assinado.`
+  );
 } else {
   fs.rmSync(signaturePath, { force: true });
   if (releaseTag || process.env.REQUIRE_PROVIDER_MANIFEST_SIGNATURE === '1') {
@@ -53,7 +55,9 @@ if (privateKey.trim()) {
     console.error('Configure PROVIDER_MANIFEST_PRIVATE_KEY nos secrets do GitHub Actions.');
     process.exit(1);
   }
-  console.log(`${manifest.files.length} arquivo(s) de provedores offline verificados; assinatura pulada fora de release.`);
+  console.log(
+    `${manifest.files.length} arquivo(s) de provedores offline verificados; assinatura pulada fora de release.`
+  );
 }
 
 function walk(directory) {

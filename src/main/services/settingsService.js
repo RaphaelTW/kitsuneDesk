@@ -69,7 +69,8 @@ class SettingsService {
         ? payload.backupFrequency
         : current.backupFrequency,
       backupDirectory: normalizePath(payload?.backupDirectory || current.backupDirectory),
-      backupIncludeProfiles: Boolean(payload?.backupIncludeProfiles) && current.backupProfileSecretConfigured
+      backupIncludeProfiles:
+        Boolean(payload?.backupIncludeProfiles) && current.backupProfileSecretConfigured
     };
     this.settingsRepository.update(userId, settings);
     return this.get();
@@ -117,9 +118,7 @@ function mapSettings(row) {
     checkUpdates: row?.check_updates !== 0,
     localTelemetryEnabled: Boolean(row?.local_telemetry_enabled),
     uiLanguage: row?.ui_language === 'en-US' ? 'en-US' : 'pt-BR',
-    backupFrequency: BACKUP_FREQUENCIES.has(row?.backup_frequency)
-      ? row.backup_frequency
-      : 'off',
+    backupFrequency: BACKUP_FREQUENCIES.has(row?.backup_frequency) ? row.backup_frequency : 'off',
     backupDirectory: row?.backup_directory || '',
     backupIncludeProfiles: Boolean(row?.backup_include_profiles),
     backupProfileSecretConfigured: Boolean(row?.backup_secret_encrypted),
