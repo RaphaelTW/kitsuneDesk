@@ -14,6 +14,7 @@ const DEFAULTS = Object.freeze({
   remember_position: 1,
   check_updates: 1,
   local_telemetry_enabled: 0,
+  startup_metrics_enabled: 0,
   interface_language: 'pt-BR'
 });
 
@@ -32,8 +33,9 @@ class SettingsRepository {
          user_id, default_language, default_quality, auto_play_next,
          player_volume, theme, default_provider, downloads_path,
          audio_preference, parental_control_enabled, max_content_rating,
-         remember_position, check_updates, player_mode, local_telemetry_enabled, interface_language
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         remember_position, check_updates, player_mode, local_telemetry_enabled,
+         startup_metrics_enabled, interface_language
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         DEFAULTS.default_language,
@@ -50,6 +52,7 @@ class SettingsRepository {
         DEFAULTS.check_updates,
         DEFAULTS.player_mode,
         DEFAULTS.local_telemetry_enabled,
+        DEFAULTS.startup_metrics_enabled,
         DEFAULTS.interface_language
       ]
     );
@@ -63,7 +66,8 @@ class SettingsRepository {
          auto_play_next = ?, player_volume = ?, theme = ?, downloads_path = ?,
          audio_preference = ?, parental_control_enabled = ?, max_content_rating = ?,
          remember_position = ?, check_updates = ?, player_mode = ?,
-         local_telemetry_enabled = ?, interface_language = ?, updated_at = CURRENT_TIMESTAMP
+         local_telemetry_enabled = ?, startup_metrics_enabled = ?, interface_language = ?,
+         updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
         settings.defaultProvider,
@@ -80,6 +84,7 @@ class SettingsRepository {
         settings.checkUpdates ? 1 : 0,
         settings.playerMode,
         settings.localTelemetryEnabled ? 1 : 0,
+        settings.startupMetricsEnabled ? 1 : 0,
         settings.interfaceLanguage || 'pt-BR',
         userId
       ]

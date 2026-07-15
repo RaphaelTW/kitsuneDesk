@@ -279,6 +279,26 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_backup_schedules_due
         ON backup_schedules(user_id, enabled, kind, last_run_at);
     `
+  },
+  {
+    id: 10,
+    name: 'v0140-startup-performance-metrics',
+    sql: `
+      ALTER TABLE settings ADD COLUMN startup_metrics_enabled INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS startup_performance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        shell_ready_ms INTEGER NOT NULL,
+        core_ready_ms INTEGER NOT NULL,
+        snapshot_restored INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_startup_performance_user_created
+        ON startup_performance(user_id, created_at DESC);
+    `
   }
 ];
 
@@ -331,6 +351,7 @@ function repairPortableSchema(database) {
   ensureColumn(database, 'settings', 'player_mode', "TEXT NOT NULL DEFAULT 'external'");
   ensureColumn(database, 'settings', 'local_telemetry_enabled', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'settings', 'interface_language', "TEXT NOT NULL DEFAULT 'pt-BR'");
+  ensureColumn(database, 'settings', 'startup_metrics_enabled', 'INTEGER NOT NULL DEFAULT 0');
 
   ensureColumn(database, 'playback_sessions', 'anime_cover', 'TEXT');
   ensureColumn(database, 'playback_sessions', 'episode_title', 'TEXT');
@@ -442,6 +463,16 @@ function repairPortableSchema(database) {
       UNIQUE(user_id, kind)
     );
 
+    CREATE TABLE IF NOT EXISTS startup_performance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      shell_ready_ms INTEGER NOT NULL,
+      core_ready_ms INTEGER NOT NULL,
+      snapshot_restored INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_reports_user ON episode_reports(user_id, created_at DESC);
@@ -455,6 +486,8 @@ function repairPortableSchema(database) {
       ON cache_entries(last_accessed_at DESC);
     CREATE INDEX IF NOT EXISTS idx_backup_schedules_due
       ON backup_schedules(user_id, enabled, kind, last_run_at);
+    CREATE INDEX IF NOT EXISTS idx_startup_performance_user_created
+      ON startup_performance(user_id, created_at DESC);
   `);
 }
 

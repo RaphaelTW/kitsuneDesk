@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.14.0 - Stable
+
+- Expandida a tradução da interface para português do Brasil, inglês, espanhol, francês, alemão e japonês.
+- Revisados avisos longos de autenticação, reprodução, provedores oficiais, privacidade e diagnóstico para maior clareza.
+- Adicionadas métricas locais e opcionais de abertura, separadas da telemetria de falhas, com tempos da interface e dos dados principais.
+- Adicionado resumo das métricas de abertura no diagnóstico, incluindo amostras e médias locais.
+- Ampliada a matriz E2E com idiomas, persistência das métricas, quatro caminhos de provedor e streams MP4, HLS e com cabeçalhos HTTP.
+- Adicionadas fixtures E2E isoladas para testar reprodução e fallback sem depender da disponibilidade de sites externos.
+
 ## v0.13.0 - Stable
 
 - Melhorado o player embutido com análise de compatibilidade, metadados de cabeçalhos e fallback automático para MPV em HLS/codecs não suportados pelo Chromium.

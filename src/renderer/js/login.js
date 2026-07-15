@@ -1,7 +1,9 @@
 import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { redirectAuthenticatedUser, saveSession } from './auth.js';
+import { applyStoredInterfaceLanguage, translate } from './i18n.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  applyStoredInterfaceLanguage();
   redirectAuthenticatedUser();
   bindPasswordToggles();
   bindLoginForm();
@@ -21,7 +23,7 @@ async function selectMode() {
 
   const result = await animeDesk.auth.setupStatus();
   const needsSetup = Boolean(result.ok && result.data?.needsSetup);
-  title.textContent = needsSetup ? 'Configuração inicial' : 'Entrar';
+  title.textContent = needsSetup ? translate('authSetup') : translate('authLogin');
   setupForm.classList.toggle('d-none', !needsSetup);
   loginForm.classList.toggle('d-none', needsSetup);
 }

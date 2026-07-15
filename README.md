@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.13.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.14.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,24 +20,21 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0130) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0130) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0140) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0140) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.13.0
+## Novidades da versão 0.14.0
 
-A v0.13.0 evolui a base estável 0.12.0 com foco em compatibilidade, manutenção segura, performance de abertura e personalização visual.
+A v0.14.0 evolui a base estável 0.13.0 com foco em localização, medição opcional de performance e cobertura automatizada dos fluxos de reprodução.
 
-- player embutido com detecção de HLS/cabeçalhos e fallback automático para MPV quando o Chromium não consegue reproduzir a fonte;
-- backups criptografados de perfis com agendamento, execução manual da agenda e validação automática de restauração sem sobrescrever dados;
-- checksums SHA-256 dos pacotes offline opcionais publicados junto da release;
-- teste instalado ampliado para upgrade, rollback seguro e recuperação após download/interrupção de instalador;
-- tradução inicial da interface e termos do instalador em português, inglês e espanhol;
-- status do provedor abaixo do seletor mais rápido, com cache visual e verificação em segundo plano;
-- abertura mais leve com tarefas pesadas adiadas para ociosidade;
-- novo tema Game Neon, com grade, brilho e botões com visual arcade;
-- Diagnóstico não executa mais verificação pesada ao abrir, preserva sempre o tema escolhido e, no botão Verificar, confere sistema, provedores e atualizações;
-- remoção do texto promocional antigo da tela Início.
+- interface disponível em português do Brasil, inglês, espanhol, francês, alemão e japonês;
+- textos longos de autenticação, reprodução, privacidade, diagnóstico e provedores revisados e traduzidos;
+- métricas locais de abertura independentes e desativadas por padrão, sem registrar conteúdo assistido;
+- diagnóstico com quantidade de amostras e médias de carregamento da interface e dos dados principais;
+- testes E2E para idiomas, métricas opt-in, GoAnime GUI, GoAnime clássico, anime-cli-br e ani-cli;
+- matriz de streams com MP4 embutido, HLS com fallback e fontes que exigem cabeçalhos HTTP;
+- fixtures determinísticas que evitam dependência de sites externos durante os testes.
 
-Também permanecem disponíveis os recursos entregues nas séries 0.11 e 0.12.
+Também permanecem disponíveis todos os recursos entregues na versão estável 0.13.0.
 
 ## Prévia
 
@@ -213,27 +210,27 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.13.0.exe
+dist\KitsuneDesk-Setup-0.14.0.exe
 ```
 
-## Publicar a versão 0.13.0
+## Publicar a versão 0.14.0
 
 O instalador Windows é publicado sem certificado Authenticode. Por isso, o Windows pode exibir um aviso do SmartScreen na primeira execução. Os checksums SHA-256 dos pacotes offline opcionais continuam sendo gerados para verificação de integridade.
 
 ```powershell
 git add .
-git commit -m "feat: publica KitsuneDesk v0.13.0"
+git commit -m "feat: publica KitsuneDesk v0.14.0"
 git push origin main
 
-git tag -a v0.13.0 -m "KitsuneDesk v0.13.0"
-git push origin v0.13.0
+git tag -a v0.14.0 -m "KitsuneDesk v0.14.0"
+git push origin v0.14.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.13.0.exe
-KitsuneDesk-Setup-0.13.0.exe.blockmap
+KitsuneDesk-Setup-0.14.0.exe
+KitsuneDesk-Setup-0.14.0.exe.blockmap
 latest.yml
 resources/providers/SHA256SUMS
 ```
@@ -244,15 +241,15 @@ O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio 
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.13.0 --no-git-tag-version
+npm version 0.15.0 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "feat: publica KitsuneDesk v0.13.0"
+git commit -m "feat: publica KitsuneDesk v0.15.0"
 git push origin main
 
-git tag -a v0.13.0 -m "KitsuneDesk v0.13.0"
-git push origin v0.13.0
+git tag -a v0.15.0 -m "KitsuneDesk v0.15.0"
+git push origin v0.15.0
 ```
 
 </details>
@@ -281,10 +278,9 @@ tests/                testes unitários, integração e E2E Electron
 
 ## Melhorias recomendadas para as próximas versões
 
-- expandir a tradução para novos idiomas e revisar todos os textos longos da interface;
 - oferecer assinatura Authenticode opcional caso o projeto obtenha um certificado confiável;
-- adicionar métricas locais opcionais de tempo de abertura para comparar melhorias de performance;
-- ampliar a matriz de testes E2E com mais provedores e formatos de stream.
+- adicionar gráficos e retenção configurável para as métricas locais de abertura;
+- ampliar os E2E instalados para mais combinações de atualização e recuperação.
 
 ## Limitações conhecidas
 

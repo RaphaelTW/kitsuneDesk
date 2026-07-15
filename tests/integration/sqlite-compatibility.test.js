@@ -88,11 +88,23 @@ test('worker repara banco existente quando falta interface_language em settings'
     });
     assert.equal(interfaceLanguageColumn.name, 'interface_language');
 
+    const startupMetricsColumn = runWorker('get', databasePath, {
+      sql: "SELECT name FROM pragma_table_info('settings') WHERE name = ?",
+      params: ['startup_metrics_enabled']
+    });
+    assert.equal(startupMetricsColumn.name, 'startup_metrics_enabled');
+
     const backupSchedules = runWorker('get', databasePath, {
       sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
       params: ['backup_schedules']
     });
     assert.equal(backupSchedules.name, 'backup_schedules');
+
+    const startupPerformance = runWorker('get', databasePath, {
+      sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      params: ['startup_performance']
+    });
+    assert.equal(startupPerformance.name, 'startup_performance');
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }

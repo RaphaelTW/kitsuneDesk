@@ -60,6 +60,11 @@ class DiagnosticsService {
         enabled: this.telemetryRepository?.enabledForUser(userId) ?? false,
         recentFailures: this.telemetryRepository?.list(userId, { pageSize: 10 })?.items ?? []
       },
+      startupPerformance: this.telemetryRepository?.startupSummary(userId) ?? {
+        enabled: false,
+        count: 0,
+        recent: []
+      },
       cache: this.cacheService?.stats() ?? { entries: [], disk: [] }
     };
   }
@@ -73,6 +78,25 @@ class DiagnosticsService {
         message: payload?.message || '',
         metadata: payload?.metadata || {}
       }) ?? { recorded: false, reason: 'unavailable' }
+    );
+  }
+
+  recordStartupPerformance(payload) {
+    return (
+      this.telemetryRepository?.recordStartup(this.currentUserId(), payload) ?? {
+        recorded: false,
+        reason: 'unavailable'
+      }
+    );
+  }
+
+  startupPerformance() {
+    return (
+      this.telemetryRepository?.startupSummary(this.currentUserId()) ?? {
+        enabled: false,
+        count: 0,
+        recent: []
+      }
     );
   }
 

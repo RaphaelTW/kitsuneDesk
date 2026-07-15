@@ -17,6 +17,10 @@ function registerDiagnosticsHandlers(ipcMain, diagnosticsController) {
   handle('diagnostics:clear-cache', () => diagnosticsController.clearCache());
   handle('diagnostics:restore-components', () => diagnosticsController.restoreComponents());
   handle('diagnostics:record-failure', (payload) => diagnosticsController.recordFailure(payload));
+  handle('diagnostics:record-startup-performance', (payload) =>
+    diagnosticsController.recordStartupPerformance(payload)
+  );
+  handle('diagnostics:startup-performance', () => diagnosticsController.startupPerformance());
   handle('diagnostics:list-failures', (payload) =>
     diagnosticsController.listFailureTelemetry(payload)
   );

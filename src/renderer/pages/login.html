@@ -20,23 +20,25 @@
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="48" height="48" />
           <div>
             <p>KitsuneDesk</p>
-            <h1 id="auth-title">Carregando</h1>
+            <h1 id="auth-title" data-i18n="authLoading">Carregando</h1>
           </div>
         </div>
 
         <form id="setup-form" class="d-none" novalidate>
           <div class="auth-hint auth-hint-success">
             <i class="bi bi-shield-check"></i>
-            <span>Primeiro acesso: use admin/admin123 e troque a senha obrigatoriamente.</span>
+            <span data-i18n="authFirstAccess"
+              >Primeiro acesso: use admin/admin123 e troque a senha obrigatoriamente.</span
+            >
           </div>
 
           <div class="mb-3">
-            <label class="form-label" for="setup-name">Nome</label>
+            <label class="form-label" for="setup-name" data-i18n="authName">Nome</label>
             <input class="form-control" id="setup-name" name="name" required minlength="2" />
           </div>
 
           <div class="mb-3">
-            <label class="form-label" for="setup-username">Usuário</label>
+            <label class="form-label" for="setup-username" data-i18n="authUsername">Usuário</label>
             <input
               class="form-control"
               id="setup-username"
@@ -48,7 +50,7 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label" for="setup-password">Senha</label>
+            <label class="form-label" for="setup-password" data-i18n="authPassword">Senha</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-lock"></i></span>
               <input
@@ -71,7 +73,9 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label" for="setup-password-confirm">Confirmar senha</label>
+            <label class="form-label" for="setup-password-confirm" data-i18n="authConfirmPassword"
+              >Confirmar senha</label
+            >
             <input
               class="form-control"
               id="setup-password-confirm"
@@ -83,14 +87,14 @@
 
           <div id="setup-alert" class="visual-alert d-none" role="status"></div>
           <button class="btn btn-primary w-100 auth-submit" id="setup-button" type="submit">
-            <span class="button-label">Criar administrador</span>
+            <span class="button-label" data-i18n="authCreateAdmin">Criar administrador</span>
             <span class="neon-spinner neon-spinner-sm d-none"></span>
           </button>
         </form>
 
         <form id="login-form" class="d-none" novalidate>
           <div class="mb-3">
-            <label class="form-label" for="username">Usuário</label>
+            <label class="form-label" for="username" data-i18n="authUsername">Usuário</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-person"></i></span>
               <input
@@ -104,7 +108,7 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label" for="password">Senha</label>
+            <label class="form-label" for="password" data-i18n="authPassword">Senha</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-lock"></i></span>
               <input
@@ -127,17 +131,21 @@
 
           <div class="auth-hint">
             <i class="bi bi-person-lock"></i>
-            <span>Primeiro acesso: usuario admin e senha admin123. A troca sera obrigatoria.</span>
+            <span data-i18n="authFirstAccess"
+              >Primeiro acesso: usuário admin e senha admin123. A troca será obrigatória.</span
+            >
           </div>
 
           <div class="auth-hint">
             <i class="bi bi-shield-lock"></i>
-            <span>O bloqueio apos tentativas invalidas permanece ativo mesmo apos reiniciar.</span>
+            <span data-i18n="authLockNotice"
+              >O bloqueio após tentativas inválidas permanece ativo mesmo após reiniciar.</span
+            >
           </div>
 
           <div id="login-alert" class="visual-alert d-none" role="status"></div>
           <button class="btn btn-primary w-100 auth-submit" id="login-button" type="submit">
-            <span class="button-label">Entrar</span>
+            <span class="button-label" data-i18n="authLogin">Entrar</span>
             <span class="neon-spinner neon-spinner-sm d-none"></span>
           </button>
         </form>

@@ -14,6 +14,64 @@ class TelemetryRepository {
     return Boolean(row?.local_telemetry_enabled);
   }
 
+  startupMetricsEnabledForUser(userId) {
+    if (!userId) return false;
+    const row = this.database.get(
+      'SELECT startup_metrics_enabled FROM settings WHERE user_id = ?',
+      [userId]
+    );
+    return Boolean(row?.startup_metrics_enabled);
+  }
+
+  recordStartup(userId, metrics) {
+    if (!this.startupMetricsEnabledForUser(userId)) {
+      return { recorded: false, reason: 'disabled' };
+    }
+    const shellReadyMs = normalizeDuration(metrics?.shellReadyMs);
+    const coreReadyMs = Math.max(shellReadyMs, normalizeDuration(metrics?.coreReadyMs));
+    const result = this.database.run(
+      `INSERT INTO startup_performance (
+         user_id, shell_ready_ms, core_ready_ms, snapshot_restored
+       ) VALUES (?, ?, ?, ?)`,
+      [userId, shellReadyMs, coreReadyMs, metrics?.snapshotRestored ? 1 : 0]
+    );
+    return { recorded: true, id: result.lastInsertRowid };
+  }
+
+  startupSummary(userId) {
+    const enabled = this.startupMetricsEnabledForUser(userId);
+    if (!userId) return { enabled, count: 0, recent: [] };
+    const aggregate = this.database.get(
+      `SELECT COUNT(*) AS count,
+              ROUND(AVG(shell_ready_ms)) AS average_shell_ms,
+              ROUND(AVG(core_ready_ms)) AS average_core_ms,
+              MIN(core_ready_ms) AS fastest_core_ms,
+              MAX(core_ready_ms) AS slowest_core_ms
+       FROM startup_performance WHERE user_id = ?`,
+      [userId]
+    );
+    const recent = this.database.all(
+      `SELECT shell_ready_ms, core_ready_ms, snapshot_restored, created_at
+       FROM startup_performance WHERE user_id = ?
+       ORDER BY created_at DESC LIMIT 10`,
+      [userId]
+    );
+    return {
+      enabled,
+      count: Number(aggregate?.count || 0),
+      averageShellMs: Number(aggregate?.average_shell_ms || 0),
+      averageCoreMs: Number(aggregate?.average_core_ms || 0),
+      fastestCoreMs: Number(aggregate?.fastest_core_ms || 0),
+      slowestCoreMs: Number(aggregate?.slowest_core_ms || 0),
+      recent: recent.map((item) => ({
+        shellReadyMs: Number(item.shell_ready_ms || 0),
+        coreReadyMs: Number(item.core_ready_ms || 0),
+        snapshotRestored: Boolean(item.snapshot_restored),
+        createdAt: item.created_at
+      }))
+    };
+  }
+
   record(userId, failure) {
     if (!this.enabledForUser(userId)) {
       return { recorded: false, reason: 'disabled' };
@@ -148,6 +206,12 @@ class TelemetryRepository {
 
 function normalizeFacet(row) {
   return { value: row.value, total: Number(row.total || 0) };
+}
+
+function normalizeDuration(value) {
+  const duration = Math.round(Number(value));
+  if (!Number.isFinite(duration)) return 0;
+  return Math.min(10 * 60 * 1000, Math.max(0, duration));
 }
 
 function csvCell(value) {

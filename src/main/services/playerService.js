@@ -23,6 +23,8 @@ const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const EPISODE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const STATUS_CACHE_TTL_MS = 60 * 1000;
 const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const E2E_FIXTURES =
+  process.env.NODE_ENV === 'test' && process.env.KITSUNEDESK_E2E_FIXTURES === '1';
 
 class PlayerService extends EventEmitter {
   constructor({ settingsService = null, libraryService = null, cacheService = null } = {}) {
@@ -318,6 +320,7 @@ class PlayerService extends EventEmitter {
    * @returns {object}
    */
   status(force = false) {
+    if (E2E_FIXTURES) return createE2eProviderStatus();
     if (!force && this.statusCache && this.statusCache.expiresAt > Date.now()) {
       return this.statusCache.value;
     }
@@ -724,6 +727,63 @@ class PlayerService extends EventEmitter {
       // A reprodução não deve ser interrompida por uma falha de histórico.
     }
   }
+}
+
+function createE2eProviderStatus() {
+  const available = { available: true, installed: true, path: 'e2e-fixture' };
+  return {
+    ready: true,
+    recommendedProvider: 'goanime-gui',
+    providers: {
+      goAnime: {
+        id: 'goanime-gui',
+        name: 'GoAnime GUI',
+        ready: true,
+        classicReady: true,
+        bridge: { ...available, version: 'e2e' },
+        executable: available,
+        mpv: available,
+        stability: 'recommended'
+      },
+      animeCliBr: {
+        id: 'anime-cli-br',
+        name: 'anime-cli-br',
+        ready: true,
+        executable: available,
+        vlc: available,
+        stability: 'e2e-fixture'
+      },
+      aniCli: {
+        id: 'ani-cli',
+        name: 'ani-cli',
+        ready: true,
+        executable: available,
+        stability: 'e2e-fixture'
+      }
+    },
+    tools: {
+      fastAnimeVsr: { id: 'fast-anime-vsr', name: 'FAST Anime VSR', installed: true, ready: true }
+    },
+    dependencies: {
+      goAnime: available,
+      goAnimeBridge: available,
+      animeCliBr: available,
+      aniCli: available,
+      mpv: available,
+      vlc: available,
+      fzf: available,
+      ffmpeg: available,
+      openssl: available,
+      git: available,
+      python: available,
+      nvidia: available,
+      fastAnimeVsr: available,
+      gitBash: available,
+      windowsTerminal: available,
+      cmd: available
+    },
+    installCommands: {}
+  };
 }
 
 function buildPlaybackQueue(episodes, episodeIndex, requestedQueue) {

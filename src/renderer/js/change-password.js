@@ -1,7 +1,9 @@
 import { animeDesk } from './api.js';
 import { requireSession, saveSession } from './auth.js';
+import { applyStoredInterfaceLanguage } from './i18n.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+  applyStoredInterfaceLanguage();
   const session = requireSession({ allowPasswordChange: true });
 
   if (!session) {

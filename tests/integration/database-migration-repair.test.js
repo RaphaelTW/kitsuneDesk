@@ -152,11 +152,19 @@ test(
       .all()
       .map((row) => row.name);
     assert.ok(settingsColumns.includes('interface_language'));
+    assert.ok(settingsColumns.includes('startup_metrics_enabled'));
 
     const backupSchedules = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'backup_schedules'")
       .get();
     assert.equal(backupSchedules.name, 'backup_schedules');
+
+    const startupPerformance = database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'startup_performance'"
+      )
+      .get();
+    assert.equal(startupPerformance.name, 'startup_performance');
 
     const defaultLanguage = database
       .prepare(

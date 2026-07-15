@@ -14,6 +14,8 @@ const TOOLS_ROOT = path.join(
 );
 const BRIDGE_DIRECTORY = path.join(TOOLS_ROOT, 'goanime-bridge');
 const BRIDGE_PATH = path.join(BRIDGE_DIRECTORY, 'goanime-bridge.exe');
+const E2E_FIXTURES =
+  process.env.NODE_ENV === 'test' && process.env.KITSUNEDESK_E2E_FIXTURES === '1';
 
 class GoAnimeGuiService extends EventEmitter {
   constructor() {
@@ -29,6 +31,17 @@ class GoAnimeGuiService extends EventEmitter {
   }
 
   status() {
+    if (E2E_FIXTURES) {
+      return {
+        available: true,
+        installed: true,
+        needsUpdate: false,
+        path: 'e2e-fixture',
+        version: BRIDGE_VERSION,
+        expectedVersion: BRIDGE_VERSION,
+        output: 'KitsuneDesk E2E fixture'
+      };
+    }
     const candidates = [
       BRIDGE_PATH,
       path.join(process.cwd(), 'resources', 'goanime-bridge', 'goanime-bridge.exe'),
@@ -77,12 +90,19 @@ class GoAnimeGuiService extends EventEmitter {
       });
     }
 
+    if (E2E_FIXTURES) return [createE2eAnime(query, language)];
+
     return this.runBridge('search', { query, language }, 45000);
   }
 
   async episodes(payload) {
     const anime = normalizeAnime(payload?.anime);
     const language = payload?.language === 'dub' ? 'dub' : 'sub';
+    if (E2E_FIXTURES) {
+      return [
+        { number: '1', num: 1, title: `Fixture ${anime.name}`, source: anime.source, language }
+      ];
+    }
     return this.runBridge('episodes', { anime, language }, 45000);
   }
 
@@ -91,7 +111,9 @@ class GoAnimeGuiService extends EventEmitter {
     const episode = normalizeEpisode(payload?.episode);
     const language = payload?.language === 'dub' ? 'dub' : 'sub';
     const quality = normalizeQuality(payload?.quality);
-    const stream = await this.runBridge('stream', { anime, episode, language, quality }, 90000);
+    const stream = E2E_FIXTURES
+      ? createE2eStream(anime)
+      : await this.runBridge('stream', { anime, episode, language, quality }, 90000);
     if (!stream?.url || !/^https?:\/\//i.test(stream.url)) {
       throw new AppError('STREAM_UNAVAILABLE', 'A fonte não forneceu um stream compatível.', {
         status: 502
@@ -107,6 +129,28 @@ class GoAnimeGuiService extends EventEmitter {
     const quality = normalizeQuality(payload?.quality);
     const startPosition = Math.max(0, Number(payload?.startPosition ?? 0));
     const volume = clamp(Number(payload?.volume ?? 80), 0, 100, 80);
+
+    if (E2E_FIXTURES) {
+      return {
+        launched: true,
+        provider: 'goanime-gui',
+        providerName: 'GoAnime GUI',
+        player: 'MPV E2E fixture',
+        anime: anime.name,
+        episode: episode.number,
+        source: anime.source,
+        requestedSource: anime.source,
+        quality,
+        requestedQuality: quality,
+        mode: language,
+        requestedMode: language,
+        fallbackUsed: false,
+        embedded: false,
+        pid: 0,
+        ipcPath: null,
+        resumedAt: startPosition
+      };
+    }
 
     if (!mpvPath || !fs.existsSync(mpvPath)) {
       throw new AppError(
@@ -627,6 +671,35 @@ class GoAnimeGuiService extends EventEmitter {
       child.stdin.end(JSON.stringify(payload));
     });
   }
+}
+
+function createE2eAnime(query, language) {
+  const format = /hls/i.test(query) ? 'hls' : /headers/i.test(query) ? 'headers' : 'mp4';
+  return {
+    id: `e2e-${format}`,
+    name: `E2E ${format.toUpperCase()}`,
+    url: `https://fixtures.kitsunedesk.test/anime/${format}`,
+    source: `e2e:${format}`,
+    cover: '',
+    language
+  };
+}
+
+function createE2eStream(anime) {
+  const format = String(anime?.source || '').split(':')[1] || 'mp4';
+  if (format === 'hls') {
+    return { url: 'https://fixtures.kitsunedesk.test/video.m3u8', metadata: { container: 'hls' } };
+  }
+  if (format === 'headers') {
+    return {
+      url: 'https://fixtures.kitsunedesk.test/video.mp4',
+      metadata: { container: 'mp4', requiresHeaders: true, referer: 'https://example.test/' }
+    };
+  }
+  return {
+    url: 'https://fixtures.kitsunedesk.test/video.mp4',
+    metadata: { container: 'mp4', videoCodec: 'h264', audioCodec: 'aac' }
+  };
 }
 
 function createMpvIpcPath() {

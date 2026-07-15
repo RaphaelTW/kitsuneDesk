@@ -60,6 +60,8 @@ const channels = Object.freeze({
   diagnosticsClearCache: 'diagnostics:clear-cache',
   diagnosticsRestoreComponents: 'diagnostics:restore-components',
   diagnosticsRecordFailure: 'diagnostics:record-failure',
+  diagnosticsRecordStartupPerformance: 'diagnostics:record-startup-performance',
+  diagnosticsStartupPerformance: 'diagnostics:startup-performance',
   diagnosticsListFailures: 'diagnostics:list-failures',
   diagnosticsRemoveFailures: 'diagnostics:remove-failures',
   diagnosticsExportFailures: 'diagnostics:export-failures',
@@ -184,6 +186,9 @@ const animeDeskApi = Object.freeze({
     clearCache: () => invoke(channels.diagnosticsClearCache),
     restoreComponents: () => invoke(channels.diagnosticsRestoreComponents),
     recordFailure: (payload) => invoke(channels.diagnosticsRecordFailure, payload),
+    recordStartupPerformance: (payload) =>
+      invoke(channels.diagnosticsRecordStartupPerformance, payload),
+    startupPerformance: () => invoke(channels.diagnosticsStartupPerformance),
     listFailures: (filters) => invoke(channels.diagnosticsListFailures, filters),
     removeFailures: (ids) => invoke(channels.diagnosticsRemoveFailures, { ids }),
     exportFailures: (format, filters) =>

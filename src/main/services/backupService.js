@@ -540,8 +540,9 @@ function importSettings(database, userId, settings) {
        user_id, default_language, default_quality, auto_play_next, player_volume, theme,
        default_provider, downloads_path, audio_preference, parental_control_enabled,
        parental_pin_hash, max_content_rating, remember_position, check_updates,
-       player_mode, local_telemetry_enabled, interface_language, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       player_mode, local_telemetry_enabled, startup_metrics_enabled, interface_language,
+       updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(user_id) DO UPDATE SET
        default_language = excluded.default_language,
        default_quality = excluded.default_quality,
@@ -558,6 +559,7 @@ function importSettings(database, userId, settings) {
        check_updates = excluded.check_updates,
        player_mode = excluded.player_mode,
        local_telemetry_enabled = excluded.local_telemetry_enabled,
+       startup_metrics_enabled = excluded.startup_metrics_enabled,
        interface_language = excluded.interface_language,
        updated_at = CURRENT_TIMESTAMP`,
     [
@@ -577,6 +579,7 @@ function importSettings(database, userId, settings) {
       settings.check_updates !== 0 ? 1 : 0,
       settings.player_mode === 'embedded' ? 'embedded' : 'external',
       settings.local_telemetry_enabled ? 1 : 0,
+      settings.startup_metrics_enabled ? 1 : 0,
       settings.interface_language || 'pt-BR'
     ]
   );

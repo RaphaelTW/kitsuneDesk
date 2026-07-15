@@ -20,6 +20,7 @@ function createService() {
     remember_position: 1,
     check_updates: 1,
     local_telemetry_enabled: 0,
+    startup_metrics_enabled: 0,
     interface_language: 'pt-BR'
   };
   const repository = {
@@ -44,6 +45,7 @@ function createService() {
         remember_position: input.rememberPosition ? 1 : 0,
         check_updates: input.checkUpdates ? 1 : 0,
         local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0,
+        startup_metrics_enabled: input.startupMetricsEnabled ? 1 : 0,
         interface_language: input.interfaceLanguage
       };
     },
@@ -73,7 +75,8 @@ test('normaliza e persiste configurações do usuário', () => {
     rememberPosition: true,
     checkUpdates: false,
     localTelemetryEnabled: true,
-    interfaceLanguage: 'en-US'
+    startupMetricsEnabled: true,
+    interfaceLanguage: 'ja-JP'
   });
 
   assert.equal(settings.defaultProvider, 'ani-cli');
@@ -85,7 +88,8 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);
   assert.equal(settings.localTelemetryEnabled, true);
-  assert.equal(settings.interfaceLanguage, 'en-US');
+  assert.equal(settings.startupMetricsEnabled, true);
+  assert.equal(settings.interfaceLanguage, 'ja-JP');
 });
 
 test('configura e valida PIN parental', async () => {

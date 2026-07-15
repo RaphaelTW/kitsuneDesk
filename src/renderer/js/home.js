@@ -9,17 +9,19 @@ const AVATAR_SNAPSHOT_KEY = 'kitsunedesk.avatar-cache.v1';
 const PROVIDER_STATUS_SNAPSHOT_KEY = 'kitsunedesk.provider-status.v1';
 const SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
 const AVATAR_SNAPSHOT_LIMIT = 80;
+const startupStartedAt = performance.now();
+let startupSnapshotRestored = false;
 const viewMeta = Object.freeze({
-  home: ['Biblioteca pessoal', 'Início'],
-  search: ['Catálogo e provedores', 'Pesquisar'],
-  continue: ['Progresso salvo', 'Continuar assistindo'],
-  lists: ['Sua coleção', 'Minha lista'],
-  history: ['Atividade do perfil', 'Histórico'],
-  tools: ['Componentes locais', 'Ferramentas'],
-  settings: ['Preferências do perfil', 'Configurações'],
-  diagnostics: ['Estabilidade e manutenção', 'Diagnóstico'],
-  telemetry: ['Falhas registradas localmente', 'Telemetria'],
-  admin: ['Administração', 'Usuários']
+  home: ['navHome', 'navHome'],
+  search: ['navSearch', 'navSearch'],
+  continue: ['navContinue', 'navContinue'],
+  lists: ['navLists', 'navLists'],
+  history: ['navHistory', 'navHistory'],
+  tools: ['navTools', 'navTools'],
+  settings: ['navSettings', 'navSettings'],
+  diagnostics: ['navDiagnostics', 'navDiagnostics'],
+  telemetry: ['navTelemetry', 'navTelemetry'],
+  admin: ['navUsers', 'navUsers']
 });
 
 const installationDefinitions = Object.freeze({
@@ -59,6 +61,11 @@ const modals = {};
 
 const $ = (id) => document.getElementById(id);
 
+document.addEventListener('kitsunedesk:language-changed', () => {
+  const activeView = document.querySelector('.nav-item.is-active[data-view]')?.dataset.view;
+  if (activeView && viewMeta[activeView]) updateViewHeading(activeView);
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   state.session = requireSession();
   if (!state.session || !hasAnimeDeskApi()) return;
@@ -83,7 +90,8 @@ window.addEventListener('DOMContentLoaded', () => {
   bindInstallation();
   bindFailureTelemetry();
   subscribeEvents();
-  restoreStartupSnapshot();
+  startupSnapshotRestored = restoreStartupSnapshot();
+  const shellReadyMs = performance.now() - startupStartedAt;
   applyInterfaceLanguage(state.settings?.interfaceLanguage || 'pt-BR');
 
   $('provider-health-dot').className = 'status-dot is-checking';
@@ -105,6 +113,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   void Promise.allSettled([appInfoTask, settingsTask, dashboardTask, playbackTask]).then(() => {
     persistStartupSnapshot();
+    void recordStartupPerformance(shellReadyMs, performance.now() - startupStartedAt);
   });
 
   void settingsTask
@@ -163,8 +172,7 @@ async function showView(view) {
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
-  $('view-eyebrow').textContent = viewMeta[view][0];
-  $('view-title').textContent = viewMeta[view][1];
+  updateViewHeading(view);
   $('content-area').focus({ preventScroll: true });
 
   if (view === 'home') await hydrateDashboard();
@@ -180,6 +188,11 @@ async function showView(view) {
   if (view === 'diagnostics') renderDiagnosticsIdleState();
   if (view === 'telemetry') await renderTelemetry();
   if (view === 'admin' && state.session.user.role === 'ADMIN') await renderUsers();
+}
+
+function updateViewHeading(view) {
+  $('view-eyebrow').textContent = translate(viewMeta[view][0]);
+  $('view-title').textContent = translate(viewMeta[view][1]);
 }
 
 async function hydrateAppInfo() {
@@ -221,8 +234,8 @@ async function warmDashboardCovers(dashboard) {
 
 function restoreStartupSnapshot() {
   const snapshot = readJsonStorage(STARTUP_SNAPSHOT_KEY);
-  if (!snapshot || snapshot.userId !== state.session.user.id) return;
-  if (Date.now() - Number(snapshot.savedAt || 0) > SNAPSHOT_TTL_MS) return;
+  if (!snapshot || snapshot.userId !== state.session.user.id) return false;
+  if (Date.now() - Number(snapshot.savedAt || 0) > SNAPSHOT_TTL_MS) return false;
 
   if (snapshot.appInfo?.version) {
     state.appInfo = snapshot.appInfo;
@@ -239,6 +252,20 @@ function restoreStartupSnapshot() {
     renderDashboardSnapshot(snapshot.dashboard);
   }
   if (snapshot.playback) renderPlayerState(snapshot.playback);
+  return true;
+}
+
+async function recordStartupPerformance(shellReadyMs, coreReadyMs) {
+  if (!state.settings?.startupMetricsEnabled) return;
+  try {
+    await animeDesk.diagnostics.recordStartupPerformance({
+      shellReadyMs,
+      coreReadyMs,
+      snapshotRestored: startupSnapshotRestored
+    });
+  } catch {
+    // Métricas opcionais nunca podem atrasar ou interromper a abertura.
+  }
 }
 
 function persistStartupSnapshot() {
@@ -1149,6 +1176,7 @@ function renderSettingsForm(settings) {
   $('setting-interface-language').value = settings.interfaceLanguage || 'pt-BR';
   $('setting-updates').checked = settings.checkUpdates !== false;
   $('setting-telemetry').checked = Boolean(settings.localTelemetryEnabled);
+  $('setting-startup-metrics').checked = Boolean(settings.startupMetricsEnabled);
   $('setting-parental').checked = Boolean(settings.parentalControlEnabled);
   $('setting-rating').value = settings.maxContentRating || '18';
   $('parental-pin-status').textContent = settings.parentalPinConfigured
@@ -1171,6 +1199,7 @@ function readSettingsForm() {
     interfaceLanguage: $('setting-interface-language').value,
     checkUpdates: $('setting-updates').checked,
     localTelemetryEnabled: $('setting-telemetry').checked,
+    startupMetricsEnabled: $('setting-startup-metrics').checked,
     parentalControlEnabled: $('setting-parental').checked,
     maxContentRating: $('setting-rating').value
   };
@@ -1345,6 +1374,12 @@ async function runDiagnostics() {
     diagnosticCard('Telemetria local', [
       ['Estado', report.telemetry?.enabled ? 'Ativa' : 'Desativada'],
       ['Falhas recentes', report.telemetry?.recentFailures?.length || 0]
+    ]),
+    diagnosticCard('Tempo de abertura', [
+      ['Estado', report.startupPerformance?.enabled ? 'Ativo' : 'Desativado'],
+      ['Amostras', report.startupPerformance?.count || 0],
+      ['Média da interface', formatDuration(report.startupPerformance?.averageShellMs)],
+      ['Média dos dados principais', formatDuration(report.startupPerformance?.averageCoreMs)]
     ])
   );
   appendDiagnosticLog(
@@ -1382,6 +1417,11 @@ function appendDiagnosticLog(message) {
   $('diagnostic-log').textContent =
     `${current}${current ? '\n' : ''}${new Date().toLocaleTimeString('pt-BR')}  ${message}`;
   $('diagnostic-log').scrollTop = $('diagnostic-log').scrollHeight;
+}
+
+function formatDuration(value) {
+  const milliseconds = Number(value || 0);
+  return milliseconds > 0 ? `${milliseconds.toLocaleString('pt-BR')} ms` : 'Sem amostras';
 }
 
 async function hydrateUpdateStatus() {

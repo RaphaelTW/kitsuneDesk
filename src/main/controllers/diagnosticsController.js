@@ -24,6 +24,14 @@ class DiagnosticsController {
     return this.diagnosticsService.recordFailure(payload);
   }
 
+  recordStartupPerformance(payload) {
+    return this.diagnosticsService.recordStartupPerformance(payload);
+  }
+
+  startupPerformance() {
+    return this.diagnosticsService.startupPerformance();
+  }
+
   listFailureTelemetry(payload) {
     return this.diagnosticsService.listFailureTelemetry(payload);
   }

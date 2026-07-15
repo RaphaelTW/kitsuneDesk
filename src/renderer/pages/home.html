@@ -15,44 +15,45 @@
     <link rel="stylesheet" href="../css/themes.css" />
   </head>
   <body data-theme="dark">
-    <a class="skip-link" href="#content-area">Pular para o conteudo</a>
+    <a class="skip-link" href="#content-area" data-i18n="skipContent">Pular para o conteúdo</a>
     <div class="app-frame">
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.13.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.14.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
           <button class="nav-item is-active" data-view="home" type="button" aria-current="page">
-            <i class="bi bi-house-door"></i><span>Início</span>
+            <i class="bi bi-house-door"></i><span data-i18n="navHome">Início</span>
           </button>
           <button class="nav-item" data-view="search" type="button">
-            <i class="bi bi-search"></i><span>Pesquisar</span>
+            <i class="bi bi-search"></i><span data-i18n="navSearch">Pesquisar</span>
           </button>
           <button class="nav-item" data-view="continue" type="button">
-            <i class="bi bi-play-circle"></i><span>Continuar assistindo</span>
+            <i class="bi bi-play-circle"></i
+            ><span data-i18n="navContinue">Continuar assistindo</span>
           </button>
           <button class="nav-item" data-view="lists" type="button">
-            <i class="bi bi-bookmark-heart"></i><span>Minha lista</span>
+            <i class="bi bi-bookmark-heart"></i><span data-i18n="navLists">Minha lista</span>
           </button>
           <button class="nav-item" data-view="history" type="button">
-            <i class="bi bi-clock-history"></i><span>Histórico</span>
+            <i class="bi bi-clock-history"></i><span data-i18n="navHistory">Histórico</span>
           </button>
           <button class="nav-item" data-view="tools" type="button">
-            <i class="bi bi-tools"></i><span>Ferramentas</span>
+            <i class="bi bi-tools"></i><span data-i18n="navTools">Ferramentas</span>
           </button>
           <button class="nav-item" data-view="settings" type="button">
-            <i class="bi bi-sliders"></i><span>Configurações</span>
+            <i class="bi bi-sliders"></i><span data-i18n="navSettings">Configurações</span>
           </button>
           <button class="nav-item" data-view="diagnostics" type="button">
-            <i class="bi bi-heart-pulse"></i><span>Diagnóstico</span>
+            <i class="bi bi-heart-pulse"></i><span data-i18n="navDiagnostics">Diagnóstico</span>
           </button>
           <button class="nav-item" data-view="telemetry" type="button">
-            <i class="bi bi-activity"></i><span>Telemetria</span>
+            <i class="bi bi-activity"></i><span data-i18n="navTelemetry">Telemetria</span>
           </button>
           <button class="nav-item d-none" id="admin-nav-button" data-view="admin" type="button">
-            <i class="bi bi-people"></i><span>Usuários</span>
+            <i class="bi bi-people"></i><span data-i18n="navUsers">Usuários</span>
           </button>
         </nav>
 
@@ -65,7 +66,7 @@
             >
           </div>
           <button class="sidebar-logout" id="logout-button" type="button">
-            <i class="bi bi-box-arrow-right"></i><span>Sair</span>
+            <i class="bi bi-box-arrow-right"></i><span data-i18n="logout">Sair</span>
           </button>
         </div>
       </aside>
@@ -127,7 +128,7 @@
           <section class="app-view" id="view-home" data-view-panel="home">
             <div class="welcome-banner panel compact-home-actions">
               <button class="btn btn-primary" data-go-view="search" type="button">
-                <i class="bi bi-search"></i> Pesquisar anime
+                <i class="bi bi-search"></i> <span data-i18n="searchAnime">Pesquisar anime</span>
               </button>
               <img src="../../../assets/home-preview.svg" alt="" />
             </div>
@@ -345,7 +346,9 @@
                 <i class="bi bi-window-stack"></i>
                 <div>
                   <h3>GoAnime GUI</h3>
-                  <p>Busca, episódios, fallback e reprodução pelo MPV.</p>
+                  <p data-i18n="toolsDescriptionGoAnime">
+                    Busca, episódios, fallback e reprodução pelo MPV.
+                  </p>
                   <span class="tool-status">Verificando</span>
                 </div>
                 <button
@@ -360,7 +363,9 @@
                 <i class="bi bi-terminal"></i>
                 <div>
                   <h3>GoAnime clássico</h3>
-                  <p>Fluxo original em terminal, preservado como alternativa.</p>
+                  <p data-i18n="toolsDescriptionClassic">
+                    Fluxo original em terminal, preservado como alternativa.
+                  </p>
                   <span class="tool-status">Verificando</span>
                 </div>
                 <div class="tool-card-actions">
@@ -383,7 +388,9 @@
                 <i class="bi bi-translate"></i>
                 <div>
                   <h3>anime-cli-br</h3>
-                  <p>Alternativa brasileira com VLC e ambiente Python isolado.</p>
+                  <p data-i18n="toolsDescriptionAnimeCli">
+                    Alternativa brasileira com VLC e ambiente Python isolado.
+                  </p>
                   <span class="tool-status">Verificando</span>
                 </div>
                 <div class="tool-card-actions">
@@ -406,7 +413,9 @@
                 <i class="bi bi-exclamation-triangle"></i>
                 <div>
                   <h3>ani-cli experimental</h3>
-                  <p>Cliente experimental; fontes externas podem ficar instáveis.</p>
+                  <p data-i18n="toolsDescriptionAniCli">
+                    Cliente experimental; fontes externas podem ficar instáveis.
+                  </p>
                   <span class="tool-status">Verificando</span>
                 </div>
                 <div class="tool-card-actions">
@@ -429,9 +438,9 @@
                 <i class="bi bi-gpu-card"></i>
                 <div>
                   <h3>FAST Anime VSR</h3>
-                  <p>
-                    Super-resolução para arquivos locais. Foi movido para Ferramentas porque não é
-                    um provedor de streaming.
+                  <p data-i18n="fastVsrDescription">
+                    Super-resolução para arquivos locais. Esta ferramenta não fornece catálogos nem
+                    streams.
                   </p>
                   <span class="tool-status">Verificando</span>
                 </div>
@@ -454,9 +463,9 @@
                 <div>
                   <p class="eyebrow">Opções oficiais em português</p>
                   <h3>Catálogos dublados e licenciados</h3>
-                  <p class="section-description">
-                    Esses serviços usam login e DRM próprios, por isso são abertos no navegador
-                    oficial e não são raspados pelo KitsuneDesk.
+                  <p class="section-description" data-i18n="officialProvidersDescription">
+                    Estes serviços usam contas e DRM próprios. O KitsuneDesk apenas abre o site
+                    oficial no navegador e não coleta credenciais.
                   </p>
                 </div>
               </div>
@@ -504,30 +513,32 @@
                 <div class="settings-card-heading">
                   <i class="bi bi-play-btn"></i>
                   <div>
-                    <h3>Reprodução</h3>
-                    <p>Preferências usadas por padrão.</p>
+                    <h3 data-i18n="settingsPlaybackTitle">Reprodução</h3>
+                    <p data-i18n="settingsPlaybackDescription">
+                      Preferências aplicadas por padrão a novas reproduções.
+                    </p>
                   </div>
                 </div>
                 <div class="settings-grid">
                   <div class="stable-player-notice">
                     <i class="bi bi-window"></i>
                     <span
-                      ><strong>Janela externa do MPV</strong
-                      ><small
-                        >Modo estável ativado para evitar tela preta, travamentos e
+                      ><strong data-i18n="externalPlayerTitle">Janela externa do MPV</strong
+                      ><small data-i18n="externalPlayerDescription"
+                        >Modo estável recomendado para evitar tela preta, travamentos e
                         incompatibilidades do player incorporado.</small
                       ></span
                     >
                   </div>
                   <label
-                    ><span>Modo do player</span
+                    ><span data-i18n="playerMode">Modo do player</span
                     ><select class="form-select" id="setting-player-mode">
                       <option value="external">MPV externo (padrão e estável)</option>
                       <option value="embedded">Embutido (opcional/experimental)</option>
                     </select></label
                   >
                   <label
-                    ><span>Provedor padrão</span
+                    ><span data-i18n="defaultProvider">Provedor padrão</span
                     ><select class="form-select" id="setting-provider">
                       <option value="goanime-gui">GoAnime GUI</option>
                       <option value="goanime">GoAnime clássico</option>
@@ -536,14 +547,14 @@
                     </select></label
                   >
                   <label
-                    ><span>Idioma padrão</span
+                    ><span data-i18n="defaultLanguage">Idioma padrão</span
                     ><select class="form-select" id="setting-language">
                       <option value="sub">Legendado</option>
                       <option value="dub">Dublado / PT-BR</option>
                     </select></label
                   >
                   <label
-                    ><span>Resolução padrão</span
+                    ><span data-i18n="defaultQuality">Resolução padrão</span
                     ><select class="form-select" id="setting-quality">
                       <option value="auto">Melhor disponível</option>
                       <option value="360">360p</option>
@@ -553,7 +564,7 @@
                     </select></label
                   >
                   <label
-                    ><span>Preferência de áudio</span
+                    ><span data-i18n="audioPreference">Preferência de áudio</span
                     ><select class="form-select" id="setting-audio">
                       <option value="sub">Original / legendado</option>
                       <option value="dub">Dublado</option>
@@ -564,7 +575,7 @@
                     ><input id="setting-volume" type="range" min="0" max="100" value="80"
                   /></label>
                   <label
-                    ><span>Pasta de downloads</span
+                    ><span data-i18n="downloadsFolder">Pasta de downloads</span
                     ><input
                       class="form-control"
                       id="setting-downloads"
@@ -573,11 +584,12 @@
                 </div>
                 <div class="switch-list">
                   <label
-                    ><input id="setting-autoplay" type="checkbox" /><span
+                    ><input id="setting-autoplay" type="checkbox" /><span data-i18n="autoPlayNext"
                       >Reproduzir automaticamente o próximo episódio</span
                     ></label
                   ><label
                     ><input id="setting-remember" type="checkbox" checked /><span
+                      data-i18n="rememberPosition"
                       >Salvar e retomar a posição do episódio</span
                     ></label
                   >
@@ -588,13 +600,15 @@
                 <div class="settings-card-heading">
                   <i class="bi bi-palette"></i>
                   <div>
-                    <h3>Aparência e atualização</h3>
-                    <p>Tema e manutenção do aplicativo.</p>
+                    <h3 data-i18n="appearanceTitle">Aparência, idioma e manutenção</h3>
+                    <p data-i18n="appearanceDescription">
+                      Personalize o tema, o idioma e as verificações opcionais.
+                    </p>
                   </div>
                 </div>
                 <div class="settings-grid">
                   <label
-                    ><span>Tema</span
+                    ><span data-i18n="theme">Tema</span
                     ><select class="form-select" id="setting-theme">
                       <option value="dark">Escuro</option>
                       <option value="light">Claro</option>
@@ -612,22 +626,36 @@
                       <option value="game-neon">Game Neon</option>
                     </select></label
                   ><label
-                    ><span>Idioma da interface</span
+                    ><span data-i18n="interfaceLanguage">Idioma da interface</span
                     ><select class="form-select" id="setting-interface-language">
                       <option value="pt-BR">Português do Brasil</option>
                       <option value="en-US">English</option>
                       <option value="es-ES">Español</option>
+                      <option value="fr-FR">Français</option>
+                      <option value="de-DE">Deutsch</option>
+                      <option value="ja-JP">日本語</option>
                     </select></label
                   ><label class="switch-inline"
                     ><input id="setting-updates" type="checkbox" checked /><span
+                      data-i18n="checkUpdates"
                       >Verificar atualizações automaticamente</span
                     ></label
                   ><label class="switch-inline"
                     ><input id="setting-telemetry" type="checkbox" /><span
+                      data-i18n="failureTelemetry"
                       >Registrar telemetria local de falhas</span
+                    ></label
+                  ><label class="switch-inline"
+                    ><input id="setting-startup-metrics" type="checkbox" /><span
+                      data-i18n="startupMetrics"
+                      >Medir localmente o tempo de abertura</span
                     ></label
                   >
                 </div>
+                <p class="section-description" data-i18n="startupMetricsHelp">
+                  Registra somente duração da interface, duração dos dados principais e uso do
+                  cache. Nenhum conteúdo assistido é incluído.
+                </p>
               </section>
 
               <section class="panel settings-card">
@@ -829,7 +857,8 @@
                   >
                 </button>
               </div>
-              <pre class="diagnostic-log" id="diagnostic-log">Aguardando verificação...</pre>
+              <pre class="diagnostic-log" id="diagnostic-log" data-i18n="diagnosticsWaiting">
+Aguardando verificação manual. Nenhuma tarefa pesada será executada automaticamente ao abrir.</pre>
             </section>
           </section>
 
@@ -876,6 +905,10 @@
               </button>
             </section>
             <div class="telemetry-summary" id="telemetry-summary">Nenhum registro carregado.</div>
+            <p class="section-description" data-i18n="telemetryPrivacy">
+              Os registros de falha e as métricas de abertura permanecem somente neste computador e
+              podem ser desativados separadamente.
+            </p>
             <div class="telemetry-list" id="telemetry-list"></div>
             <div class="telemetry-pagination">
               <button class="btn btn-outline-light" id="telemetry-prev" type="button">

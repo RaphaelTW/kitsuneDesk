@@ -28,6 +28,7 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
     'episode_reports',
     'login_security',
     'failure_telemetry',
+    'startup_performance',
     'cache_entries'
   ]) {
     assert.ok(tables.includes(table), `Tabela ausente: ${table}`);
@@ -46,6 +47,7 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
   assert.ok(settingsColumns.includes('parental_pin_hash'));
   assert.ok(settingsColumns.includes('player_mode'));
   assert.ok(settingsColumns.includes('local_telemetry_enabled'));
+  assert.ok(settingsColumns.includes('startup_metrics_enabled'));
   const defaultMode = database
     .prepare("SELECT dflt_value FROM pragma_table_info('settings') WHERE name = 'player_mode'")
     .get();
