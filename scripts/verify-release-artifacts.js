@@ -21,10 +21,11 @@ for (const fileName of expectedFiles) {
   if (size <= 0) errors.push(`Arquivo vazio: dist/${fileName}`);
 }
 
-const providerChecksumFiles = [
-  path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS'),
-  path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS.sig')
-];
+const checksumPath = path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS');
+const checksumSignaturePath = path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS.sig');
+const providerChecksumFiles = requiresSignedChecksums()
+  ? [checksumPath, checksumSignaturePath]
+  : [checksumPath];
 for (const filePath of providerChecksumFiles) {
   if (!fs.existsSync(filePath)) {
     errors.push(`Arquivo ausente: ${path.relative(projectRoot, filePath).replaceAll('\\', '/')}`);
@@ -35,8 +36,7 @@ for (const filePath of providerChecksumFiles) {
     errors.push(`Arquivo vazio: ${path.relative(projectRoot, filePath).replaceAll('\\', '/')}`);
   }
 }
-const checksumSignaturePath = providerChecksumFiles[1];
-if (fs.existsSync(checksumSignaturePath)) {
+if (requiresSignedChecksums() && fs.existsSync(checksumSignaturePath)) {
   const signature = fs.readFileSync(checksumSignaturePath, 'utf8').trim();
   if (requiresSignedChecksums() && signature === 'UNSIGNED-DEVELOPMENT-BUILD') {
     errors.push(

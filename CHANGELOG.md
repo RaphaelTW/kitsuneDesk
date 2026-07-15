@@ -4,7 +4,8 @@
 
 - Melhorado o player embutido com análise de compatibilidade, metadados de cabeçalhos e fallback automático para MPV em HLS/codecs não suportados pelo Chromium.
 - Adicionado agendamento de backups criptografados de perfis, execução manual da agenda e validação segura de restauração.
-- Adicionados checksums SHA-256 assinados para pacotes offline opcionais dos provedores.
+- Adicionados checksums SHA-256 para pacotes offline opcionais dos provedores.
+- A publicação da release Windows passa a aceitar instaladores sem certificado Authenticode.
 - Ampliado o teste instalado para upgrade, rollback e recuperação após instalador interrompido.
 - Adicionada tradução inicial da interface e termos multilíngues do instalador.
 - Acelerado o status do provedor selecionado e reduzidas tarefas pesadas na abertura.

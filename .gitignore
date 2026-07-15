@@ -29,3 +29,7 @@ resources/fast-anime-vsr/*
 !resources/fast-anime-vsr/.gitkeep
 resources/anime-cli-br/*
 !resources/anime-cli-br/.gitkeep
+
+# Artefatos gerados durante a publicação
+resources/providers/SHA256SUMS
+resources/providers/SHA256SUMS.sig

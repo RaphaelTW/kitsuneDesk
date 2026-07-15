@@ -23,7 +23,7 @@ test('configuração do electron-builder possui uma única fonte', () => {
 
   assert.match(builderConfig, /artifactName:\s*KitsuneDesk-Setup-\$\{version\}\.\$\{ext\}/);
 
-  assert.match(builderConfig, /verifyUpdateCodeSignature:\s*true/);
+  assert.match(builderConfig, /verifyUpdateCodeSignature:\s*false/);
   assert.match(builderConfig, /license:\s*docs\/INSTALLER_TERMS\.txt/);
   assert.deepEqual(
     [...installerTerms.subarray(0, 3)],
@@ -39,13 +39,16 @@ test('configuração do electron-builder possui uma única fonte', () => {
 test('workflow só publica release com metadados do atualizador', () => {
   assert.match(workflow, /npm run release:verify-artifacts/);
   assert.match(workflow, /npm run test:e2e:electron/);
-  assert.match(workflow, /npm run release:verify-signing/);
   assert.match(workflow, /test-installed-update\.ps1/);
-  assert.match(workflow, /Get-AuthenticodeSignature/);
-
-  assert.match(workflow, /CSC_LINK:\s*\$\{\{ secrets\.WINDOWS_CSC_LINK \}\}/);
+  assert.doesNotMatch(workflow, /npm run release:verify-signing/);
+  assert.doesNotMatch(workflow, /Get-AuthenticodeSignature/);
+  assert.doesNotMatch(workflow, /WINDOWS_CSC_LINK/);
+  assert.doesNotMatch(packageJson.scripts['release:win'], /release:verify-signing/);
+  assert.doesNotMatch(packageJson.scripts['release:stable'], /release:verify-signing/);
 
   assert.match(workflow, /dist\/latest\.yml/);
+  assert.match(workflow, /resources\/providers\/SHA256SUMS/);
+  assert.doesNotMatch(workflow, /resources\/providers\/SHA256SUMS\.sig/);
   assert.match(workflow, /gh release create[\s\S]*--latest/);
   assert.match(workflow, /gh release upload[\s\S]*--clobber/);
   assert.match(workflow, /gh release edit[\s\S]*--latest/);

@@ -28,7 +28,7 @@ A v0.13.0 evolui a base estável 0.12.0 com foco em compatibilidade, manutençã
 
 - player embutido com detecção de HLS/cabeçalhos e fallback automático para MPV quando o Chromium não consegue reproduzir a fonte;
 - backups criptografados de perfis com agendamento, execução manual da agenda e validação automática de restauração sem sobrescrever dados;
-- checksums SHA-256 dos pacotes offline opcionais com assinatura RSA para publicação junto da release;
+- checksums SHA-256 dos pacotes offline opcionais publicados junto da release;
 - teste instalado ampliado para upgrade, rollback seguro e recuperação após download/interrupção de instalador;
 - tradução inicial da interface e termos do instalador em português, inglês e espanhol;
 - status do provedor abaixo do seletor mais rápido, com cache visual e verificação em segundo plano;
@@ -218,7 +218,7 @@ dist\KitsuneDesk-Setup-0.13.0.exe
 
 ## Publicar a versão 0.13.0
 
-Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK`, `WINDOWS_CSC_KEY_PASSWORD` e `KITSUNEDESK_CHECKSUM_PRIVATE_KEY_B64` no GitHub Actions para assinar o instalador Windows e os checksums SHA-256 dos pacotes offline opcionais.
+O instalador Windows é publicado sem certificado Authenticode. Por isso, o Windows pode exibir um aviso do SmartScreen na primeira execução. Os checksums SHA-256 dos pacotes offline opcionais continuam sendo gerados para verificação de integridade.
 
 ```powershell
 git add .
@@ -236,10 +236,9 @@ KitsuneDesk-Setup-0.13.0.exe
 KitsuneDesk-Setup-0.13.0.exe.blockmap
 latest.yml
 resources/providers/SHA256SUMS
-resources/providers/SHA256SUMS.sig
 ```
 
-O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio, apontando para uma versão incorreta ou se a assinatura digital não estiver configurada.
+O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio ou apontando para uma versão incorreta. A ausência de certificado digital não bloqueia a release.
 
 <details>
 <summary><strong>Publicar a próxima versão</strong></summary>
@@ -283,7 +282,7 @@ tests/                testes unitários, integração e E2E Electron
 ## Melhorias recomendadas para as próximas versões
 
 - expandir a tradução para novos idiomas e revisar todos os textos longos da interface;
-- automatizar a verificação pública da assinatura `SHA256SUMS.sig` no instalador;
+- oferecer assinatura Authenticode opcional caso o projeto obtenha um certificado confiável;
 - adicionar métricas locais opcionais de tempo de abertura para comparar melhorias de performance;
 - ampliar a matriz de testes E2E com mais provedores e formatos de stream.
 

@@ -27,9 +27,9 @@
     "release:build": "electron-builder --config electron-builder.yml --win --publish never",
     "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
     "providers:bundle": "node scripts/verify-provider-bundles.js && node scripts/sign-provider-checksums.js",
-    "release:win": "npm run release:verify && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
+    "release:win": "npm run release:verify && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
     "validate": "npm run lint && npm run format:check && npm test",
-    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
+    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
     "checksums:providers": "node scripts/sign-provider-checksums.js"
   },
   "dependencies": {

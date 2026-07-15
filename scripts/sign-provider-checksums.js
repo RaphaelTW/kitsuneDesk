@@ -32,10 +32,8 @@ if (!privateKey) {
     );
     process.exit(1);
   }
-  fs.writeFileSync(signaturePath, 'UNSIGNED-DEVELOPMENT-BUILD\n', 'utf8');
-  console.warn(
-    'Checksums gerados sem assinatura real para build local. Releases devem definir KITSUNEDESK_REQUIRE_SIGNED_CHECKSUMS=1 e uma chave privada.'
-  );
+  if (fs.existsSync(signaturePath)) fs.unlinkSync(signaturePath);
+  console.warn('Checksums SHA-256 gerados sem assinatura RSA. A assinatura permanece opcional.');
   process.exit(0);
 }
 

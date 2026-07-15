@@ -23,7 +23,7 @@ files:
 
 win:
   icon: assets/icons/icon.ico
-  verifyUpdateCodeSignature: true
+  verifyUpdateCodeSignature: false
   target:
     - target: nsis
       arch:
