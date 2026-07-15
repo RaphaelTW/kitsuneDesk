@@ -21,6 +21,30 @@ for (const fileName of expectedFiles) {
   if (size <= 0) errors.push(`Arquivo vazio: dist/${fileName}`);
 }
 
+const providerChecksumFiles = [
+  path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS'),
+  path.join(projectRoot, 'resources', 'providers', 'SHA256SUMS.sig')
+];
+for (const filePath of providerChecksumFiles) {
+  if (!fs.existsSync(filePath)) {
+    errors.push(`Arquivo ausente: ${path.relative(projectRoot, filePath).replaceAll('\\', '/')}`);
+    continue;
+  }
+  const size = fs.statSync(filePath).size;
+  if (size <= 0) {
+    errors.push(`Arquivo vazio: ${path.relative(projectRoot, filePath).replaceAll('\\', '/')}`);
+  }
+}
+const checksumSignaturePath = providerChecksumFiles[1];
+if (fs.existsSync(checksumSignaturePath)) {
+  const signature = fs.readFileSync(checksumSignaturePath, 'utf8').trim();
+  if (requiresSignedChecksums() && signature === 'UNSIGNED-DEVELOPMENT-BUILD') {
+    errors.push(
+      'resources/providers/SHA256SUMS.sig contém assinatura de desenvolvimento, não de release.'
+    );
+  }
+}
+
 const metadataPath = path.join(distDir, 'latest.yml');
 if (fs.existsSync(metadataPath)) {
   const metadata = fs.readFileSync(metadataPath, 'utf8');
@@ -61,6 +85,12 @@ if (errors.length > 0) {
 
 console.log(`Artefatos validados para KitsuneDesk v${version}:`);
 for (const fileName of expectedFiles) console.log(`- dist/${fileName}`);
+
+function requiresSignedChecksums() {
+  return ['1', 'true', 'yes'].includes(
+    String(process.env.KITSUNEDESK_REQUIRE_SIGNED_CHECKSUMS || '').toLowerCase()
+  );
+}
 
 function readYamlScalar(content, key) {
   const expression = new RegExp(`^${escapeRegExp(key)}:\\s*(.+?)\\s*$`, 'm');

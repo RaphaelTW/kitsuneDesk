@@ -1,7 +1,7 @@
 {
   "name": "kitsunedesk",
-  "version": "0.12.0",
-  "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com player MPV externo estável, perfis locais, biblioteca, instalação gráfica e atualização automática pelo GitHub.",
+  "version": "0.13.0",
+  "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com player MPV externo estável, player embutido com fallback inteligente, perfis locais, biblioteca, backups criptografados agendados, instalação gráfica e atualização automática pelo GitHub.",
   "main": "src/main/main.js",
   "author": "Laurentino",
   "license": "MIT",
@@ -26,17 +26,18 @@
     "release:verify-signing": "node scripts/verify-windows-signing.js",
     "release:build": "electron-builder --config electron-builder.yml --win --publish never",
     "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
-    "providers:bundle": "node scripts/verify-provider-bundles.js",
-    "release:win": "npm run release:verify && npm run release:verify-signing && npm run release:build && npm run release:verify-artifacts",
+    "providers:bundle": "node scripts/verify-provider-bundles.js && node scripts/sign-provider-checksums.js",
+    "release:win": "npm run release:verify && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
     "validate": "npm run lint && npm run format:check && npm test",
-    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run release:verify-signing && npm run release:build && npm run release:verify-artifacts"
+    "release:stable": "npm run validate && npm run test:e2e:electron && npm run release:verify && npm run release:verify-signing && npm run providers:bundle && npm run release:build && npm run release:verify-artifacts",
+    "checksums:providers": "node scripts/sign-provider-checksums.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "better-sqlite3": "^12.11.1",
     "bootstrap": "^5.3.7",
     "bootstrap-icons": "^1.13.1",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
@@ -46,5 +47,12 @@
     "globals": "^16.3.0",
     "playwright": "^1.56.0",
     "prettier": "^3.6.2"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "electron-winstaller@5.4.0": true
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.11.1"
   }
 }

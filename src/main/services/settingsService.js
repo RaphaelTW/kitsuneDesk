@@ -5,6 +5,7 @@ const { requireUserId } = require('./authService');
 
 const PROVIDERS = new Set(['goanime-gui', 'goanime', 'anime-cli-br', 'ani-cli']);
 const LANGUAGES = new Set(['sub', 'dub']);
+const INTERFACE_LANGUAGES = new Set(['pt-BR', 'en-US', 'es-ES']);
 const QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
 const THEMES = new Set([
   'dark',
@@ -19,7 +20,8 @@ const THEMES = new Set([
   'dreamcore',
   'cottagecore',
   'cyberpunk',
-  'synthwave'
+  'synthwave',
+  'game-neon'
 ]);
 
 class SettingsService {
@@ -61,7 +63,10 @@ class SettingsService {
         : current.maxContentRating,
       rememberPosition: payload?.rememberPosition !== false,
       checkUpdates: payload?.checkUpdates !== false,
-      localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled)
+      localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled),
+      interfaceLanguage: INTERFACE_LANGUAGES.has(payload?.interfaceLanguage)
+        ? payload.interfaceLanguage
+        : current.interfaceLanguage
     };
     this.settingsRepository.update(userId, settings);
     return this.get();
@@ -107,7 +112,10 @@ function mapSettings(row) {
     maxContentRating: row?.max_content_rating || '18',
     rememberPosition: row?.remember_position !== 0,
     checkUpdates: row?.check_updates !== 0,
-    localTelemetryEnabled: Boolean(row?.local_telemetry_enabled)
+    localTelemetryEnabled: Boolean(row?.local_telemetry_enabled),
+    interfaceLanguage: INTERFACE_LANGUAGES.has(row?.interface_language)
+      ? row.interface_language
+      : 'pt-BR'
   };
 }
 

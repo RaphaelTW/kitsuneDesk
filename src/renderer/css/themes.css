@@ -408,3 +408,49 @@ body[data-theme='classic-98'] .nav-item.is-active i {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+body[data-theme='game-neon'] {
+  color-scheme: dark;
+  --app-bg: #05030d;
+  --app-surface: rgba(11, 10, 28, 0.92);
+  --app-surface-soft: rgba(20, 16, 46, 0.94);
+  --app-border: rgba(0, 255, 213, 0.36);
+  --app-text: #f7fbff;
+  --app-muted: #a5b5d9;
+  --app-purple: #9f46ff;
+  --app-cyan: #00ffd5;
+  --app-rose: #ff2fb3;
+  --app-green: #8dff3a;
+  --app-shadow: 0 0 26px rgba(0, 255, 213, 0.14), 0 18px 54px rgba(0, 0, 0, 0.58);
+  --theme-background-image:
+    linear-gradient(rgba(0, 255, 213, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(159, 70, 255, 0.07) 1px, transparent 1px),
+    radial-gradient(circle at 18% 14%, rgba(255, 47, 179, 0.26), transparent 24%),
+    radial-gradient(circle at 86% 16%, rgba(0, 255, 213, 0.22), transparent 26%),
+    radial-gradient(circle at 50% 92%, rgba(141, 255, 58, 0.16), transparent 28%),
+    linear-gradient(140deg, #05030d 0%, #120d2e 52%, #05030d 100%);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto,
+    auto;
+}
+
+body[data-theme='game-neon'] .panel,
+body[data-theme='game-neon'] .settings-card,
+body[data-theme='game-neon'] .modal-content,
+body[data-theme='game-neon'] .sidebar,
+body[data-theme='game-neon'] .topbar {
+  border-color: color-mix(in srgb, var(--app-cyan) 45%, var(--app-border));
+  box-shadow: var(--app-shadow);
+}
+
+body[data-theme='game-neon'] .btn.primary,
+body[data-theme='game-neon'] .nav-item.is-active {
+  box-shadow:
+    0 0 20px rgba(0, 255, 213, 0.24),
+    inset 0 0 16px rgba(255, 47, 179, 0.12);
+  text-shadow: 0 0 12px rgba(0, 255, 213, 0.45);
+}

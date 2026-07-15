@@ -19,7 +19,8 @@ function createService() {
     max_content_rating: '18',
     remember_position: 1,
     check_updates: 1,
-    local_telemetry_enabled: 0
+    local_telemetry_enabled: 0,
+    interface_language: 'pt-BR'
   };
   const repository = {
     createDefaultForUser() {},
@@ -42,7 +43,8 @@ function createService() {
         max_content_rating: input.maxContentRating,
         remember_position: input.rememberPosition ? 1 : 0,
         check_updates: input.checkUpdates ? 1 : 0,
-        local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0
+        local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0,
+        interface_language: input.interfaceLanguage
       };
     },
     updateParentalPin(_userId, hash) {
@@ -70,7 +72,8 @@ test('normaliza e persiste configurações do usuário', () => {
     maxContentRating: '14',
     rememberPosition: true,
     checkUpdates: false,
-    localTelemetryEnabled: true
+    localTelemetryEnabled: true,
+    interfaceLanguage: 'en-US'
   });
 
   assert.equal(settings.defaultProvider, 'ani-cli');
@@ -82,6 +85,7 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.maxContentRating, '14');
   assert.equal(settings.checkUpdates, false);
   assert.equal(settings.localTelemetryEnabled, true);
+  assert.equal(settings.interfaceLanguage, 'en-US');
 });
 
 test('configura e valida PIN parental', async () => {
@@ -92,14 +96,15 @@ test('configura e valida PIN parental', async () => {
   await assert.rejects(() => service.verifyParentalPin({ pin: '9999' }), /PIN parental incorreto/);
 });
 
-test('aceita os novos temas da v0.11.0', () => {
+test('aceita os temas extras, incluindo Game Neon', () => {
   const service = createService();
   for (const theme of [
     'older-brother-core',
     'dreamcore',
     'cottagecore',
     'cyberpunk',
-    'synthwave'
+    'synthwave',
+    'game-neon'
   ]) {
     const settings = service.update({ theme });
     assert.equal(settings.theme, theme);

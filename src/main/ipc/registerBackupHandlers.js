@@ -56,6 +56,45 @@ function registerBackupHandlers(ipcMain, backupController) {
       return backupController.importProfiles(result.filePaths[0], payload?.password);
     })
   );
+
+  ipcMain.handle('backup:validate-profiles', (_event, payload) =>
+    handleRequest('BACKUP', async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Validar backup criptografado',
+        properties: ['openFile'],
+        filters: [{ name: 'Backup criptografado', extensions: ['kitsunebackup'] }]
+      });
+      if (result.canceled || !result.filePaths[0]) return { valid: false, canceled: true };
+      return backupController.validateProfiles(result.filePaths[0], payload?.password);
+    })
+  );
+
+  ipcMain.handle('backup:list-schedules', () =>
+    handleRequest('BACKUP', () => backupController.listSchedules())
+  );
+
+  ipcMain.handle('backup:schedule-profiles', (_event, payload) =>
+    handleRequest('BACKUP', async () => {
+      let directory = payload?.directory;
+      if (!directory) {
+        const result = await dialog.showOpenDialog({
+          title: 'Escolha a pasta dos backups agendados',
+          properties: ['openDirectory', 'createDirectory']
+        });
+        if (result.canceled || !result.filePaths[0]) return { scheduled: false, canceled: true };
+        directory = result.filePaths[0];
+      }
+      return backupController.scheduleProfiles({ ...payload, directory });
+    })
+  );
+
+  ipcMain.handle('backup:run-scheduled-profiles', (_event, payload) =>
+    handleRequest('BACKUP', () => backupController.runScheduledProfiles(payload))
+  );
+
+  ipcMain.handle('backup:run-due', () =>
+    handleRequest('BACKUP', () => backupController.runDueSchedules())
+  );
 }
 
 module.exports = { registerBackupHandlers };

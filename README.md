@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.12.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.13.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,33 +20,24 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0120) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0120) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0130) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0130) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.12.0
+## Novidades da versão 0.13.0
 
-A v0.12.0 conclui os itens de distribuição, portabilidade e reprodução planejados para esta etapa.
+A v0.13.0 evolui a base estável 0.12.0 com foco em compatibilidade, manutenção segura, performance de abertura e personalização visual.
 
-- player embutido HTML5 opcional, com o MPV externo mantido como padrão estável e recomendado;
-- backup de biblioteca e perfis preservando temas, provedores e modo do player;
-- termos de uso obrigatórios no instalador, com aviso explícito sobre conteúdo de terceiros;
-- assinatura Authenticode obrigatória no pipeline de release e verificação de assinatura nas atualizações;
-- teste automatizado que instala a release anterior e atualiza para o novo instalador em um Windows real do GitHub Actions;
-- empacotamento assistido de provedores offline, com manifesto de arquivos e hashes SHA-256.
+- player embutido com detecção de HLS/cabeçalhos e fallback automático para MPV quando o Chromium não consegue reproduzir a fonte;
+- backups criptografados de perfis com agendamento, execução manual da agenda e validação automática de restauração sem sobrescrever dados;
+- checksums SHA-256 dos pacotes offline opcionais com assinatura RSA para publicação junto da release;
+- teste instalado ampliado para upgrade, rollback seguro e recuperação após download/interrupção de instalador;
+- tradução inicial da interface e termos do instalador em português, inglês e espanhol;
+- status do provedor abaixo do seletor mais rápido, com cache visual e verificação em segundo plano;
+- abertura mais leve com tarefas pesadas adiadas para ociosidade;
+- novo tema Game Neon, com grade, brilho e botões com visual arcade;
+- Diagnóstico não executa mais verificação pesada ao abrir, preserva sempre o tema escolhido e, no botão Verificar, confere sistema, provedores e atualizações;
+- remoção do texto promocional antigo da tela Início.
 
-Também permanecem disponíveis os recursos entregues na série 0.11:
-
-- novos temas: Older Brother Core, Dreamcore, Cottagecore, Cyberpunk e Synthwave;
-- snapshot local da Home, preferências e mini player para exibir a interface imediatamente ao abrir;
-- hidratação assíncrona de informações do app, configurações, biblioteca, playback e atualização;
-- aquecimento em segundo plano do cache de capas exibidas na Home;
-- cache offline dos avatares selecionados também no renderer, evitando tentativa remota na abertura;
-- cache de capas e avatares com janela de expiração/stale mais clara e limpeza automática de arquivos antigos;
-- cache local de pesquisas e episódios com expiração e fallback offline;
-- backup da biblioteca em JSON com restauração por mesclagem ou substituição;
-- backup criptografado de perfis usando `scrypt` e `AES-256-GCM`;
-- gerenciamento visual da telemetria local com filtros, paginação, exclusão e exportação.
-
-A reprodução continua estável em uma janela externa do MPV, e o atualizador automático permanece compatível com `latest.yml`, `.blockmap` e instalador NSIS.
+Também permanecem disponíveis os recursos entregues nas séries 0.11 e 0.12.
 
 ## Prévia
 
@@ -222,28 +213,30 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.12.0.exe
+dist\KitsuneDesk-Setup-0.13.0.exe
 ```
 
-## Publicar a versão 0.12.0
+## Publicar a versão 0.13.0
 
-Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` no GitHub Actions para assinar o instalador Windows.
+Antes de publicar uma tag, configure os secrets `WINDOWS_CSC_LINK`, `WINDOWS_CSC_KEY_PASSWORD` e `KITSUNEDESK_CHECKSUM_PRIVATE_KEY_B64` no GitHub Actions para assinar o instalador Windows e os checksums SHA-256 dos pacotes offline opcionais.
 
 ```powershell
 git add .
-git commit -m "feat: publica KitsuneDesk v0.12.0"
+git commit -m "feat: publica KitsuneDesk v0.13.0"
 git push origin main
 
-git tag -a v0.12.0 -m "KitsuneDesk v0.12.0"
-git push origin v0.12.0
+git tag -a v0.13.0 -m "KitsuneDesk v0.13.0"
+git push origin v0.13.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.12.0.exe
-KitsuneDesk-Setup-0.12.0.exe.blockmap
+KitsuneDesk-Setup-0.13.0.exe
+KitsuneDesk-Setup-0.13.0.exe.blockmap
 latest.yml
+resources/providers/SHA256SUMS
+resources/providers/SHA256SUMS.sig
 ```
 
 O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio, apontando para uma versão incorreta ou se a assinatura digital não estiver configurada.
@@ -289,11 +282,10 @@ tests/                testes unitários, integração e E2E Electron
 
 ## Melhorias recomendadas para as próximas versões
 
-- aprimorar compatibilidade do player embutido com HLS, cabeçalhos e codecs não suportados nativamente pelo Chromium;
-- permitir agendar backups criptografados e validar restaurações automaticamente;
-- publicar checksums assinados dos pacotes offline opcionais;
-- ampliar o teste instalado para validar também rollback e recuperação após download interrompido;
-- oferecer tradução da interface e dos termos do instalador.
+- expandir a tradução para novos idiomas e revisar todos os textos longos da interface;
+- automatizar a verificação pública da assinatura `SHA256SUMS.sig` no instalador;
+- adicionar métricas locais opcionais de tempo de abertura para comparar melhorias de performance;
+- ampliar a matriz de testes E2E com mais provedores e formatos de stream.
 
 ## Limitações conhecidas
 

@@ -20,7 +20,7 @@ import (
 	"github.com/alvarorichard/Goanime/internal/util"
 )
 
-const bridgeVersion = "1.5.1"
+const bridgeVersion = "1.6.0"
 
 type request struct {
 	Query         string     `json:"query"`
@@ -365,6 +365,13 @@ func resolveStream(manager *scraper.ScraperManager, req request) (streamDTO, err
 		metadata["referer"] = referer
 	}
 	metadata["userAgent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/138 Safari/537.36"
+	metadata["container"] = detectStreamContainer(streamURL)
+	metadata["requiresHeaders"] = strconv.FormatBool(streamRequiresHeaders(metadata))
+	if shouldPreferMpv(metadata, streamURL) {
+		metadata["playbackEngine"] = "mpv-preferred"
+	} else {
+		metadata["playbackEngine"] = "chromium-compatible"
+	}
 
 	return streamDTO{URL: streamURL, Metadata: metadata}, nil
 }
@@ -662,6 +669,63 @@ func mergeMetadata(target map[string]string, source map[string]string) {
 	}
 }
 
+func detectStreamContainer(streamURL string) string {
+	lower := strings.ToLower(strings.TrimSpace(streamURL))
+	if parsed, err := url.Parse(lower); err == nil {
+		lower = parsed.Path
+	}
+	switch {
+	case strings.HasSuffix(lower, ".m3u8"):
+		return "hls"
+	case strings.HasSuffix(lower, ".mpd"):
+		return "dash"
+	case strings.HasSuffix(lower, ".mkv"):
+		return "matroska"
+	case strings.HasSuffix(lower, ".ts"):
+		return "mpegts"
+	case strings.HasSuffix(lower, ".webm"):
+		return "webm"
+	case strings.HasSuffix(lower, ".mp4"), strings.HasSuffix(lower, ".m4v"):
+		return "mp4"
+	default:
+		return "unknown"
+	}
+}
+
+func streamRequiresHeaders(metadata map[string]string) bool {
+	return strings.TrimSpace(metadata["referer"]) != ""
+}
+
+func shouldPreferMpv(metadata map[string]string, streamURL string) bool {
+	container := strings.ToLower(strings.TrimSpace(metadata["container"]))
+	codec := strings.ToLower(strings.TrimSpace(firstNonEmpty(metadata["videoCodec"], metadata["codec"], metadata["codecs"])))
+	if container == "hls" || container == "dash" || container == "matroska" || container == "mpegts" {
+		return true
+	}
+	if streamRequiresHeaders(metadata) {
+		return true
+	}
+	if strings.Contains(strings.ToLower(streamURL), ".m3u8") {
+		return true
+	}
+	unsupportedCodecs := []string{"hevc", "h265", "h.265", "av1", "ac3", "eac3", "dts"}
+	for _, unsupported := range unsupportedCodecs {
+		if strings.Contains(codec, unsupported) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func playEpisode(req request) error {
 	mpvPath := strings.TrimSpace(req.MpvPath)
 	if mpvPath == "" {
@@ -732,9 +796,14 @@ func buildMpvArgs(req request, stream streamDTO) []string {
 	args := []string{
 		"--force-window=yes",
 		"--hwdec=auto-safe",
+		"--vd-lavc-software-fallback=yes",
 		"--keep-open=no",
 		"--save-position-on-quit",
 		"--msg-level=all=warn",
+		"--cache=yes",
+		"--demuxer-max-bytes=64MiB",
+		"--demuxer-lavf-o=allowed_extensions=ALL",
+		"--network-timeout=20",
 		fmt.Sprintf("--title=KitsuneDesk - %s - Episodio %s", sanitizeTitle(req.Anime.Name), episodeNumber),
 	}
 
@@ -751,6 +820,9 @@ func buildMpvArgs(req request, stream streamDTO) []string {
 	var headers []string
 	if referer := strings.TrimSpace(stream.Metadata["referer"]); referer != "" {
 		headers = append(headers, "Referer: "+referer)
+		if parsed, err := url.Parse(referer); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			headers = append(headers, "Origin: "+parsed.Scheme+"://"+parsed.Host)
+		}
 	}
 	if userAgent := strings.TrimSpace(stream.Metadata["userAgent"]); userAgent != "" {
 		headers = append(headers, "User-Agent: "+userAgent)

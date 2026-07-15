@@ -24,7 +24,7 @@ function getDatabase(app) {
   } catch (error) {
     logger.warning(
       'DATABASE_NATIVE_UNAVAILABLE',
-      'Usando worker Node para SQLite em desenvolvimento.',
+      'Usando modo de compatibilidade SQLite em desenvolvimento.',
       {
         technicalMessage: error.message
       }

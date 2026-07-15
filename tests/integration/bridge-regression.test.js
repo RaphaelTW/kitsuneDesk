@@ -13,5 +13,5 @@ test('bridge mantém fallback, IPC e player MPV externo', () => {
   assert.match(source, /--input-ipc-server=/);
   assert.doesNotMatch(source, /--wid=/);
   assert.doesNotMatch(source, /WindowID/);
-  assert.match(source, /bridgeVersion = "1\.5\.1"/);
+  assert.match(source, /bridgeVersion = "1\.6\.0"/);
 });

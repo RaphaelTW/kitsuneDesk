@@ -6,7 +6,7 @@ const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const AppError = require('../utils/AppError');
 
-const BRIDGE_VERSION = '1.5.1';
+const BRIDGE_VERSION = '1.6.0';
 const TOOLS_ROOT = path.join(
   process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'),
   'KitsuneDesk',

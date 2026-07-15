@@ -119,29 +119,70 @@ class PlayerService extends EventEmitter {
       ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
       : 0;
 
+    let embeddedCompatibility = null;
     if (settings.playerMode === 'embedded') {
       const stream = await this.goAnimeGui.resolveStream(payload);
-      const embeddedResult = {
-        launched: true,
-        provider: 'goanime-gui',
-        providerName: 'GoAnime GUI',
-        player: 'HTML5',
-        anime: payload.anime?.name || '',
-        episode: payload.episode?.number || '',
-        source: payload.anime?.source || '',
-        quality: payload?.quality || settings.defaultQuality || 'auto',
-        mode: payload?.language === 'dub' ? 'dub' : 'sub',
-        streamUrl: stream.url,
-        streamMetadata: stream.metadata || {},
-        resumedAt: startPosition,
-        embedded: true,
-        embeddedFallback: false,
-        playerMode: 'embedded'
-      };
-      this.emit('playback-started', embeddedResult);
-      return embeddedResult;
+      embeddedCompatibility = analyzeEmbeddedCompatibility(stream);
+      if (embeddedCompatibility.compatible) {
+        const embeddedResult = {
+          launched: true,
+          provider: 'goanime-gui',
+          providerName: 'GoAnime GUI',
+          player: 'HTML5',
+          anime: payload.anime?.name || '',
+          episode: payload.episode?.number || '',
+          source: payload.anime?.source || '',
+          quality: payload?.quality || settings.defaultQuality || 'auto',
+          mode: payload?.language === 'dub' ? 'dub' : 'sub',
+          streamUrl: stream.url,
+          streamMetadata: stream.metadata || {},
+          resumedAt: startPosition,
+          embedded: true,
+          embeddedFallback: false,
+          playerMode: 'embedded'
+        };
+        this.currentPlayback = {
+          providerId: 'goanime-gui',
+          anime: payload.anime,
+          episode: payload.episode,
+          episodes: queue,
+          episodeIndex: queueIndex,
+          queue,
+          queueIndex,
+          language: payload?.language === 'dub' ? 'dub' : 'sub',
+          quality: String(payload?.quality || settings.defaultQuality || 'auto'),
+          source: embeddedResult.source || payload?.anime?.source || '',
+          playerMode: 'embedded',
+          startedAt: new Date().toISOString()
+        };
+        this.lastProgressSaveAt = 0;
+        this.emit('playback-started', { ...embeddedResult, context: this.currentPlayback });
+        return { ...embeddedResult, context: this.currentPlayback };
+      }
     }
 
+    const normalizedResult = await this.launchExternalEpisode(payload, {
+      settings,
+      status,
+      startPosition,
+      queue,
+      queueIndex,
+      embeddedFallback: settings.playerMode === 'embedded',
+      embeddedFallbackReason: embeddedCompatibility?.reason || null
+    });
+    return normalizedResult;
+  }
+
+  async launchExternalEpisode(payload, options) {
+    const {
+      settings,
+      status,
+      startPosition,
+      queue,
+      queueIndex,
+      embeddedFallback,
+      embeddedFallbackReason
+    } = options;
     const result = await this.goAnimeGui.playEpisode(
       {
         ...payload,
@@ -154,7 +195,8 @@ class PlayerService extends EventEmitter {
     const normalizedResult = {
       ...result,
       embedded: false,
-      embeddedFallback: false,
+      embeddedFallback: Boolean(embeddedFallback),
+      embeddedFallbackReason: embeddedFallbackReason || null,
       playerMode: 'external'
     };
 
@@ -175,7 +217,7 @@ class PlayerService extends EventEmitter {
     this.lastProgressSaveAt = 0;
     await this.persistPlayback(this.goAnimeGui.getPlayerState());
     this.emit('playback-started', { ...normalizedResult, context: this.currentPlayback });
-    return normalizedResult;
+    return { ...normalizedResult, context: this.currentPlayback };
   }
 
   /**
@@ -711,6 +753,46 @@ function sameEpisode(left, right) {
   const leftTitle = String(left.title || '').trim();
   const rightTitle = String(right.title || '').trim();
   return Boolean(leftTitle && rightTitle && leftTitle === rightTitle);
+}
+
+function analyzeEmbeddedCompatibility(stream) {
+  const metadata = stream?.metadata || {};
+  const url = String(stream?.url || '');
+  const urlLower = url.toLowerCase();
+  const container = String(metadata.container || metadata.format || '').toLowerCase();
+  const codec = String(
+    metadata.videoCodec || metadata.codec || metadata.codecs || ''
+  ).toLowerCase();
+  const requiresHeaders = String(metadata.requiresHeaders || '').toLowerCase() === 'true';
+  const hasHeaderRequirements = Boolean(metadata.referer || requiresHeaders);
+
+  if (/\.m3u8(?:$|[?#])/.test(urlLower) || container === 'hls') {
+    return {
+      compatible: false,
+      reason: 'HLS detectado. O KitsuneDesk abriu no MPV para preservar compatibilidade.'
+    };
+  }
+  if (hasHeaderRequirements) {
+    return {
+      compatible: false,
+      reason:
+        'A fonte exige cabeçalhos HTTP. O KitsuneDesk abriu no MPV para enviar os cabeçalhos corretos.'
+    };
+  }
+  if (/\.(mkv|avi|flv|ts)(?:$|[?#])/.test(urlLower) || ['matroska', 'mpegts'].includes(container)) {
+    return {
+      compatible: false,
+      reason: 'Contêiner não suportado nativamente pelo Chromium. O KitsuneDesk abriu no MPV.'
+    };
+  }
+  if (/\b(hevc|h265|h\.265|av1|ac3|eac3|dts)\b/.test(codec)) {
+    return {
+      compatible: false,
+      reason: 'Codec sem suporte garantido no Chromium. O KitsuneDesk abriu no MPV.'
+    };
+  }
+
+  return { compatible: true, reason: null };
 }
 
 /**

@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.13.0 - Stable
+
+- Melhorado o player embutido com análise de compatibilidade, metadados de cabeçalhos e fallback automático para MPV em HLS/codecs não suportados pelo Chromium.
+- Adicionado agendamento de backups criptografados de perfis, execução manual da agenda e validação segura de restauração.
+- Adicionados checksums SHA-256 assinados para pacotes offline opcionais dos provedores.
+- Ampliado o teste instalado para upgrade, rollback e recuperação após instalador interrompido.
+- Adicionada tradução inicial da interface e termos multilíngues do instalador.
+- Acelerado o status do provedor selecionado e reduzidas tarefas pesadas na abertura.
+- Adicionado tema Game Neon.
+- Diagnóstico agora só executa verificação pesada quando o usuário clica, preserva tema e verifica sistema, provedores e atualizações.
+- Removido o bloco textual antigo da tela inicial.
+- Corrigido o modo de compatibilidade SQLite quando o `better-sqlite3` não é compilado pelo npm, evitando travamento no `npm run dev`.
+- Aprovados explicitamente os scripts de instalação confiáveis no `allowScripts` para npm 11/12.
+- Adicionada reparação automática do schema local para bancos v0.13.0 parciais, corrigindo `settings.interface_language` ausente sem apagar dados.
+- Corrigida a instalação do GoAnime completo: o instalador agora valida a mesma versão do bridge gráfico gerada pelo código, evitando falha falsa quando GoAnime/MPV já estavam instalados e o bridge era compilado corretamente.
+
 ## [0.12.0] - 2026-07-12
 
 ### Adicionado

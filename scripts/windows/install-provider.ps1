@@ -17,7 +17,7 @@ $LocalRoot = Join-Path $env:LOCALAPPDATA 'KitsuneDesk'
 $ToolsRoot = Join-Path $LocalRoot 'tools'
 $RuntimesRoot = Join-Path $LocalRoot 'runtimes'
 $DownloadsRoot = Join-Path $LocalRoot 'downloads'
-$GoAnimeBridgeVersion = '1.5.1'
+$GoAnimeBridgeVersion = '1.6.0'
 $GoAnimeTag = 'v1.8.5'
 
 function Send-KitsuneEvent {

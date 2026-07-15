@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..', '..');
 const packageJson = require('../../package.json');
 
 const builderConfig = fs.readFileSync(path.join(root, 'electron-builder.yml'), 'utf8');
+const installerTerms = fs.readFileSync(path.join(root, 'docs', 'INSTALLER_TERMS.txt'));
 
 const workflow = fs.readFileSync(
   path.join(root, '.github', 'workflows', 'windows-build.yml'),
@@ -24,6 +25,11 @@ test('configuração do electron-builder possui uma única fonte', () => {
 
   assert.match(builderConfig, /verifyUpdateCodeSignature:\s*true/);
   assert.match(builderConfig, /license:\s*docs\/INSTALLER_TERMS\.txt/);
+  assert.deepEqual(
+    [...installerTerms.subarray(0, 3)],
+    [0xef, 0xbb, 0xbf],
+    'a licença explícita do NSIS deve começar com BOM UTF-8'
+  );
 
   assert.match(builderConfig, /provider:\s*github/);
   assert.match(builderConfig, /owner:\s*RaphaelTW/);

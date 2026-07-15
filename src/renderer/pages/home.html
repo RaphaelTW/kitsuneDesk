@@ -20,7 +20,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.12.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.13.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -125,15 +125,10 @@
 
         <main class="content-area" id="content-area" tabindex="-1">
           <section class="app-view" id="view-home" data-view-panel="home">
-            <div class="welcome-banner panel">
-              <div>
-                <p class="eyebrow">Sua central de animes</p>
-                <h2>Continue de onde parou</h2>
-                <p>Histórico, favoritos, progresso e preferências ficam separados por usuário.</p>
-                <button class="btn btn-primary" data-go-view="search" type="button">
-                  <i class="bi bi-search"></i> Pesquisar anime
-                </button>
-              </div>
+            <div class="welcome-banner panel compact-home-actions">
+              <button class="btn btn-primary" data-go-view="search" type="button">
+                <i class="bi bi-search"></i> Pesquisar anime
+              </button>
               <img src="../../../assets/home-preview.svg" alt="" />
             </div>
 
@@ -238,7 +233,8 @@
                 >
               </div>
               <div class="provider-inline-status" id="selected-provider-status">
-                <span class="status-dot is-checking"></span><span>Verificando provedor...</span>
+                <span class="status-dot is-checking"></span
+                ><span>Status será verificado em segundo plano</span>
               </div>
             </form>
 
@@ -613,10 +609,18 @@
                       <option value="cottagecore">Cottagecore</option>
                       <option value="cyberpunk">Cyberpunk</option>
                       <option value="synthwave">Synthwave</option>
+                      <option value="game-neon">Game Neon</option>
+                    </select></label
+                  ><label
+                    ><span>Idioma da interface</span
+                    ><select class="form-select" id="setting-interface-language">
+                      <option value="pt-BR">Português do Brasil</option>
+                      <option value="en-US">English</option>
+                      <option value="es-ES">Español</option>
                     </select></label
                   ><label class="switch-inline"
                     ><input id="setting-updates" type="checkbox" checked /><span
-                      >Verificar atualizacoes automaticamente</span
+                      >Verificar atualizações automaticamente</span
                     ></label
                   ><label class="switch-inline"
                     ><input id="setting-telemetry" type="checkbox" /><span
@@ -714,6 +718,41 @@
                       ><small>Mescla usuários e preferências com AES-256-GCM.</small></span
                     >
                   </button>
+                  <button
+                    class="backup-action admin-backup-action"
+                    id="schedule-profiles-button"
+                    type="button"
+                  >
+                    <i class="bi bi-calendar-check"></i>
+                    <span
+                      ><strong>Agendar backup criptografado</strong
+                      ><small>Executa perfis com validação automática de restauração.</small></span
+                    >
+                  </button>
+                  <button
+                    class="backup-action admin-backup-action"
+                    id="run-scheduled-backup-button"
+                    type="button"
+                  >
+                    <i class="bi bi-play-circle"></i>
+                    <span
+                      ><strong>Executar agenda agora</strong
+                      ><small>Gera o backup criptografado e valida o arquivo.</small></span
+                    >
+                  </button>
+                  <button
+                    class="backup-action admin-backup-action"
+                    id="validate-profiles-backup-button"
+                    type="button"
+                  >
+                    <i class="bi bi-patch-check"></i>
+                    <span
+                      ><strong>Validar backup criptografado</strong
+                      ><small
+                        >Testa senha, integridade e estrutura sem restaurar dados.</small
+                      ></span
+                    >
+                  </button>
                   <button class="backup-action" id="clear-app-cache-button" type="button">
                     <i class="bi bi-eraser"></i>
                     <span
@@ -723,6 +762,9 @@
                   </button>
                 </div>
                 <div class="cache-summary" id="cache-summary">Calculando uso do cache...</div>
+                <div class="cache-summary admin-backup-action" id="backup-schedule-summary">
+                  Nenhum agendamento carregado.
+                </div>
               </section>
 
               <div class="settings-actions">
@@ -878,6 +920,9 @@
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
+      <p class="embedded-player-status" id="embedded-player-status">
+        Aguardando stream compatível.
+      </p>
       <video id="embedded-video" controls playsinline></video>
     </section>
     <section class="mini-player is-hidden" id="mini-player" aria-label="Controles de reprodução">

@@ -51,9 +51,9 @@ function seedInitialData(database) {
          user_id, default_language, default_quality, auto_play_next,
          player_volume, theme, default_provider, downloads_path,
          audio_preference, parental_control_enabled, max_content_rating,
-         remember_position, check_updates, player_mode, local_telemetry_enabled
+         remember_position, check_updates, player_mode, local_telemetry_enabled, interface_language
        ) VALUES (?, 'sub', 'auto', 0, 80, 'dark', 'goanime-gui', '',
-                 'sub', 0, '18', 1, 1, 'external', 0)`
+                 'sub', 0, '18', 1, 1, 'external', 0, 'pt-BR')`
     )
     .run(Number(result.lastInsertRowid));
 }

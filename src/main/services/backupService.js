@@ -1,10 +1,13 @@
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 const AppError = require('../utils/AppError');
 const { requireAdmin, requireUserId } = require('./authService');
 
 const LIBRARY_FORMAT = 'kitsunedesk-library';
 const PROFILE_FORMAT = 'kitsunedesk-profiles-encrypted';
+const SCHEDULER_KEY_FILE = 'backup-scheduler.key';
+const CADENCES = new Set(['daily', 'weekly', 'monthly']);
 
 class BackupService {
   constructor({ app, database, sessionRepository }) {
@@ -71,7 +74,8 @@ class BackupService {
       imported: true,
       mode: importMode,
       path: filePath,
-      summary: summarizeLibrary(payload.data || {})
+      summary: summarizeLibrary(payload.data || {}),
+      themePreserved: true
     };
   }
 
@@ -96,25 +100,7 @@ class BackupService {
 
   importProfilesEncrypted(filePath, password) {
     const currentAdmin = requireAdmin(this.sessionRepository);
-    const secret = normalizeBackupPassword(password);
-    const container = parseJsonFile(filePath);
-    if (container?.format !== PROFILE_FORMAT || container?.version !== 1) {
-      throw new AppError('BACKUP_INVALID', 'O arquivo criptografado não é compatível.', {
-        status: 400
-      });
-    }
-    let payload;
-    try {
-      payload = decryptPayload(container, secret);
-    } catch (error) {
-      throw new AppError('BACKUP_PASSWORD_INVALID', 'Senha incorreta ou backup alterado.', {
-        status: 401,
-        technicalMessage: error.message
-      });
-    }
-    if (payload?.format !== 'kitsunedesk-profiles' || !Array.isArray(payload.users)) {
-      throw new AppError('BACKUP_INVALID', 'O conteúdo do backup não é válido.', { status: 400 });
-    }
+    const payload = this.validateProfilesEncrypted(filePath, password).payload;
 
     let imported = 0;
     let updated = 0;
@@ -183,7 +169,187 @@ class BackupService {
         [currentAdmin.id]
       );
     }
-    return { imported: true, createdProfiles: imported, updatedProfiles: updated };
+    return {
+      imported: true,
+      createdProfiles: imported,
+      updatedProfiles: updated,
+      themePreserved: true
+    };
+  }
+
+  validateProfilesEncrypted(filePath, password) {
+    requireAdmin(this.sessionRepository);
+    const secret = normalizeBackupPassword(password);
+    const container = parseJsonFile(filePath);
+    if (container?.format !== PROFILE_FORMAT || container?.version !== 1) {
+      throw new AppError('BACKUP_INVALID', 'O arquivo criptografado não é compatível.', {
+        status: 400
+      });
+    }
+    let payload;
+    try {
+      payload = decryptPayload(container, secret);
+    } catch (error) {
+      throw new AppError('BACKUP_PASSWORD_INVALID', 'Senha incorreta ou backup alterado.', {
+        status: 401,
+        technicalMessage: error.message
+      });
+    }
+    if (payload?.format !== 'kitsunedesk-profiles' || !Array.isArray(payload.users)) {
+      throw new AppError('BACKUP_INVALID', 'O conteúdo do backup não é válido.', { status: 400 });
+    }
+    return {
+      valid: true,
+      payload,
+      profiles: payload.users.length,
+      exportedAt: payload.exportedAt || null,
+      appVersion: payload.appVersion || null
+    };
+  }
+
+  listSchedules() {
+    const userId = requireUserId(this.sessionRepository);
+    return this.database
+      .all(
+        `SELECT id, kind, target_path, cadence, validate_restore, enabled,
+                last_run_at, last_status, last_error, created_at, updated_at
+         FROM backup_schedules WHERE user_id = ? ORDER BY updated_at DESC`,
+        [userId]
+      )
+      .map(mapScheduleRow);
+  }
+
+  scheduleProfilesBackup(payload) {
+    requireAdmin(this.sessionRepository);
+    const userId = requireUserId(this.sessionRepository);
+    const targetPath = normalizeBackupDirectory(payload?.directory || payload?.targetPath);
+    const cadence = CADENCES.has(payload?.cadence) ? payload.cadence : 'daily';
+    const password = normalizeBackupPassword(payload?.password);
+    const validateRestore = payload?.validateRestore !== false;
+    fs.mkdirSync(targetPath, { recursive: true });
+    const secret = encryptSchedulerSecret(password, getSchedulerKey(this.app));
+
+    const existing = this.database.get(
+      "SELECT id FROM backup_schedules WHERE user_id = ? AND kind = 'profiles'",
+      [userId]
+    );
+    if (existing) {
+      this.database.run(
+        `UPDATE backup_schedules SET
+           target_path = ?, cadence = ?, password_secret = ?, validate_restore = ?, enabled = 1,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND user_id = ?`,
+        [targetPath, cadence, secret, validateRestore ? 1 : 0, existing.id, userId]
+      );
+    } else {
+      this.database.run(
+        `INSERT INTO backup_schedules (
+           user_id, kind, target_path, cadence, password_secret, validate_restore, enabled
+         ) VALUES (?, 'profiles', ?, ?, ?, ?, 1)`,
+        [userId, targetPath, cadence, secret, validateRestore ? 1 : 0]
+      );
+    }
+
+    return {
+      scheduled: true,
+      schedule: this.database
+        .all(
+          `SELECT id, kind, target_path, cadence, validate_restore, enabled,
+                  last_run_at, last_status, last_error, created_at, updated_at
+           FROM backup_schedules WHERE user_id = ? AND kind = 'profiles'`,
+          [userId]
+        )
+        .map(mapScheduleRow)[0]
+    };
+  }
+
+  runScheduledProfilesBackup(payload = {}) {
+    requireAdmin(this.sessionRepository);
+    const userId = requireUserId(this.sessionRepository);
+    const schedule = this.findScheduleForRun(userId, payload?.scheduleId);
+    if (!schedule) {
+      throw new AppError('BACKUP_SCHEDULE_NOT_FOUND', 'Nenhuma agenda de perfis foi configurada.', {
+        status: 404
+      });
+    }
+    return this.executeSchedule(schedule, { force: true });
+  }
+
+  runDueSchedules() {
+    requireAdmin(this.sessionRepository);
+    const userId = requireUserId(this.sessionRepository);
+    const rows = this.database.all(
+      `SELECT * FROM backup_schedules
+       WHERE user_id = ? AND enabled = 1 AND kind = 'profiles'
+       ORDER BY updated_at DESC`,
+      [userId]
+    );
+    const results = [];
+    for (const row of rows) {
+      if (!isScheduleDue(row)) continue;
+      results.push(this.executeSchedule(row, { force: false }));
+    }
+    return { checked: true, executed: results.length, results };
+  }
+
+  findScheduleForRun(userId, scheduleId) {
+    if (scheduleId) {
+      return this.database.get('SELECT * FROM backup_schedules WHERE id = ? AND user_id = ?', [
+        Number(scheduleId),
+        userId
+      ]);
+    }
+    return this.database.get(
+      "SELECT * FROM backup_schedules WHERE user_id = ? AND kind = 'profiles' ORDER BY updated_at DESC LIMIT 1",
+      [userId]
+    );
+  }
+
+  executeSchedule(schedule, { force }) {
+    if (!force && !isScheduleDue(schedule)) {
+      return { skipped: true, reason: 'not-due', schedule: mapScheduleRow(schedule) };
+    }
+
+    const password = decryptSchedulerSecret(schedule.password_secret, getSchedulerKey(this.app));
+    const fileName = `kitsunedesk-perfis-agendado-${timestampForFile(new Date())}.kitsunebackup`;
+    const filePath = path.join(schedule.target_path, fileName);
+    try {
+      fs.mkdirSync(schedule.target_path, { recursive: true });
+      const exported = this.exportProfilesEncrypted(filePath, password);
+      let validation = null;
+      if (schedule.validate_restore) {
+        const checked = this.validateProfilesEncrypted(filePath, password);
+        validation = {
+          valid: checked.valid,
+          profiles: checked.profiles,
+          exportedAt: checked.exportedAt,
+          appVersion: checked.appVersion
+        };
+      }
+      this.database.run(
+        `UPDATE backup_schedules SET
+           last_run_at = CURRENT_TIMESTAMP, last_status = 'success', last_error = NULL,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [schedule.id]
+      );
+      return {
+        executed: true,
+        path: exported.path,
+        profiles: exported.profiles,
+        validation,
+        schedule: mapScheduleRow({ ...schedule, last_status: 'success' })
+      };
+    } catch (error) {
+      this.database.run(
+        `UPDATE backup_schedules SET
+           last_run_at = CURRENT_TIMESTAMP, last_status = 'error', last_error = ?,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [error.publicMessage || error.message || String(error), schedule.id]
+      );
+      throw error;
+    }
   }
 }
 
@@ -228,6 +394,16 @@ function normalizeBackupPassword(value) {
     );
   }
   return password;
+}
+
+function normalizeBackupDirectory(value) {
+  const candidate = path.resolve(String(value || '').trim());
+  if (!candidate) {
+    throw new AppError('BACKUP_PATH_INVALID', 'Escolha uma pasta para salvar os backups.', {
+      status: 400
+    });
+  }
+  return candidate;
 }
 
 function parseJsonFile(filePath) {
@@ -357,19 +533,21 @@ function importPlaybackSessions(database, userId, rows) {
 }
 
 function importSettings(database, userId, settings) {
+  const current = database.get('SELECT theme FROM settings WHERE user_id = ?', [userId]);
+  const preservedTheme = current?.theme || settings.theme || 'dark';
   database.run(
     `INSERT INTO settings (
        user_id, default_language, default_quality, auto_play_next, player_volume, theme,
        default_provider, downloads_path, audio_preference, parental_control_enabled,
        parental_pin_hash, max_content_rating, remember_position, check_updates,
-       player_mode, local_telemetry_enabled, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       player_mode, local_telemetry_enabled, interface_language, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(user_id) DO UPDATE SET
        default_language = excluded.default_language,
        default_quality = excluded.default_quality,
        auto_play_next = excluded.auto_play_next,
        player_volume = excluded.player_volume,
-       theme = excluded.theme,
+       theme = settings.theme,
        default_provider = excluded.default_provider,
        downloads_path = excluded.downloads_path,
        audio_preference = excluded.audio_preference,
@@ -380,6 +558,7 @@ function importSettings(database, userId, settings) {
        check_updates = excluded.check_updates,
        player_mode = excluded.player_mode,
        local_telemetry_enabled = excluded.local_telemetry_enabled,
+       interface_language = excluded.interface_language,
        updated_at = CURRENT_TIMESTAMP`,
     [
       userId,
@@ -387,7 +566,7 @@ function importSettings(database, userId, settings) {
       settings.default_quality || 'auto',
       settings.auto_play_next ? 1 : 0,
       Number(settings.player_volume ?? 80),
-      settings.theme || 'dark',
+      preservedTheme,
       settings.default_provider || 'goanime-gui',
       settings.downloads_path || '',
       settings.audio_preference || 'sub',
@@ -397,11 +576,95 @@ function importSettings(database, userId, settings) {
       settings.remember_position !== 0 ? 1 : 0,
       settings.check_updates !== 0 ? 1 : 0,
       settings.player_mode === 'embedded' ? 'embedded' : 'external',
-      settings.local_telemetry_enabled ? 1 : 0
+      settings.local_telemetry_enabled ? 1 : 0,
+      settings.interface_language || 'pt-BR'
     ]
   );
+}
+
+function getSchedulerKey(app) {
+  const filePath = path.join(app.getPath('userData'), SCHEDULER_KEY_FILE);
+  try {
+    if (fs.existsSync(filePath)) return fs.readFileSync(filePath);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const key = crypto.randomBytes(32);
+    fs.writeFileSync(filePath, key, { mode: 0o600 });
+    return key;
+  } catch (error) {
+    throw new AppError('BACKUP_KEY_FAILED', 'Não foi possível acessar a chave local de backup.', {
+      status: 500,
+      technicalMessage: error.message
+    });
+  }
+}
+
+function encryptSchedulerSecret(value, key) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
+  return JSON.stringify({
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    data: encrypted.toString('base64')
+  });
+}
+
+function decryptSchedulerSecret(container, key) {
+  try {
+    const parsed = JSON.parse(container);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(parsed.iv, 'base64'));
+    decipher.setAuthTag(Buffer.from(parsed.tag, 'base64'));
+    return Buffer.concat([
+      decipher.update(Buffer.from(parsed.data, 'base64')),
+      decipher.final()
+    ]).toString('utf8');
+  } catch (error) {
+    throw new AppError('BACKUP_SECRET_INVALID', 'A senha salva da agenda não pôde ser lida.', {
+      status: 500,
+      technicalMessage: error.message
+    });
+  }
+}
+
+function isScheduleDue(row) {
+  if (!row?.enabled) return false;
+  if (!row.last_run_at) return true;
+  const last = new Date(row.last_run_at).getTime();
+  if (!Number.isFinite(last)) return true;
+  const age = Date.now() - last;
+  const day = 24 * 60 * 60 * 1000;
+  const cadence = row.cadence || 'daily';
+  if (cadence === 'weekly') return age >= 7 * day;
+  if (cadence === 'monthly') return age >= 30 * day;
+  return age >= day;
+}
+
+function timestampForFile(date) {
+  return date.toISOString().replace(/[:.]/g, '-');
+}
+
+function mapScheduleRow(row) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    targetPath: row.target_path,
+    cadence: row.cadence,
+    validateRestore: Boolean(row.validate_restore),
+    enabled: Boolean(row.enabled),
+    lastRunAt: row.last_run_at || null,
+    lastStatus: row.last_status || null,
+    lastError: row.last_error || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }
 
 module.exports = BackupService;
 module.exports.encryptPayload = encryptPayload;
 module.exports.decryptPayload = decryptPayload;
+module.exports.testHelpers = {
+  isScheduleDue,
+  mapScheduleRow,
+  normalizeBackupPassword,
+  timestampForFile
+};

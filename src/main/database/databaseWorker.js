@@ -1,24 +1,50 @@
-const Database = require('better-sqlite3');
 const { runMigrations } = require('./migrations');
 const { seedInitialData } = require('./seed');
+const { createSqlJsCompatibilityDatabase } = require('./sqlJsCompatibilityDatabase');
 
 const [, , action, databasePath, rawPayload = '{}'] = process.argv;
 
-try {
-  const payload = JSON.parse(rawPayload);
-  const database = new Database(databasePath);
-  database.pragma('journal_mode = WAL');
-  database.pragma('foreign_keys = ON');
-
-  const result = executeAction(database, action, payload);
-  database.close();
-
-  if (typeof result !== 'undefined') {
-    process.stdout.write(JSON.stringify(result));
-  }
-} catch (error) {
+runWorker().catch((error) => {
   process.stderr.write(error.stack || error.message || String(error));
   process.exitCode = 1;
+});
+
+async function runWorker() {
+  const payload = JSON.parse(rawPayload);
+  const { database, compatibilityMode } = await openDatabase(databasePath);
+
+  try {
+    database.pragma('journal_mode = WAL');
+    database.pragma('foreign_keys = ON');
+
+    const result = executeAction(database, action, payload);
+
+    if (compatibilityMode && shouldPersist(action)) {
+      database.exportToFile();
+    }
+
+    if (typeof result !== 'undefined') {
+      process.stdout.write(JSON.stringify(result));
+    }
+  } finally {
+    database.close();
+  }
+}
+
+async function openDatabase(databasePath) {
+  try {
+    const Database = require('better-sqlite3');
+    return { database: new Database(databasePath), compatibilityMode: false };
+  } catch {
+    return {
+      database: await createSqlJsCompatibilityDatabase(databasePath),
+      compatibilityMode: true
+    };
+  }
+}
+
+function shouldPersist(action) {
+  return action === 'initialize' || action === 'run' || action === 'exec';
 }
 
 function executeAction(database, action, payload) {

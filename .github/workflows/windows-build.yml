@@ -50,9 +50,13 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+          KITSUNEDESK_CHECKSUM_PRIVATE_KEY_B64: ${{ secrets.KITSUNEDESK_CHECKSUM_PRIVATE_KEY_B64 }}
+          KITSUNEDESK_REQUIRE_SIGNED_CHECKSUMS: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: npm run providers:bundle && npm run release:build
 
       - name: Verify installer, blockmap and latest.yml
+        env:
+          KITSUNEDESK_REQUIRE_SIGNED_CHECKSUMS: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: npm run release:verify-artifacts
 
       - name: Verify installer Authenticode signature
@@ -70,7 +74,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/test-installed-update.ps1 -PreviousTag v0.11.1
+        run: ./scripts/test-installed-update.ps1 -PreviousTag v0.12.0
 
       - name: Publish GitHub release assets
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -84,7 +88,9 @@ jobs:
           $installer = "dist/KitsuneDesk-Setup-$version.exe"
           $blockmap = "$installer.blockmap"
           $metadata = 'dist/latest.yml'
-          $assets = @($installer, $blockmap, $metadata)
+          $checksums = 'resources/providers/SHA256SUMS'
+          $checksumSignature = 'resources/providers/SHA256SUMS.sig'
+          $assets = @($installer, $blockmap, $metadata, $checksums, $checksumSignature)
 
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
@@ -106,5 +112,7 @@ jobs:
             dist/*.exe
             dist/*.yml
             dist/*.blockmap
+            resources/providers/SHA256SUMS
+            resources/providers/SHA256SUMS.sig
           if-no-files-found: error
           retention-days: 14

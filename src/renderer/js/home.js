@@ -1,10 +1,12 @@
 import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
+import { applyInterfaceLanguage, translate } from './i18n.js';
 
 const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
 const STARTUP_SNAPSHOT_KEY = 'kitsunedesk.startup-snapshot.v1';
 const AVATAR_SNAPSHOT_KEY = 'kitsunedesk.avatar-cache.v1';
+const PROVIDER_STATUS_SNAPSHOT_KEY = 'kitsunedesk.provider-status.v1';
 const SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
 const AVATAR_SNAPSHOT_LIMIT = 80;
 const viewMeta = Object.freeze({
@@ -49,7 +51,8 @@ const state = {
   updateBannerDismissed: false,
   telemetryPage: 1,
   telemetryPages: 1,
-  telemetryFacetsLoaded: false
+  telemetryFacetsLoaded: false,
+  playerStatusHydration: null
 };
 
 const modals = {};
@@ -76,15 +79,16 @@ window.addEventListener('DOMContentLoaded', () => {
   bindBackup();
   bindTelemetry();
   bindAdmin();
-  void hydrateAvatarStyles();
   bindModals();
   bindInstallation();
   bindFailureTelemetry();
   subscribeEvents();
   restoreStartupSnapshot();
+  applyInterfaceLanguage(state.settings?.interfaceLanguage || 'pt-BR');
 
   $('provider-health-dot').className = 'status-dot is-checking';
   $('provider-health-summary').textContent = 'Clique para verificar';
+  updateSelectedProviderStatus();
 
   if (state.session.user.role === 'ADMIN') {
     $('admin-nav-button').classList.remove('d-none');
@@ -98,20 +102,31 @@ window.addEventListener('DOMContentLoaded', () => {
   const settingsTask = hydrateSettings();
   const dashboardTask = hydrateDashboard();
   const playbackTask = hydratePlaybackState();
-  const updateTask = hydrateUpdateStatus();
 
   void Promise.allSettled([appInfoTask, settingsTask, dashboardTask, playbackTask]).then(() => {
     persistStartupSnapshot();
   });
 
-  void Promise.allSettled([settingsTask, updateTask]).then(() => {
-    if (
-      state.settings?.checkUpdates &&
-      ['idle', 'not-available'].includes(state.update?.state || 'idle')
-    ) {
-      void checkUpdates(false);
-    }
-  });
+  void settingsTask
+    .then(() => {
+      deferTask(async () => {
+        await hydrateUpdateStatus();
+        if (
+          state.settings?.checkUpdates &&
+          ['idle', 'not-available'].includes(state.update?.state || 'idle')
+        ) {
+          await checkUpdates(false);
+        }
+      }, 1400);
+      deferTask(hydratePlayerStatus, 600);
+      if (state.session.user.role === 'ADMIN') {
+        deferTask(runDueBackupsSilently, 2200);
+      }
+    })
+    .catch(() => {
+      // A tela continua funcional usando as preferências em cache.
+    });
+  deferTask(hydrateAvatarStyles, 1000);
 });
 
 function hydrateProfile() {
@@ -160,8 +175,9 @@ async function showView(view) {
   if (view === 'settings') {
     await hydrateSettings();
     await hydrateCacheSummary();
+    await renderBackupSchedules();
   }
-  if (view === 'diagnostics') await runDiagnostics();
+  if (view === 'diagnostics') renderDiagnosticsIdleState();
   if (view === 'telemetry') await renderTelemetry();
   if (view === 'admin' && state.session.user.role === 'ADMIN') await renderUsers();
 }
@@ -177,7 +193,7 @@ async function hydrateDashboard() {
   if (!result.ok) return;
   state.dashboard = result.data;
   renderDashboardSnapshot(result.data);
-  void warmDashboardCovers(result.data);
+  deferTask(() => warmDashboardCovers(result.data), 1200);
 }
 
 function renderDashboardSnapshot(dashboard) {
@@ -470,7 +486,10 @@ function bindSearch() {
     }
   });
 
-  $('provider-filter').addEventListener('change', updateSelectedProviderStatus);
+  $('provider-filter').addEventListener('change', () => {
+    updateSelectedProviderStatus();
+    deferTask(hydratePlayerStatus, 80);
+  });
   $('back-to-results-button').addEventListener('click', () => {
     $('episodes-section').classList.add('d-none');
     $('search-results-section').classList.remove('d-none');
@@ -621,14 +640,7 @@ async function launchEpisode(payload) {
     };
 
     if (result.embedded && result.streamUrl) {
-      const video = $('embedded-video');
-      $('embedded-player-title').textContent =
-        `${payload.anime?.name || 'Anime'} · Episódio ${payload.episode?.number || ''}`;
-      $('embedded-player').classList.remove('is-hidden');
-      video.src = result.streamUrl;
-      video.volume = Math.max(0, Math.min(1, Number(state.settings?.playerVolume ?? 80) / 100));
-      video.currentTime = Number(result.resumedAt || 0);
-      await video.play();
+      await startEmbeddedPlayback(result, payload);
     }
 
     showToast({
@@ -755,7 +767,17 @@ function bindPlayer() {
     video.pause();
     video.removeAttribute('src');
     video.load();
+    $('embedded-player-status').textContent = 'Player embutido fechado.';
     $('embedded-player').classList.add('is-hidden');
+  });
+  $('embedded-video').addEventListener('error', () => {
+    $('embedded-player-status').textContent =
+      'O Chromium recusou este stream. Use MPV externo ou outra fonte.';
+    showToast({
+      title: 'Player embutido',
+      message: 'Stream incompatível com o Chromium. O MPV externo continua recomendado.',
+      variant: 'warning'
+    });
   });
   $('player-toggle').addEventListener('click', async () => {
     const result = await animeDesk.player.togglePause();
@@ -912,6 +934,7 @@ async function hydratePlayerStatus() {
   const result = await animeDesk.player.status();
   if (!result.ok) return;
   state.playerStatus = result.data;
+  writeJsonStorage(PROVIDER_STATUS_SNAPSHOT_KEY, { savedAt: Date.now(), status: result.data });
   const cards = {
     'goanime-gui': [
       result.data.providers.goAnime.ready,
@@ -949,26 +972,29 @@ function updateSelectedProviderStatus() {
   const provider = $('provider-filter').value;
   const line = $('selected-provider-status');
   const dot = line.querySelector('.status-dot');
+  const status = state.playerStatus || readProviderStatusSnapshot();
   let ready = false;
-  let message = 'Verificando...';
-  if (state.playerStatus) {
+  let message = 'Status será verificado em segundo plano';
+
+  if (status) {
     if (provider === 'goanime-gui') {
-      ready = state.playerStatus.providers.goAnime.ready;
+      ready = Boolean(status.providers?.goAnime?.ready);
       message = ready
         ? 'GoAnime GUI pronto · principal'
         : 'GoAnime GUI precisa ser instalado ou reparado';
     } else if (provider === 'goanime') {
-      ready = state.playerStatus.providers.goAnime.classicReady;
+      ready = Boolean(status.providers?.goAnime?.classicReady);
       message = ready ? 'GoAnime clássico pronto' : 'GoAnime clássico não está pronto';
     } else if (provider === 'anime-cli-br') {
-      ready = state.playerStatus.providers.animeCliBr.ready;
+      ready = Boolean(status.providers?.animeCliBr?.ready);
       message = ready ? 'anime-cli-br pronto' : 'anime-cli-br não está pronto';
     } else {
-      ready = state.playerStatus.providers.aniCli.ready;
+      ready = Boolean(status.providers?.aniCli?.ready);
       message = ready ? 'ani-cli pronto, mas experimental' : 'ani-cli não está pronto';
     }
   }
-  dot.className = `status-dot ${ready ? 'is-online' : 'is-offline'}`;
+
+  dot.className = `status-dot ${status ? (ready ? 'is-online' : 'is-offline') : 'is-warning'}`;
   line.querySelector('span:last-child').textContent = message;
 }
 
@@ -1076,6 +1102,7 @@ function bindSettings() {
     }
     state.settings = result.data;
     applyTheme(result.data.theme);
+    applyInterfaceLanguage(result.data.interfaceLanguage || 'pt-BR');
     applySettingsToSearch();
     showToast({
       title: 'Configurações salvas',
@@ -1102,6 +1129,7 @@ async function hydrateSettings() {
   state.settings = result.data;
   renderSettingsForm(result.data);
   applyTheme(result.data.theme);
+  applyInterfaceLanguage(result.data.interfaceLanguage || 'pt-BR');
   applySettingsToSearch();
 }
 
@@ -1118,6 +1146,7 @@ function renderSettingsForm(settings) {
   $('setting-autoplay').checked = Boolean(settings.autoPlayNext);
   $('setting-remember').checked = settings.rememberPosition !== false;
   $('setting-theme').value = settings.theme || 'dark';
+  $('setting-interface-language').value = settings.interfaceLanguage || 'pt-BR';
   $('setting-updates').checked = settings.checkUpdates !== false;
   $('setting-telemetry').checked = Boolean(settings.localTelemetryEnabled);
   $('setting-parental').checked = Boolean(settings.parentalControlEnabled);
@@ -1139,6 +1168,7 @@ function readSettingsForm() {
     autoPlayNext: $('setting-autoplay').checked,
     rememberPosition: $('setting-remember').checked,
     theme: $('setting-theme').value,
+    interfaceLanguage: $('setting-interface-language').value,
     checkUpdates: $('setting-updates').checked,
     localTelemetryEnabled: $('setting-telemetry').checked,
     parentalControlEnabled: $('setting-parental').checked,
@@ -1170,7 +1200,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 function bindDiagnostics() {
   $('provider-health-button').addEventListener('click', hydrateProviderHealth);
-  $('run-diagnostics-button').addEventListener('click', runDiagnostics);
+  $('run-diagnostics-button').addEventListener('click', runMaintenanceCheck);
   $('export-diagnostics-button').addEventListener('click', async () =>
     notifyResult(await animeDesk.diagnostics.export())
   );
@@ -1204,9 +1234,13 @@ function bindDiagnostics() {
       )
     )
       return;
-    notifyResult(await animeDesk.diagnostics.restoreComponents());
-    await hydratePlayerStatus();
-    await runDiagnostics();
+    await preserveThemeAround(async () => {
+      notifyResult(await animeDesk.diagnostics.restoreComponents());
+      await hydratePlayerStatus();
+      await runDiagnostics();
+      await hydrateProviderHealth();
+      await checkUpdates(false);
+    });
   });
   document.querySelectorAll('[data-repair-provider]').forEach((button) => {
     button.addEventListener('click', () => startInstallation(button.dataset.repairProvider));
@@ -1235,6 +1269,45 @@ async function hydrateProviderHealth() {
       .join(' | '),
     variant: online ? 'info' : 'warning'
   });
+}
+
+function renderDiagnosticsIdleState() {
+  const container = $('diagnostic-grid');
+  if (container.children.length > 0) return;
+  container.append(
+    diagnosticCard('Pronto para verificar', [
+      ['Tema', state.settings?.theme || document.body.dataset.theme || 'dark'],
+      ['Ação', 'Clique em Verificar sistema'],
+      ['Escopo', 'Sistema, provedores e atualizações']
+    ])
+  );
+  $('diagnostic-log').textContent =
+    'Aguardando verificação manual para evitar travamento ao abrir.';
+}
+
+async function runMaintenanceCheck() {
+  await preserveThemeAround(async () => {
+    appendDiagnosticLog('Verificação manual iniciada. O tema atual será preservado.');
+    appendDiagnosticLog('Restaurando componentes locais sem alterar tema, histórico ou perfis...');
+    notifyResult(await animeDesk.diagnostics.restoreComponents());
+    await runDiagnostics();
+    await hydrateProviderHealth();
+    await hydratePlayerStatus();
+    await checkUpdates(false);
+    appendDiagnosticLog('Sistema, provedores e atualizações verificados. Tema preservado.');
+  });
+}
+
+async function preserveThemeAround(action) {
+  const theme = state.settings?.theme || document.body.dataset.theme || 'dark';
+  try {
+    return await action();
+  } finally {
+    applyTheme(theme);
+    if (state.settings) state.settings.theme = theme;
+    const field = $('setting-theme');
+    if (field) field.value = theme;
+  }
 }
 
 async function runDiagnostics() {
@@ -1470,11 +1543,15 @@ function bindBackup() {
     if (!result.data?.canceled) {
       showToast({
         title: 'Perfis restaurados',
-        message: `${result.data.createdProfiles} criado(s) e ${result.data.updatedProfiles} atualizado(s).`,
+        message: `${result.data.createdProfiles} criado(s) e ${result.data.updatedProfiles} atualizado(s). Tema preservado.`,
         variant: 'success'
       });
+      applyTheme(state.settings?.theme || document.body.dataset.theme || 'dark');
     }
   });
+  $('schedule-profiles-button').addEventListener('click', scheduleProfilesBackup);
+  $('run-scheduled-backup-button').addEventListener('click', runScheduledProfilesBackup);
+  $('validate-profiles-backup-button').addEventListener('click', validateProfilesBackup);
   $('clear-app-cache-button').addEventListener('click', async () => {
     if (!window.confirm('Limpar resultados, capas e avatares armazenados localmente?')) return;
     notifyResult(await animeDesk.cache.clear());
@@ -1495,6 +1572,102 @@ async function hydrateCacheSummary() {
   );
   $('cache-summary').textContent =
     `${entries} resultado(s) em cache · ${formatBytes(bytes)} em capas e avatares.`;
+}
+
+async function startEmbeddedPlayback(result, payload) {
+  const video = $('embedded-video');
+  $('embedded-player-title').textContent =
+    `${payload.anime?.name || 'Anime'} · Episódio ${payload.episode?.number || ''}`;
+  $('embedded-player').classList.remove('is-hidden');
+  const metadata = result.streamMetadata || {};
+  const needsHeaders =
+    Boolean(metadata.referer) || String(metadata.requiresHeaders || '').toLowerCase() === 'true';
+  const hls = /\.m3u8(?:$|[?#])/i.test(result.streamUrl) || metadata.container === 'hls';
+  $('embedded-player-status').textContent =
+    needsHeaders || hls
+      ? translate('embeddedHeadersFallback')
+      : 'Stream carregado no player embutido.';
+  video.src = result.streamUrl;
+  video.volume = Math.max(0, Math.min(1, Number(state.settings?.playerVolume ?? 80) / 100));
+  video.currentTime = Number(result.resumedAt || 0);
+  await video.play();
+}
+
+async function scheduleProfilesBackup() {
+  const password = window.prompt('Digite uma senha com pelo menos 8 caracteres para a agenda:');
+  if (!password) return;
+  const cadence =
+    window.prompt('Frequência do backup: daily, weekly ou monthly', 'daily') || 'daily';
+  const result = await animeDesk.backup.scheduleProfiles({
+    password,
+    cadence: cadence.trim(),
+    validateRestore: true
+  });
+  if (!result.ok) return notifyResultError(result);
+  if (!result.data?.canceled) {
+    showToast({
+      title: 'Backup agendado',
+      message: 'A agenda criptografada foi salva e validará os arquivos automaticamente.',
+      variant: 'success'
+    });
+    await renderBackupSchedules();
+  }
+}
+
+async function runScheduledProfilesBackup() {
+  const result = await animeDesk.backup.runScheduledProfiles();
+  if (!result.ok) return notifyResultError(result);
+  if (result.data?.executed) {
+    showToast({
+      title: 'Backup agendado executado',
+      message: `${result.data.profiles} perfil(is) exportado(s) e validação concluída.`,
+      variant: 'success'
+    });
+    await renderBackupSchedules();
+  }
+}
+
+async function validateProfilesBackup() {
+  const password = window.prompt('Digite a senha do backup criptografado:');
+  if (!password) return;
+  const result = await animeDesk.backup.validateProfiles(password);
+  if (!result.ok) return notifyResultError(result);
+  if (!result.data?.canceled) {
+    showToast({
+      title: 'Backup validado',
+      message: `${result.data.profiles} perfil(is) lido(s). Nenhum dado foi restaurado.`,
+      variant: 'success'
+    });
+  }
+}
+
+async function renderBackupSchedules() {
+  if (state.session?.user?.role !== 'ADMIN' || !animeDesk.backup?.listSchedules) return;
+  const summary = $('backup-schedule-summary');
+  const result = await animeDesk.backup.listSchedules();
+  if (!result.ok) {
+    summary.textContent = 'Não foi possível carregar a agenda de backup.';
+    return;
+  }
+  const schedule = (result.data || [])[0];
+  if (!schedule) {
+    summary.textContent = 'Nenhum backup criptografado agendado.';
+    return;
+  }
+  const last = schedule.lastRunAt
+    ? new Date(schedule.lastRunAt).toLocaleString('pt-BR')
+    : 'ainda não executado';
+  summary.textContent = `Agenda: ${schedule.cadence} · pasta: ${schedule.targetPath} · último: ${last} · ${schedule.validateRestore ? 'validação ativa' : 'sem validação'}`;
+}
+
+async function runDueBackupsSilently() {
+  if (!animeDesk.backup?.runDue || state.session?.user?.role !== 'ADMIN') return;
+  try {
+    const result = await animeDesk.backup.runDue();
+    if (result.ok && result.data?.executed) await renderBackupSchedules();
+  } catch {
+    // Agenda de backup não deve atrasar a abertura.
+  }
 }
 
 function formatBackupSummary(summary = {}) {
@@ -2094,6 +2267,34 @@ function isUsableAvatarSource(url) {
     return false;
   }
   return /^(data:image\/|file:\/\/|https?:\/\/)/i.test(value);
+}
+
+function readProviderStatusSnapshot() {
+  const snapshot = readJsonStorage(PROVIDER_STATUS_SNAPSHOT_KEY);
+  if (!snapshot?.status || Date.now() - Number(snapshot.savedAt || 0) > SNAPSHOT_TTL_MS) {
+    return null;
+  }
+  return snapshot.status;
+}
+
+function deferTask(task, delayMs = 0) {
+  const run = () => {
+    try {
+      const result = task();
+      if (result && typeof result.catch === 'function') result.catch(() => {});
+    } catch {
+      // Tarefa adiada não pode derrubar a interface.
+    }
+  };
+  if (delayMs > 0) {
+    setTimeout(() => deferTask(task, 0), delayMs);
+    return;
+  }
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    setTimeout(run, 0);
+  }
 }
 
 function readJsonStorage(key) {

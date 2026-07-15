@@ -68,7 +68,10 @@ test('player embutido resolve o stream sem iniciar o MPV', async () => {
     dependencies: { mpv: { path: 'C:/mpv.exe' } }
   });
   service.goAnimeGui = {
-    resolveStream: async () => ({ url: 'https://cdn.example/video.m3u8', metadata: {} }),
+    resolveStream: async () => ({
+      url: 'https://cdn.example/video.mp4',
+      metadata: { container: 'mp4' }
+    }),
     getPlayerState: () => ({ active: true, position: 0, duration: 0 })
   };
 
@@ -83,7 +86,7 @@ test('player embutido resolve o stream sem iniciar o MPV', async () => {
   assert.equal(result.playerMode, 'embedded');
   assert.equal(result.embedded, true);
   assert.equal(result.embeddedFallback, false);
-  assert.equal(result.streamUrl, 'https://cdn.example/video.m3u8');
+  assert.equal(result.streamUrl, 'https://cdn.example/video.mp4');
 });
 
 test('fila de reproducao pode ser reordenada', async () => {

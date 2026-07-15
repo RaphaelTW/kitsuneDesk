@@ -22,7 +22,7 @@ for (const provider of providers) {
     });
   }
 }
-fs.writeFileSync(path.join(root, 'manifest.json'), JSON.stringify(manifest, null, 2));
+fs.writeFileSync(path.join(root, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`${manifest.files.length} arquivo(s) de provedores offline verificados.`);
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

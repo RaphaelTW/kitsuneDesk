@@ -253,6 +253,32 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_failure_telemetry_filters
         ON failure_telemetry(user_id, scope, event, created_at DESC);
     `
+  },
+  {
+    id: 9,
+    name: 'v0130-backup-schedules-and-i18n',
+    sql: `
+      CREATE TABLE IF NOT EXISTS backup_schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'profiles',
+        target_path TEXT NOT NULL,
+        cadence TEXT NOT NULL DEFAULT 'daily',
+        password_secret TEXT NOT NULL,
+        validate_restore INTEGER NOT NULL DEFAULT 1,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        last_run_at TEXT,
+        last_status TEXT,
+        last_error TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, kind)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_backup_schedules_due
+        ON backup_schedules(user_id, enabled, kind, last_run_at);
+    `
   }
 ];
 
@@ -285,9 +311,186 @@ function runMigrations(database) {
   });
 
   transaction();
+  repairPortableSchema(database);
+}
+
+function repairPortableSchema(database) {
+  ensureColumn(database, 'users', 'profile_color', "TEXT NOT NULL DEFAULT '#6f5cff'");
+  ensureColumn(database, 'users', 'parental_level', "TEXT NOT NULL DEFAULT 'ADULT'");
+  ensureColumn(database, 'users', 'avatar_seed', 'TEXT');
+  ensureColumn(database, 'users', 'avatar_style', "TEXT NOT NULL DEFAULT 'thumbs'");
+
+  ensureColumn(database, 'settings', 'default_provider', "TEXT NOT NULL DEFAULT 'goanime-gui'");
+  ensureColumn(database, 'settings', 'downloads_path', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'settings', 'audio_preference', "TEXT NOT NULL DEFAULT 'sub'");
+  ensureColumn(database, 'settings', 'parental_control_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'settings', 'parental_pin_hash', 'TEXT');
+  ensureColumn(database, 'settings', 'max_content_rating', "TEXT NOT NULL DEFAULT '18'");
+  ensureColumn(database, 'settings', 'remember_position', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn(database, 'settings', 'check_updates', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn(database, 'settings', 'player_mode', "TEXT NOT NULL DEFAULT 'external'");
+  ensureColumn(database, 'settings', 'local_telemetry_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'settings', 'interface_language', "TEXT NOT NULL DEFAULT 'pt-BR'");
+
+  ensureColumn(database, 'playback_sessions', 'anime_cover', 'TEXT');
+  ensureColumn(database, 'playback_sessions', 'episode_title', 'TEXT');
+  ensureColumn(database, 'playback_sessions', 'duration', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'playback_sessions', 'source', 'TEXT');
+  ensureColumn(database, 'playback_sessions', 'anime_payload', 'TEXT');
+  ensureColumn(database, 'playback_sessions', 'episode_payload', 'TEXT');
+
+  ensureColumn(database, 'watch_history', 'episode_title', 'TEXT');
+  ensureColumn(database, 'watch_history', 'source', 'TEXT');
+  ensureColumn(database, 'watch_history', 'anime_payload', 'TEXT');
+  ensureColumn(database, 'watch_history', 'episode_payload', 'TEXT');
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider_id TEXT NOT NULL,
+      anime_id TEXT NOT NULL,
+      anime_title TEXT NOT NULL,
+      anime_cover TEXT,
+      anime_payload TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id, provider_id, anime_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS watchlist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider_id TEXT NOT NULL,
+      anime_id TEXT NOT NULL,
+      anime_title TEXT NOT NULL,
+      anime_cover TEXT,
+      anime_payload TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id, provider_id, anime_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS episode_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      anime_id TEXT NOT NULL,
+      anime_title TEXT NOT NULL,
+      episode_number REAL NOT NULL,
+      language TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      source TEXT,
+      error_code TEXT,
+      technical_error TEXT,
+      status TEXT NOT NULL DEFAULT 'OPEN',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS login_security (
+      username TEXT PRIMARY KEY,
+      failed_attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS failure_telemetry (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      scope TEXT NOT NULL,
+      event TEXT NOT NULL,
+      message TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS cache_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      namespace TEXT NOT NULL,
+      cache_key TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      stale_until TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_accessed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(namespace, cache_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS backup_schedules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'profiles',
+      target_path TEXT NOT NULL,
+      cadence TEXT NOT NULL DEFAULT 'daily',
+      password_secret TEXT NOT NULL,
+      validate_restore INTEGER NOT NULL DEFAULT 1,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      last_run_at TEXT,
+      last_status TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id, kind)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_reports_user ON episode_reports(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_failure_telemetry_user_created
+      ON failure_telemetry(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_failure_telemetry_filters
+      ON failure_telemetry(user_id, scope, event, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_cache_expiration
+      ON cache_entries(stale_until);
+    CREATE INDEX IF NOT EXISTS idx_cache_access
+      ON cache_entries(last_accessed_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_backup_schedules_due
+      ON backup_schedules(user_id, enabled, kind, last_run_at);
+  `);
+}
+
+function ensureColumn(database, tableName, columnName, definition) {
+  if (!hasTable(database, tableName) || hasColumn(database, tableName, columnName)) {
+    return;
+  }
+
+  database.exec(
+    `ALTER TABLE ${quoteIdentifier(tableName)} ADD COLUMN ${quoteIdentifier(columnName)} ${definition};`
+  );
+}
+
+function hasTable(database, tableName) {
+  const row = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(tableName);
+  return Boolean(row);
+}
+
+function hasColumn(database, tableName, columnName) {
+  return database
+    .prepare(`PRAGMA table_info(${quoteIdentifier(tableName)})`)
+    .all()
+    .some((column) => column.name === columnName);
+}
+
+function quoteIdentifier(identifier) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Identificador SQLite inválido: ${identifier}`);
+  }
+  return `"${identifier}"`;
 }
 
 module.exports = {
   migrations,
+  repairPortableSchema,
   runMigrations
 };
