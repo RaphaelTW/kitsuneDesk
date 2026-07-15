@@ -136,7 +136,10 @@ test(
       assert.equal(result.streams.headers.embeddedFallback, true);
 
       await window.reload();
-      await window.waitForSelector('[data-i18n="navHome"]', { timeout: 30000 });
+      await window.waitForSelector('[data-i18n="navHome"]', {
+        state: 'attached',
+        timeout: 30000
+      });
       await assertElementText(window, '[data-i18n="navHome"]', 'ホーム');
     } finally {
       if (app) await app.close();
