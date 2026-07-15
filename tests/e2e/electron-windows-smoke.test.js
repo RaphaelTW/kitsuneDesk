@@ -36,7 +36,7 @@ test(
       await window.fill('#current-password', 'admin123');
       await window.fill('#new-password', 'Senha123!');
       await window.fill('#confirm-password', 'Senha123!');
-      await window.click('#password-button');
+      await window.click('#password-button', { noWaitAfter: true });
       await window.waitForURL(/home\.html/, { timeout: 30000 });
 
       const appName = await window.locator('.brand-block strong').textContent();
@@ -73,7 +73,7 @@ test(
       await window.fill('#current-password', 'admin123');
       await window.fill('#new-password', 'Senha123!');
       await window.fill('#confirm-password', 'Senha123!');
-      await window.click('#password-button');
+      await window.click('#password-button', { noWaitAfter: true });
       await window.waitForURL(/home\.html/, { timeout: 30000 });
 
       const languages = await window
@@ -90,6 +90,7 @@ test(
           await window.animeDesk.settings.update({
             playerMode: 'embedded',
             startupMetricsEnabled: true,
+            startupMetricsRetentionDays: 7,
             interfaceLanguage: 'ja-JP'
           })
         );
@@ -97,7 +98,8 @@ test(
           await window.animeDesk.diagnostics.recordStartupPerformance({
             shellReadyMs: 120,
             coreReadyMs: 480,
-            snapshotRestored: true
+            snapshotRestored: true,
+            startupType: 'snapshot'
           })
         );
         const performance = unwrap(await window.animeDesk.diagnostics.startupPerformance());
@@ -127,6 +129,9 @@ test(
       assert.equal(result.performance.enabled, true);
       assert.equal(result.performance.count, 1);
       assert.equal(result.performance.averageCoreMs, 480);
+      assert.equal(result.performance.medianCoreMs, 480);
+      assert.equal(result.performance.p95CoreMs, 480);
+      assert.equal(result.performance.retentionDays, 7);
       assert.equal(result.status.providers.goAnime.ready, true);
       assert.equal(result.status.providers.goAnime.classicReady, true);
       assert.equal(result.status.providers.animeCliBr.ready, true);
@@ -134,6 +139,28 @@ test(
       assert.equal(result.streams.mp4.embedded, true);
       assert.equal(result.streams.hls.embeddedFallback, true);
       assert.equal(result.streams.headers.embeddedFallback, true);
+
+      const lazyViews = {
+        continue: '#continue-list',
+        lists: '#favorites-list',
+        history: '#history-list',
+        tools: '#tool-grid',
+        diagnostics: '#diagnostic-grid',
+        admin: '#users-list'
+      };
+      for (const [view, selector] of Object.entries(lazyViews)) {
+        await window.click(`[data-view="${view}"]`);
+        await window.waitForSelector(selector, { state: 'attached' });
+        assert.equal(
+          await window.locator(`[data-view-panel="${view}"]`).getAttribute('data-fragment-loaded'),
+          'true'
+        );
+      }
+
+      await window.click('[data-view="telemetry"]');
+      await window.waitForSelector('#startup-metrics-cards article');
+      assert.equal(await window.locator('#startup-metrics-cards article').count(), 4);
+      assert.equal(await window.locator('#setting-startup-retention option').count(), 4);
 
       await window.reload();
       await window.waitForSelector('[data-i18n="navHome"]', {

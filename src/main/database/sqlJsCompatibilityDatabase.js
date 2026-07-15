@@ -1,161 +1,109 @@
-const fs = require('fs');
-const initSqlJs = require('sql.js/dist/sql-asm.js');
-
-let sqlModulePromise = null;
-
-async function loadSqlModule() {
-  if (!sqlModulePromise) {
-    sqlModulePromise = initSqlJs();
-  }
-  return sqlModulePromise;
-}
+const path = require('path');
+const { Worker } = require('worker_threads');
 
 async function createSqlJsCompatibilityDatabase(databasePath) {
-  const SQL = await loadSqlModule();
-  const existingDatabase = fs.existsSync(databasePath)
-    ? new Uint8Array(fs.readFileSync(databasePath))
-    : undefined;
-  const rawDatabase = new SQL.Database(existingDatabase);
-  return new SqlJsCompatibilityDatabase(rawDatabase, databasePath);
+  const client = new SqlJsWorkerClient(databasePath);
+  await client.ready;
+  return client;
 }
 
-class SqlJsCompatibilityDatabase {
-  constructor(rawDatabase, databasePath) {
-    this.rawDatabase = rawDatabase;
+class SqlJsWorkerClient {
+  constructor(databasePath) {
+    this.mode = 'compatibility-worker';
     this.databasePath = databasePath;
+    this.nextRequestId = 1;
+    this.pending = new Map();
+    this.worker = new Worker(path.join(__dirname, 'sqlJsDatabaseWorker.js'), {
+      workerData: { databasePath }
+    });
+    this.ready = new Promise((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
+    this.worker.on('message', (message) => this.handleMessage(message));
+    this.worker.on('error', (error) => this.fail(error));
+    this.worker.on('exit', (code) => {
+      if (code !== 0) this.fail(new Error(`Worker SQLite encerrado com código ${code}.`));
+    });
   }
 
-  pragma(sql) {
-    if (typeof sql !== 'string' || !sql.trim()) return;
-    try {
-      this.rawDatabase.exec(`PRAGMA ${sql}`);
-    } catch {
-      // Algumas pragmas de desempenho, como WAL, não são suportadas pelo sql.js.
-      // O modo de compatibilidade prioriza não travar a aplicação.
+  handleMessage(message) {
+    if (message?.type === 'ready') {
+      this.readyResolve();
+      return;
+    }
+    const request = this.pending.get(message?.id);
+    if (!request) return;
+    this.pending.delete(message.id);
+    if (message.ok) request.resolve(message.result);
+    else {
+      const error = new Error(message.error?.message || 'Falha no worker SQLite.');
+      error.stack = message.error?.stack || error.stack;
+      request.reject(error);
     }
   }
 
-  prepare(sql) {
-    return new SqlJsCompatibilityStatement(this.rawDatabase, sql);
+  fail(error) {
+    this.readyReject(error);
+    for (const request of this.pending.values()) request.reject(error);
+    this.pending.clear();
+  }
+
+  request(operation, payload = {}) {
+    const id = this.nextRequestId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.worker.postMessage({ id, operation, ...payload });
+    });
+  }
+
+  initialize() {
+    return this.request('initialize');
+  }
+
+  get(sql, params = []) {
+    return this.request('get', { sql, params: normalizeParams(params) });
+  }
+
+  all(sql, params = []) {
+    return this.request('all', { sql, params: normalizeParams(params) });
+  }
+
+  run(sql, params = []) {
+    return this.request('run', { sql, params: normalizeParams(params) });
   }
 
   exec(sql) {
-    if (typeof sql !== 'string' || !sql.trim()) return { ok: true };
-    this.rawDatabase.exec(sql);
-    return { ok: true };
+    return this.request('exec', { sql });
   }
 
-  transaction(callback) {
-    return (...args) => {
-      this.rawDatabase.exec('BEGIN TRANSACTION;');
-      try {
-        const result = callback(...args);
-        this.rawDatabase.exec('COMMIT;');
-        return result;
-      } catch (error) {
-        try {
-          this.rawDatabase.exec('ROLLBACK;');
-        } catch {
-          // A exceção original é mais útil para o chamador.
-        }
-        throw error;
-      }
-    };
+  findUserByUsername(username) {
+    return this.get('SELECT * FROM users WHERE username = ?', [username]);
   }
 
-  exportToFile() {
-    const exported = this.rawDatabase.export();
-    fs.writeFileSync(this.databasePath, Buffer.from(exported));
+  findUserById(userId) {
+    return this.get('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
-  close() {
-    this.rawDatabase.close();
-  }
-}
-
-class SqlJsCompatibilityStatement {
-  constructor(rawDatabase, sql) {
-    this.rawDatabase = rawDatabase;
-    this.sql = assertSql(sql);
+  updateUserPassword(userId, passwordHash) {
+    return this.run(
+      `UPDATE users
+       SET password_hash = ?, must_change_password = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [passwordHash, userId]
+    );
   }
 
-  get(...params) {
-    const statement = this.rawDatabase.prepare(this.sql);
-    try {
-      statement.bind(normalizeParams(params));
-      if (!statement.step()) return undefined;
-      return normalizeRow(statement.getAsObject());
-    } finally {
-      statement.free();
-    }
+  async close() {
+    if (!this.worker) return;
+    await this.request('close');
+    await this.worker.terminate();
+    this.worker = null;
   }
-
-  all(...params) {
-    const statement = this.rawDatabase.prepare(this.sql);
-    const rows = [];
-    try {
-      statement.bind(normalizeParams(params));
-      while (statement.step()) {
-        rows.push(normalizeRow(statement.getAsObject()));
-      }
-      return rows;
-    } finally {
-      statement.free();
-    }
-  }
-
-  run(...params) {
-    const statement = this.rawDatabase.prepare(this.sql);
-    try {
-      statement.bind(normalizeParams(params));
-      while (statement.step()) {
-        // Consome resultados para manter comportamento equivalente ao better-sqlite3.
-      }
-    } finally {
-      statement.free();
-    }
-
-    return {
-      changes: Number(readScalar(this.rawDatabase, 'SELECT changes() AS value') ?? 0),
-      lastInsertRowid: Number(
-        readScalar(this.rawDatabase, 'SELECT last_insert_rowid() AS value') ?? 0
-      )
-    };
-  }
-}
-
-function assertSql(sql) {
-  if (typeof sql !== 'string' || !sql.trim()) {
-    throw new Error('SQL inválido.');
-  }
-  return sql;
 }
 
 function normalizeParams(params) {
-  if (params.length === 0) return [];
-  if (params.length === 1) {
-    const [first] = params;
-    if (Array.isArray(first)) return first;
-    if (first && typeof first === 'object' && !Buffer.isBuffer(first)) return first;
-    return [first];
-  }
-  return params;
+  return Array.isArray(params) ? params : (params ?? []);
 }
 
-function normalizeRow(row) {
-  if (!row || typeof row !== 'object') return row;
-  const normalized = {};
-  for (const [key, value] of Object.entries(row)) {
-    normalized[key] = typeof value === 'bigint' ? Number(value) : value;
-  }
-  return normalized;
-}
-
-function readScalar(rawDatabase, sql) {
-  const result = rawDatabase.exec(sql);
-  return result?.[0]?.values?.[0]?.[0];
-}
-
-module.exports = {
-  createSqlJsCompatibilityDatabase
-};
+module.exports = { createSqlJsCompatibilityDatabase, SqlJsWorkerClient };

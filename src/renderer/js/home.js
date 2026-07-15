@@ -2,15 +2,19 @@ import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
 import { applyInterfaceLanguage, translate } from './i18n.js';
+import { formatBytes } from './views/formatters.js';
 
 const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
 const STARTUP_SNAPSHOT_KEY = 'kitsunedesk.startup-snapshot.v1';
+const STARTUP_MARKER_KEY = 'kitsunedesk.startup-marker.v1';
 const AVATAR_SNAPSHOT_KEY = 'kitsunedesk.avatar-cache.v1';
 const PROVIDER_STATUS_SNAPSHOT_KEY = 'kitsunedesk.provider-status.v1';
 const SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
 const AVATAR_SNAPSHOT_LIMIT = 80;
 const startupStartedAt = performance.now();
 let startupSnapshotRestored = false;
+let startupType = 'cold';
+let activeInterfaceLanguage = null;
 const viewMeta = Object.freeze({
   home: ['navHome', 'navHome'],
   search: ['navSearch', 'navSearch'],
@@ -58,41 +62,223 @@ const state = {
 };
 
 const modals = {};
+const activatedFeatures = new Set();
+let playerFeaturePromise = null;
+let backupFeaturePromise = null;
+let usersFeaturePromise = null;
+let telemetryFeaturePromise = null;
+let searchFeaturePromise = null;
+let libraryFeaturePromise = null;
+let maintenanceFeaturePromise = null;
+const viewModules = Object.freeze({
+  search: './views/search.js',
+  continue: './views/library.js',
+  lists: './views/library.js',
+  history: './views/library.js',
+  tools: './views/tools.js',
+  settings: './views/settings.js',
+  diagnostics: './views/maintenance.js',
+  telemetry: './views/telemetry.js',
+  admin: './views/admin.js'
+});
 
 const $ = (id) => document.getElementById(id);
+
+function getPlayerFeature() {
+  if (!playerFeaturePromise) {
+    playerFeaturePromise = import('./views/player.js').then(({ createPlayerFeature }) => {
+      const feature = createPlayerFeature({
+        $,
+        animeDesk,
+        cleanEpisode,
+        debounce,
+        emptyState,
+        fallbackCover,
+        formatTime,
+        getModal,
+        iconButton,
+        notifyResult,
+        notifyResultError,
+        openReportModal,
+        state,
+        translate,
+        showToast
+      });
+      feature.bind();
+      return feature;
+    });
+  }
+  return playerFeaturePromise;
+}
+
+function getBackupFeature() {
+  if (!backupFeaturePromise) {
+    backupFeaturePromise = import('./views/backup.js').then(({ createBackupFeature }) =>
+      createBackupFeature({
+        $,
+        animeDesk,
+        applyTheme,
+        formatBytes,
+        hydrateDashboard,
+        notifyResult,
+        notifyResultError,
+        showToast,
+        state
+      })
+    );
+  }
+  return backupFeaturePromise;
+}
+
+function getUsersFeature() {
+  if (!usersFeaturePromise) {
+    usersFeaturePromise = import('./views/admin.js').then(({ createUsersFeature }) =>
+      createUsersFeature({
+        $,
+        animeDesk,
+        escapeHtml,
+        getModal,
+        notifyResultError,
+        setCachedAvatar,
+        setVisualAlert,
+        showToast,
+        state,
+        updateUserAvatarPreview
+      })
+    );
+  }
+  return usersFeaturePromise;
+}
+
+function getTelemetryFeature() {
+  if (!telemetryFeaturePromise) {
+    telemetryFeaturePromise = import('./views/telemetry.js').then(({ createTelemetryFeature }) =>
+      createTelemetryFeature({
+        $,
+        animeDesk,
+        emptyState,
+        escapeHtml,
+        notifyResult,
+        notifyResultError,
+        showToast,
+        state
+      })
+    );
+  }
+  return telemetryFeaturePromise;
+}
+
+function getSearchFeature() {
+  if (!searchFeaturePromise) {
+    searchFeaturePromise = import('./views/search.js').then(({ createSearchFeature }) =>
+      createSearchFeature({
+        $,
+        animeDesk,
+        badge,
+        cleanEpisode,
+        collectionPayload,
+        createImage,
+        deferTask,
+        emptyState,
+        fallbackCover,
+        hideLoading,
+        hydratePlayerStatus,
+        isProtectedAnime,
+        notifyError,
+        parentalUnlocked,
+        requestParentalUnlock,
+        setCollectionButton,
+        showLoading,
+        showToast,
+        startEmbeddedPlayback: async (result, payload) =>
+          (await getPlayerFeature()).startEmbeddedPlayback(result, payload),
+        state,
+        stripHtml,
+        unwrap,
+        updateSelectedProviderStatus
+      })
+    );
+  }
+  return searchFeaturePromise;
+}
+
+function getLibraryFeature() {
+  if (!libraryFeaturePromise) {
+    libraryFeaturePromise = import('./views/library.js').then(({ createLibraryFeature }) =>
+      createLibraryFeature({
+        $,
+        animeDesk,
+        cleanEpisode,
+        collectionPayload,
+        createImage,
+        debounce,
+        downloadTextFile,
+        emptyState,
+        findEpisodeIndex,
+        formatHours,
+        hideLoading,
+        hydrateDashboard,
+        iconButton,
+        notifyError,
+        notifyResultError,
+        parseJson,
+        selectAnime: async (anime) => (await getSearchFeature()).selectAnime(anime),
+        setCollectionButton,
+        showLoading,
+        showToast,
+        showView,
+        startEpisode: async (payload) => (await getSearchFeature()).launchEpisode(payload),
+        state,
+        unwrap
+      })
+    );
+  }
+  return libraryFeaturePromise;
+}
+
+function getMaintenanceFeature() {
+  if (!maintenanceFeaturePromise) {
+    maintenanceFeaturePromise = import('./views/maintenance.js').then(
+      ({ createMaintenanceFeature }) =>
+        createMaintenanceFeature({
+          $,
+          animeDesk,
+          applyTheme,
+          hydratePlayerStatus,
+          notifyResult,
+          notifyResultError,
+          showToast,
+          startInstallation,
+          state
+        })
+    );
+  }
+  return maintenanceFeaturePromise;
+}
+
+function getModal(name, elementId) {
+  if (!modals[name]) modals[name] = new bootstrap.Modal($(elementId));
+  return modals[name];
+}
 
 document.addEventListener('kitsunedesk:language-changed', () => {
   const activeView = document.querySelector('.nav-item.is-active[data-view]')?.dataset.view;
   if (activeView && viewMeta[activeView]) updateViewHeading(activeView);
 });
 
-window.addEventListener('DOMContentLoaded', () => {
+function bootstrapHome() {
   state.session = requireSession();
   if (!state.session || !hasAnimeDeskApi()) return;
 
-  modals.parental = new bootstrap.Modal($('parental-pin-modal'));
-  modals.report = new bootstrap.Modal($('report-modal'));
-  modals.user = new bootstrap.Modal($('user-modal'));
-  modals.queue = new bootstrap.Modal($('queue-modal'));
-
   hydrateProfile();
   bindNavigation();
-  bindSearch();
-  bindPlayer();
-  bindCollections();
-  bindTools();
-  bindSettings();
-  bindDiagnostics();
-  bindBackup();
-  bindTelemetry();
-  bindAdmin();
   bindModals();
-  bindInstallation();
   bindFailureTelemetry();
   subscribeEvents();
   startupSnapshotRestored = restoreStartupSnapshot();
+  startupType = detectStartupType(startupSnapshotRestored);
   const shellReadyMs = performance.now() - startupStartedAt;
-  applyInterfaceLanguage(state.settings?.interfaceLanguage || 'pt-BR');
+  applyLanguage(state.settings?.interfaceLanguage || 'pt-BR');
 
   $('provider-health-dot').className = 'status-dot is-checking';
   $('provider-health-summary').textContent = 'Clique para verificar';
@@ -106,37 +292,44 @@ window.addEventListener('DOMContentLoaded', () => {
       .forEach((element) => element.classList.add('d-none'));
   }
 
-  const appInfoTask = hydrateAppInfo();
-  const settingsTask = hydrateSettings();
-  const dashboardTask = hydrateDashboard();
-  const playbackTask = hydratePlaybackState();
+  const coreTask = hydrateCoreData();
 
-  void Promise.allSettled([appInfoTask, settingsTask, dashboardTask, playbackTask]).then(() => {
+  void coreTask.finally(() => {
     persistStartupSnapshot();
     void recordStartupPerformance(shellReadyMs, performance.now() - startupStartedAt);
   });
 
-  void settingsTask
+  void coreTask
     .then(() => {
       deferTask(async () => {
-        await hydrateUpdateStatus();
+        const maintenance = await getMaintenanceFeature();
+        await maintenance.hydrateUpdateStatus();
         if (
           state.settings?.checkUpdates &&
           ['idle', 'not-available'].includes(state.update?.state || 'idle')
         ) {
-          await checkUpdates(false);
+          await maintenance.checkUpdates(false);
         }
       }, 1400);
       deferTask(hydratePlayerStatus, 600);
+      deferTask(async () => (await getPlayerFeature()).hydrate(), 150);
       if (state.session.user.role === 'ADMIN') {
-        deferTask(runDueBackupsSilently, 2200);
+        deferTask(async () => (await getBackupFeature()).runDue(), 2200);
       }
     })
     .catch(() => {
       // A tela continua funcional usando as preferências em cache.
     });
-  deferTask(hydrateAvatarStyles, 1000);
-});
+  if (state.session.user.role === 'ADMIN') {
+    deferTask(async () => (await getUsersFeature()).hydrateAvatarStyles(), 1000);
+  }
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', bootstrapHome, { once: true });
+} else {
+  bootstrapHome();
+}
 
 function hydrateProfile() {
   const user = state.session.user;
@@ -144,6 +337,33 @@ function hydrateProfile() {
   $('current-role').textContent = user.role === 'ADMIN' ? 'Administrador' : 'Usuário';
   void setCachedAvatar($('profile-avatar'), user);
   $('profile-avatar').style.backgroundColor = user.profileColor || '#6f5cff';
+}
+
+async function hydrateCoreData() {
+  const result = await animeDesk.app.bootstrap();
+  if (!result.ok) throw new Error(result.error?.message || 'Falha ao carregar dados principais.');
+  const data = result.data || {};
+  state.appInfo = data.appInfo || state.appInfo;
+  state.settings = data.settings || state.settings;
+  state.dashboard = data.dashboard || state.dashboard;
+  if (state.appInfo?.version) $('app-version').textContent = `v${state.appInfo.version}`;
+  if (state.settings) {
+    applyTheme(state.settings.theme);
+    applyLanguage(state.settings.interfaceLanguage || 'pt-BR');
+    applySettingsToSearch();
+  }
+  if (state.dashboard) renderDashboardSnapshot(state.dashboard);
+}
+
+function applyLanguage(language) {
+  const nextLanguage = language || 'pt-BR';
+  if (activeInterfaceLanguage === nextLanguage) return;
+  if (activeInterfaceLanguage === null && nextLanguage === 'pt-BR') {
+    activeInterfaceLanguage = 'pt-BR';
+    document.body.dataset.interfaceLanguage = 'pt-BR';
+    return;
+  }
+  activeInterfaceLanguage = applyInterfaceLanguage(nextLanguage);
 }
 
 function bindNavigation() {
@@ -164,6 +384,8 @@ function bindNavigation() {
 
 async function showView(view) {
   if (!viewMeta[view]) return;
+  await loadViewFragment(view);
+  await activateViewFeatures(view);
   document.querySelectorAll('[data-view-panel]').forEach((panel) => {
     panel.classList.toggle('d-none', panel.dataset.viewPanel !== view);
   });
@@ -176,29 +398,62 @@ async function showView(view) {
   $('content-area').focus({ preventScroll: true });
 
   if (view === 'home') await hydrateDashboard();
-  if (view === 'continue') await renderContinueView();
-  if (view === 'lists') await renderLists();
-  if (view === 'history') await renderHistory();
+  if (view === 'continue') await (await getLibraryFeature()).renderContinueView();
+  if (view === 'lists') await (await getLibraryFeature()).renderLists();
+  if (view === 'history') await (await getLibraryFeature()).renderHistoryView();
   if (view === 'tools') await hydratePlayerStatus();
   if (view === 'settings') {
     await hydrateSettings();
-    await hydrateCacheSummary();
-    await renderBackupSchedules();
+    const backup = await getBackupFeature();
+    await backup.hydrateCache();
+    await backup.renderSchedules();
   }
-  if (view === 'diagnostics') renderDiagnosticsIdleState();
-  if (view === 'telemetry') await renderTelemetry();
-  if (view === 'admin' && state.session.user.role === 'ADMIN') await renderUsers();
+  if (view === 'diagnostics') (await getMaintenanceFeature()).renderIdle();
+  if (view === 'telemetry') await (await getTelemetryFeature()).render();
+  if (view === 'admin' && state.session.user.role === 'ADMIN') {
+    await (await getUsersFeature()).render();
+  }
+}
+
+async function loadViewFragment(view) {
+  const panel = document.querySelector(`[data-view-panel="${view}"]`);
+  if (!panel?.dataset.fragment || panel.dataset.fragmentLoaded === 'true') return;
+  const fragmentUrl = new URL(`./fragments/${panel.dataset.fragment}`, window.location.href);
+  const response = await fetch(fragmentUrl);
+  if (!response.ok) throw new Error(`Não foi possível carregar a tela ${view}.`);
+  panel.innerHTML = await response.text();
+  panel.dataset.fragmentLoaded = 'true';
+  panel.querySelectorAll('[data-go-view]').forEach((button) => {
+    button.addEventListener('click', () => showView(button.dataset.goView));
+  });
+  applyInterfaceLanguage(activeInterfaceLanguage || 'pt-BR');
+}
+
+async function activateViewFeatures(view) {
+  const modulePath = viewModules[view];
+  if (!modulePath) return;
+  const module = await import(modulePath);
+  const binders = {
+    search: async () => (await getSearchFeature()).bind(),
+    library: async () => (await getLibraryFeature()).bind(),
+    tools: bindTools,
+    installation: bindInstallation,
+    settings: bindSettings,
+    backup: async () => (await getBackupFeature()).bind(),
+    diagnostics: async () => (await getMaintenanceFeature()).bind(),
+    telemetry: async () => (await getTelemetryFeature()).bind(),
+    users: async () => (await getUsersFeature()).bind()
+  };
+  for (const feature of module.features || []) {
+    if (activatedFeatures.has(feature) || !binders[feature]) continue;
+    await binders[feature]();
+    activatedFeatures.add(feature);
+  }
 }
 
 function updateViewHeading(view) {
   $('view-eyebrow').textContent = translate(viewMeta[view][0]);
   $('view-title').textContent = translate(viewMeta[view][1]);
-}
-
-async function hydrateAppInfo() {
-  const info = await animeDesk.app.getInfo();
-  state.appInfo = info;
-  $('app-version').textContent = `v${info.version}`;
 }
 
 async function hydrateDashboard() {
@@ -211,10 +466,12 @@ async function hydrateDashboard() {
 
 function renderDashboardSnapshot(dashboard) {
   if (!dashboard) return;
-  renderStats(dashboard.stats || {});
-  renderContinueCards($('home-continue-list'), dashboard.continueWatching || [], 8);
-  renderCollectionCards($('home-favorites-list'), dashboard.favorites || [], 'favorites', 8);
-  renderHistoryPreview($('home-recent-list'), dashboard.recent || [], 8);
+  void getLibraryFeature().then((feature) => {
+    feature.renderStats(dashboard.stats || {});
+    feature.renderContinue($('home-continue-list'), dashboard.continueWatching || [], 8);
+    feature.renderCollections($('home-favorites-list'), dashboard.favorites || [], 'favorites', 8);
+    feature.renderHistory($('home-recent-list'), dashboard.recent || [], false, 8);
+  });
 }
 
 async function warmDashboardCovers(dashboard) {
@@ -243,7 +500,6 @@ function restoreStartupSnapshot() {
   }
   if (snapshot.settings) {
     state.settings = snapshot.settings;
-    renderSettingsForm(snapshot.settings);
     applyTheme(snapshot.settings.theme);
     applySettingsToSearch();
   }
@@ -251,7 +507,9 @@ function restoreStartupSnapshot() {
     state.dashboard = snapshot.dashboard;
     renderDashboardSnapshot(snapshot.dashboard);
   }
-  if (snapshot.playback) renderPlayerState(snapshot.playback);
+  if (snapshot.playback) {
+    void getPlayerFeature().then((feature) => feature.render(snapshot.playback));
+  }
   return true;
 }
 
@@ -261,11 +519,19 @@ async function recordStartupPerformance(shellReadyMs, coreReadyMs) {
     await animeDesk.diagnostics.recordStartupPerformance({
       shellReadyMs,
       coreReadyMs,
-      snapshotRestored: startupSnapshotRestored
+      snapshotRestored: startupSnapshotRestored,
+      startupType
     });
   } catch {
     // Métricas opcionais nunca podem atrasar ou interromper a abertura.
   }
+}
+
+function detectStartupType(snapshotRestored) {
+  const previousLaunch = Number(localStorage.getItem(STARTUP_MARKER_KEY) || 0);
+  localStorage.setItem(STARTUP_MARKER_KEY, String(Date.now()));
+  if (snapshotRestored) return 'snapshot';
+  return previousLaunch > 0 ? 'warm' : 'cold';
 }
 
 function persistStartupSnapshot() {
@@ -280,659 +546,24 @@ function persistStartupSnapshot() {
   });
 }
 
-function renderStats(stats) {
-  const cards = $('dashboard-stats').querySelectorAll('.stat-card strong');
-  cards[0].textContent = Number(stats.total_plays || 0).toLocaleString('pt-BR');
-  cards[1].textContent = Number(stats.distinct_animes || 0).toLocaleString('pt-BR');
-  cards[2].textContent = Number(stats.completed_episodes || 0).toLocaleString('pt-BR');
-  cards[3].textContent = formatHours(Number(stats.seconds_watched || 0));
-}
-
-function renderContinueCards(container, items, limit = 50) {
-  container.replaceChildren();
-  const rows = items.slice(0, limit);
-  if (!rows.length) {
-    container.append(emptyState('bi-play-circle', 'Nenhum episódio para continuar.'));
-    return;
-  }
-  rows.forEach((row) => container.append(createContinueCard(row)));
-}
-
-function createContinueCard(row) {
-  const button = document.createElement('button');
-  button.className = 'media-card';
-  button.type = 'button';
-  const image = createImage(row.anime_cover, row.anime_title);
-  const body = document.createElement('span');
-  body.className = 'media-card-body';
-  const title = document.createElement('strong');
-  title.textContent = row.anime_title;
-  const subtitle = document.createElement('small');
-  subtitle.textContent = `Episódio ${cleanEpisode(row.current_episode)} · ${Math.round(row.progress_percent || 0)}%`;
-  const progress = document.createElement('span');
-  progress.className = 'card-progress';
-  const fill = document.createElement('span');
-  fill.style.width = `${Math.max(0, Math.min(100, row.progress_percent || 0))}%`;
-  progress.append(fill);
-  body.append(title, subtitle, progress);
-  button.append(image, body);
-  button.addEventListener('click', () => resumePlayback(row));
-  return button;
-}
-
-async function resumePlayback(row) {
-  const anime = parseJson(row.anime_payload) || {
-    name: row.anime_title,
-    url: row.anime_id,
-    imageUrl: row.anime_cover,
-    source: row.source || 'AllAnime',
-    mediaType: 'anime'
-  };
-  const savedEpisode = parseJson(row.episode_payload) || {
-    number: String(row.current_episode),
-    num: Number(row.current_episode),
-    title: row.episode_title || ''
-  };
-
-  showLoading('Preparando episódio', 'Recuperando a lista e a posição salva...');
-  try {
-    const episodesResult = await animeDesk.animes.episodes({ anime, language: row.language });
-    const episodes = unwrap(episodesResult);
-    const index = findEpisodeIndex(episodes, savedEpisode);
-    const episode = episodes[index] || savedEpisode;
-    await launchEpisode({
-      anime,
-      episode,
-      episodes,
-      episodeIndex: Math.max(0, index),
-      language: row.language,
-      quality: row.quality,
-      resumePosition: row.playback_position
-    });
-  } catch (error) {
-    notifyError(error);
-  } finally {
-    hideLoading();
-  }
-}
-
-function renderCollectionCards(container, items, type, limit = 100) {
-  container.replaceChildren();
-  const rows = items.slice(0, limit);
-  if (!rows.length) {
-    container.append(
-      emptyState(
-        type === 'favorites' ? 'bi-heart' : 'bi-bookmark',
-        type === 'favorites' ? 'Nenhum favorito ainda.' : 'Sua lista está vazia.'
-      )
-    );
-    return;
-  }
-  rows.forEach((row) => {
-    const card = document.createElement('article');
-    card.className = 'library-card';
-    const image = createImage(row.anime_cover, row.anime_title);
-    const body = document.createElement('div');
-    body.className = 'library-card-body';
-    const title = document.createElement('strong');
-    title.textContent = row.anime_title;
-    const source = document.createElement('small');
-    source.textContent = row.provider_id === 'goanime-gui' ? 'GoAnime GUI' : row.provider_id;
-    body.append(title, source);
-    const actions = document.createElement('div');
-    actions.className = 'card-overlay-actions';
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.title = 'Remover';
-    remove.innerHTML = '<i class="bi bi-x-lg"></i>';
-    remove.addEventListener('click', async (event) => {
-      event.stopPropagation();
-      const payload = collectionPayload(parseJson(row.anime_payload) || {}, row);
-      const result =
-        type === 'favorites'
-          ? await animeDesk.favorites.toggle(payload)
-          : await animeDesk.watchlist.toggle(payload);
-      if (result.ok) {
-        await renderLists();
-        await hydrateDashboard();
-      }
-    });
-    actions.append(remove);
-    card.append(image, body, actions);
-    card.addEventListener('click', () => openCollectionAnime(row));
-    container.append(card);
-  });
-}
-
-async function openCollectionAnime(row) {
-  const anime = parseJson(row.anime_payload);
-  if (!anime?.url) {
-    showToast({
-      title: 'Dados incompletos',
-      message: 'Pesquise o anime novamente.',
-      variant: 'warning'
-    });
-    return;
-  }
-  showView('search');
-  await selectAnime(anime);
-}
-
-function renderHistoryPreview(container, items, limit = 100) {
-  container.replaceChildren();
-  const rows = items.slice(0, limit);
-  if (!rows.length) {
-    container.append(emptyState('bi-clock-history', 'Nenhuma reprodução registrada.'));
-    return;
-  }
-  rows.forEach((row) => container.append(createHistoryItem(row, false)));
-}
-
-function createHistoryItem(row, full = true) {
-  const item = document.createElement('article');
-  item.className = 'history-item';
-  item.append(createImage(row.anime_cover, row.anime_title));
-  const meta = document.createElement('div');
-  meta.className = 'history-item-meta';
-  const title = document.createElement('strong');
-  title.textContent = row.anime_title;
-  const subtitle = document.createElement('span');
-  subtitle.textContent = `Episódio ${cleanEpisode(row.episode_number)} · ${row.completed ? 'Concluído' : `${Math.round(row.progress_percent || 0)}%`}`;
-  meta.append(title, subtitle);
-  const actions = document.createElement('div');
-  actions.className = 'history-item-actions';
-  const resume = iconButton('bi-play-fill', 'Assistir');
-  resume.addEventListener('click', () => resumeHistory(row));
-  actions.append(resume);
-  if (full) {
-    const complete = iconButton(
-      row.completed ? 'bi-arrow-counterclockwise' : 'bi-check2',
-      row.completed ? 'Marcar não concluído' : 'Marcar concluído'
-    );
-    complete.addEventListener('click', async () => {
-      await animeDesk.history.markCompleted(row.id, !row.completed);
-      await renderHistory();
-      await hydrateDashboard();
-    });
-    const remove = iconButton('bi-trash', 'Remover');
-    remove.addEventListener('click', async () => {
-      await animeDesk.history.remove(row.id);
-      await renderHistory();
-      await hydrateDashboard();
-    });
-    actions.append(complete, remove);
-  }
-  item.append(meta, actions);
-  return item;
-}
-
-async function resumeHistory(row) {
-  await resumePlayback({
-    ...row,
-    current_episode: row.episode_number,
-    updated_at: row.watched_at
-  });
-}
-
-function bindSearch() {
-  $('anime-search-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const query = $('anime-search').value.trim();
-    const provider = $('provider-filter').value;
-    if (query.length < 2) return;
-
-    if (provider !== 'goanime-gui') {
-      showLoading('Abrindo provedor', 'A seleção continuará no terminal do provedor escolhido...');
-      try {
-        unwrap(
-          await animeDesk.player.openLegacy({
-            query,
-            provider,
-            language: $('language-filter').value,
-            quality: $('quality-filter').value
-          })
-        );
-      } catch (error) {
-        notifyError(error);
-      } finally {
-        hideLoading();
-      }
-      return;
-    }
-
-    showLoading('Pesquisando', 'Consultando as fontes do GoAnime...');
-    try {
-      state.results = unwrap(
-        await animeDesk.animes.search({ query, language: $('language-filter').value })
-      );
-      renderSearchResults();
-    } catch (error) {
-      notifyError(error);
-    } finally {
-      hideLoading();
-    }
-  });
-
-  $('provider-filter').addEventListener('change', () => {
-    updateSelectedProviderStatus();
-    deferTask(hydratePlayerStatus, 80);
-  });
-  $('back-to-results-button').addEventListener('click', () => {
-    $('episodes-section').classList.add('d-none');
-    $('search-results-section').classList.remove('d-none');
-  });
-  $('episode-filter').addEventListener('input', renderEpisodes);
-}
-
-function renderSearchResults() {
-  const container = $('anime-results');
-  container.replaceChildren();
-  $('search-results-title').textContent = `Resultados para “${$('anime-search').value.trim()}”`;
-  $('result-count').textContent = `${state.results.length} resultado(s)`;
-  $('search-results-section').classList.remove('d-none');
-  $('episodes-section').classList.add('d-none');
-
-  if (!state.results.length) {
-    container.append(emptyState('bi-search', 'Nenhum anime foi encontrado.'));
-    return;
-  }
-
-  state.results.forEach((anime) => container.append(createAnimeCard(anime)));
-}
-
-function createAnimeCard(anime) {
-  const card = document.createElement('article');
-  card.className = 'anime-card';
-  card.append(createImage(anime.imageUrl, anime.name));
-  const body = document.createElement('div');
-  body.className = 'anime-card-body';
-  const title = document.createElement('strong');
-  title.textContent = anime.name;
-  const badges = document.createElement('div');
-  badges.className = 'anime-card-badges';
-  [anime.source, anime.year, anime.averageScore ? `${anime.averageScore}%` : '']
-    .filter(Boolean)
-    .forEach((text) => badges.append(badge(text)));
-  body.append(title, badges);
-  card.append(body);
-
-  const action = () => selectAnime(anime);
-  if (isProtectedAnime(anime) && !parentalUnlocked()) {
-    const lock = document.createElement('div');
-    lock.className = 'content-lock';
-    lock.innerHTML = '<i class="bi bi-lock-fill me-2"></i> Protegido';
-    card.append(lock);
-    card.addEventListener('click', () => requestParentalUnlock(action));
-  } else {
-    card.addEventListener('click', action);
-  }
-  return card;
-}
-
-async function selectAnime(anime) {
-  state.selectedAnime = anime;
-  showLoading('Carregando episódios', 'Consultando a fonte selecionada...');
-  try {
-    state.episodes = unwrap(
-      await animeDesk.animes.episodes({ anime, language: $('language-filter').value })
-    );
-    $('search-results-section').classList.add('d-none');
-    $('episodes-section').classList.remove('d-none');
-    renderSelectedAnime();
-    renderEpisodes();
-    await hydrateCollectionButtons();
-  } catch (error) {
-    state.lastIssue = {
-      anime,
-      episode: { number: 1, num: 1 },
-      errorCode: error.code,
-      technicalError: error.technicalMessage || error.message
-    };
-    notifyError(error);
-  } finally {
-    hideLoading();
-  }
-}
-
-function renderSelectedAnime() {
-  const anime = state.selectedAnime;
-  $('selected-anime-image').src = anime.imageUrl || fallbackCover;
-  $('selected-anime-image').alt = anime.name;
-  $('selected-anime-title').textContent = anime.name;
-  $('selected-anime-description').textContent =
-    stripHtml(anime.description) || 'Sem sinopse disponível.';
-  const badges = $('selected-anime-badges');
-  badges.replaceChildren();
-  [anime.source, anime.year, ...(anime.genres || []).slice(0, 4)]
-    .filter(Boolean)
-    .forEach((text) => badges.append(badge(text)));
-}
-
-function renderEpisodes() {
-  const query = $('episode-filter').value.trim().toLowerCase();
-  const rows = state.episodes.filter((episode) => {
-    const text = `${episode.number} ${episode.title}`.toLowerCase();
-    return !query || text.includes(query);
-  });
-  $('episodes-count').textContent = `${state.episodes.length} episódio(s)`;
-  const container = $('episode-grid');
-  container.replaceChildren();
-  rows.forEach((episode) => {
-    const index = state.episodes.indexOf(episode);
-    const button = document.createElement('button');
-    button.className = 'episode-card';
-    button.type = 'button';
-    const label = document.createElement('span');
-    label.textContent = `Episódio ${cleanEpisode(episode.number)}`;
-    const title = document.createElement('strong');
-    title.textContent = episode.title || `Episódio ${cleanEpisode(episode.number)}`;
-    const meta = document.createElement('small');
-    meta.textContent = [episode.isFiller ? 'Filler' : '', episode.aired || '']
-      .filter(Boolean)
-      .join(' · ');
-    button.append(label, title, meta);
-    button.addEventListener('click', () =>
-      launchEpisode({
-        anime: state.selectedAnime,
-        episode,
-        episodes: state.episodes,
-        episodeIndex: index,
-        language: $('language-filter').value,
-        quality: $('quality-filter').value,
-        resumePosition: 0
-      })
-    );
-    container.append(button);
-  });
-  if (!rows.length)
-    container.append(emptyState('bi-list-ol', 'Nenhum episódio corresponde ao filtro.'));
-}
-
-async function launchEpisode(payload) {
-  showLoading('Preparando reprodução', 'Resolvendo a melhor fonte disponível...');
-  state.lastIssue = null;
-
-  try {
-    const result = unwrap(await animeDesk.player.playEpisode(payload));
-    state.playback = {
-      ...result,
-      context: {
-        anime: payload.anime,
-        episode: payload.episode,
-        episodes: payload.episodes,
-        episodeIndex: payload.episodeIndex,
-        language: payload.language,
-        quality: payload.quality
-      }
-    };
-
-    if (result.embedded && result.streamUrl) {
-      await startEmbeddedPlayback(result, payload);
-    }
-
-    showToast({
-      title: result.fallbackUsed ? 'Fonte alternativa utilizada' : 'Reprodução iniciada',
-      message: result.fallbackUsed
-        ? `Reproduzindo por ${result.source || 'outra fonte'} em ${result.quality || 'melhor qualidade'}.`
-        : result.embedded
-          ? 'O episódio foi aberto no player embutido opcional.'
-          : 'O episódio foi aberto em uma janela externa do MPV.',
-      variant: result.fallbackUsed ? 'warning' : 'success'
-    });
-  } catch (error) {
-    state.lastIssue = {
-      anime: payload.anime,
-      episode: payload.episode,
-      language: payload.language,
-      quality: payload.quality,
-      source: payload.anime?.source,
-      errorCode: error.code,
-      technicalError: error.technicalMessage || error.message
-    };
-    notifyError(error);
-  } finally {
-    hideLoading();
-  }
-}
-
-async function hydrateCollectionButtons() {
-  const payload = collectionPayload(state.selectedAnime);
-  const result = await animeDesk.library.collectionState(payload);
-  if (!result.ok) return;
-  setCollectionButton($('favorite-button'), result.data.favorite, 'favorite');
-  setCollectionButton($('watchlist-button'), result.data.watchlist, 'watchlist');
-}
-
-function bindCollections() {
-  $('favorite-button').addEventListener('click', async () => {
-    if (!state.selectedAnime) return;
-    const result = await animeDesk.favorites.toggle(collectionPayload(state.selectedAnime));
-    if (result.ok) {
-      setCollectionButton($('favorite-button'), result.data.active, 'favorite');
-      await hydrateDashboard();
-    }
-  });
-  $('watchlist-button').addEventListener('click', async () => {
-    if (!state.selectedAnime) return;
-    const result = await animeDesk.watchlist.toggle(collectionPayload(state.selectedAnime));
-    if (result.ok) {
-      setCollectionButton($('watchlist-button'), result.data.active, 'watchlist');
-      await hydrateDashboard();
-    }
-  });
-  document.querySelectorAll('[data-list-tab]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.currentListTab = button.dataset.listTab;
-      document
-        .querySelectorAll('[data-list-tab]')
-        .forEach((item) => item.classList.toggle('is-active', item === button));
-      $('favorites-list').classList.toggle('d-none', state.currentListTab !== 'favorites');
-      $('watchlist-list').classList.toggle('d-none', state.currentListTab !== 'watchlist');
-    });
-  });
-  $('history-search').addEventListener('input', debounce(renderHistory, 250));
-  $('export-history-button').addEventListener('click', exportHistoryCsv);
-  $('clear-history-button').addEventListener('click', async () => {
-    if (
-      !window.confirm(
-        'Limpar todo o histórico deste usuário? Favoritos e configurações serão preservados.'
-      )
-    )
-      return;
-    await animeDesk.history.clear();
-    await renderHistory();
-    await hydrateDashboard();
-  });
-}
-
-async function renderContinueView() {
-  const result = await animeDesk.library.continueWatching();
-  if (result.ok) renderContinueCards($('continue-list'), result.data, 100);
-}
-
-async function renderLists() {
-  const [favorites, watchlist] = await Promise.all([
-    animeDesk.favorites.list(),
-    animeDesk.watchlist.list()
-  ]);
-  if (favorites.ok) renderCollectionCards($('favorites-list'), favorites.data, 'favorites');
-  if (watchlist.ok) renderCollectionCards($('watchlist-list'), watchlist.data, 'watchlist');
-}
-
-async function renderHistory() {
-  const result = await animeDesk.history.list({ query: $('history-search').value, limit: 300 });
-  if (!result.ok) return;
-  const container = $('history-list');
-  container.replaceChildren();
-  if (!result.data.length) {
-    container.append(emptyState('bi-clock-history', 'Nenhum item no histórico.'));
-    return;
-  }
-  result.data.forEach((row) => container.append(createHistoryItem(row, true)));
-}
-
-async function exportHistoryCsv() {
-  const result = await animeDesk.history.exportCsv({
-    query: $('history-search').value,
-    limit: 5000
-  });
-  if (!result.ok) {
-    notifyResultError(result);
-    return;
-  }
-  downloadTextFile(result.data.fileName, result.data.csv, result.data.mimeType);
-  showToast({
-    title: 'Historico exportado',
-    message: 'O CSV foi gerado com os itens filtrados.',
-    variant: 'success'
-  });
-}
-
-function bindPlayer() {
-  $('embedded-player-close').addEventListener('click', () => {
-    const video = $('embedded-video');
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-    $('embedded-player-status').textContent = 'Player embutido fechado.';
-    $('embedded-player').classList.add('is-hidden');
-  });
-  $('embedded-video').addEventListener('error', () => {
-    $('embedded-player-status').textContent =
-      'O Chromium recusou este stream. Use MPV externo ou outra fonte.';
-    showToast({
-      title: 'Player embutido',
-      message: 'Stream incompatível com o Chromium. O MPV externo continua recomendado.',
-      variant: 'warning'
-    });
-  });
-  $('player-toggle').addEventListener('click', async () => {
-    const result = await animeDesk.player.togglePause();
-    if (!result.ok) notifyResultError(result);
-  });
-  $('player-previous').addEventListener('click', async () =>
-    notifyResult(await animeDesk.player.previous())
-  );
-  $('player-next').addEventListener('click', async () =>
-    notifyResult(await animeDesk.player.next())
-  );
-  $('player-stop').addEventListener('click', async () =>
-    notifyResult(await animeDesk.player.stop())
-  );
-  $('player-queue-button').addEventListener('click', async () => {
-    await renderPlaybackQueue();
-    modals.queue.show();
-  });
-  $('player-progress').addEventListener('change', async () => {
-    const duration = Number(state.playback?.duration || 0);
-    if (duration <= 0) return;
-    await animeDesk.player.seek((Number($('player-progress').value) / 100) * duration, 'absolute');
-  });
-  $('player-volume').addEventListener(
-    'input',
-    debounce(async () => {
-      await animeDesk.player.setVolume(Number($('player-volume').value));
-    }, 100)
-  );
-  $('report-episode-button').addEventListener('click', openReportModal);
-}
-
 function subscribeEvents() {
-  animeDesk.player.onStateChanged((playerState) => renderPlayerState(playerState));
+  animeDesk.player.onStateChanged((playerState) => {
+    void getPlayerFeature().then((feature) => feature.render(playerState));
+  });
   animeDesk.player.onPlaybackStarted((payload) => {
     state.playback = payload;
     void hydrateDashboard();
   });
-  animeDesk.player.onSourceProgress(handleSourceProgress);
-  animeDesk.player.onInstallationProgress(handleInstallationProgress);
-  animeDesk.diagnostics.onProgress((event) => appendDiagnosticLog(event.message));
-  animeDesk.updates.onStateChanged(handleUpdateState);
-}
-
-function handleSourceProgress(progress) {
-  const message = progress?.message || 'Consultando fontes...';
-  if (!$('loading-overlay').classList.contains('d-none')) {
-    $('loading-message').textContent = message;
-  }
-  const status = $('selected-provider-status');
-  status.querySelector('.status-dot').className = 'status-dot is-checking';
-  status.querySelector('span:last-child').textContent = message;
-}
-
-async function hydratePlaybackState() {
-  const result = await animeDesk.player.playbackState();
-  if (result.ok) renderPlayerState(result.data);
-}
-
-function renderPlayerState(playerState) {
-  state.playback = { ...(state.playback || {}), ...playerState };
-  const active = Boolean(playerState.active || playerState.paused);
-  $('mini-player').classList.toggle('is-hidden', !active);
-  if (!active) {
-    return;
-  }
-  const context = playerState.context || state.playback?.context || {};
-  const anime = context.anime || {};
-  const episode = context.episode || {};
-  $('player-cover').src = anime.imageUrl || fallbackCover;
-  $('player-title').textContent = anime.name || playerState.animeTitle || 'Reproduzindo';
-  $('player-subtitle').textContent =
-    `Episódio ${cleanEpisode(episode.number || playerState.episodeNumber)} · ${playerState.quality || context.quality || ''}`;
-  $('player-source').textContent = playerState.source || anime.source || 'GoAnime';
-  $('player-current-time').textContent = formatTime(playerState.position);
-  $('player-duration').textContent = formatTime(playerState.duration);
-  $('player-progress').value =
-    playerState.duration > 0 ? (playerState.position / playerState.duration) * 100 : 0;
-  $('player-volume').value = Number(playerState.volume ?? 80);
-  $('player-toggle').querySelector('i').className = playerState.paused
-    ? 'bi bi-play-fill'
-    : 'bi bi-pause-fill';
-}
-
-async function renderPlaybackQueue() {
-  const result = await animeDesk.player.queue();
-  const container = $('playback-queue-list');
-  container.replaceChildren();
-  if (!result.ok || !result.data?.items?.length) {
-    container.append(emptyState('bi-list-ol', 'Nenhuma fila ativa.'));
-    return;
-  }
-
-  const { items, currentIndex } = result.data;
-  items.forEach((episode, index) => {
-    const item = document.createElement('article');
-    item.className = 'queue-item';
-    item.classList.toggle('is-current', index === currentIndex);
-    const text = document.createElement('div');
-    const title = document.createElement('strong');
-    title.textContent = episode.title || `Episodio ${cleanEpisode(episode.number)}`;
-    const meta = document.createElement('small');
-    meta.textContent =
-      index === currentIndex
-        ? 'Reproduzindo agora'
-        : `Episodio ${cleanEpisode(episode.number || episode.num)}`;
-    text.append(title, meta);
-    const actions = document.createElement('div');
-    actions.className = 'queue-actions';
-    const up = iconButton('bi-arrow-up', 'Subir na fila');
-    up.disabled = index <= 0;
-    up.addEventListener('click', () => moveQueueItem(index, index - 1));
-    const down = iconButton('bi-arrow-down', 'Descer na fila');
-    down.disabled = index >= items.length - 1;
-    down.addEventListener('click', () => moveQueueItem(index, index + 1));
-    actions.append(up, down);
-    item.append(text, actions);
-    container.append(item);
+  animeDesk.player.onSourceProgress((progress) => {
+    void getPlayerFeature().then((feature) => feature.handleSourceProgress(progress));
   });
-}
-
-async function moveQueueItem(fromIndex, toIndex) {
-  const result = await animeDesk.player.reorderQueue({ fromIndex, toIndex });
-  if (!result.ok) {
-    notifyResultError(result);
-    return;
-  }
-  await renderPlaybackQueue();
+  animeDesk.player.onInstallationProgress(handleInstallationProgress);
+  animeDesk.diagnostics.onProgress((event) => {
+    void getMaintenanceFeature().then((feature) => feature.appendLog(event.message));
+  });
+  animeDesk.updates.onStateChanged((update) => {
+    void getMaintenanceFeature().then((feature) => feature.handleUpdateState(update));
+  });
 }
 
 function bindTools() {
@@ -1129,7 +760,7 @@ function bindSettings() {
     }
     state.settings = result.data;
     applyTheme(result.data.theme);
-    applyInterfaceLanguage(result.data.interfaceLanguage || 'pt-BR');
+    applyLanguage(result.data.interfaceLanguage || 'pt-BR');
     applySettingsToSearch();
     showToast({
       title: 'Configurações salvas',
@@ -1156,7 +787,7 @@ async function hydrateSettings() {
   state.settings = result.data;
   renderSettingsForm(result.data);
   applyTheme(result.data.theme);
-  applyInterfaceLanguage(result.data.interfaceLanguage || 'pt-BR');
+  applyLanguage(result.data.interfaceLanguage || 'pt-BR');
   applySettingsToSearch();
 }
 
@@ -1177,6 +808,7 @@ function renderSettingsForm(settings) {
   $('setting-updates').checked = settings.checkUpdates !== false;
   $('setting-telemetry').checked = Boolean(settings.localTelemetryEnabled);
   $('setting-startup-metrics').checked = Boolean(settings.startupMetricsEnabled);
+  $('setting-startup-retention').value = String(settings.startupMetricsRetentionDays ?? 30);
   $('setting-parental').checked = Boolean(settings.parentalControlEnabled);
   $('setting-rating').value = settings.maxContentRating || '18';
   $('parental-pin-status').textContent = settings.parentalPinConfigured
@@ -1200,6 +832,7 @@ function readSettingsForm() {
     checkUpdates: $('setting-updates').checked,
     localTelemetryEnabled: $('setting-telemetry').checked,
     startupMetricsEnabled: $('setting-startup-metrics').checked,
+    startupMetricsRetentionDays: Number($('setting-startup-retention').value),
     parentalControlEnabled: $('setting-parental').checked,
     maxContentRating: $('setting-rating').value
   };
@@ -1227,766 +860,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   if (state.settings?.theme === 'system') applyTheme('system');
 });
 
-function bindDiagnostics() {
-  $('provider-health-button').addEventListener('click', hydrateProviderHealth);
-  $('run-diagnostics-button').addEventListener('click', runMaintenanceCheck);
-  $('export-diagnostics-button').addEventListener('click', async () =>
-    notifyResult(await animeDesk.diagnostics.export())
-  );
-  $('check-updates-button').addEventListener('click', () => checkUpdates(true));
-  $('updates-button').addEventListener('click', () => {
-    if (['available', 'downloading', 'downloaded'].includes(state.update?.state)) {
-      state.updateBannerDismissed = false;
-      renderUpdateBanner(state.update);
-      return;
-    }
-    void checkUpdates(true);
-  });
-  $('install-update-button').addEventListener('click', installDownloadedUpdate);
-  $('dismiss-update-button').addEventListener('click', () => {
-    state.updateBannerDismissed = true;
-    $('update-banner').classList.add('d-none');
-  });
-  $('repair-native-button').addEventListener('click', async () => {
-    appendDiagnosticLog('Iniciando reconstrução do better-sqlite3...');
-    notifyResult(await animeDesk.diagnostics.repairNative());
-    await runDiagnostics();
-  });
-  $('clear-cache-button').addEventListener('click', async () => {
-    notifyResult(await animeDesk.diagnostics.clearCache());
-    await runDiagnostics();
-  });
-  $('restore-components-button').addEventListener('click', async () => {
-    if (
-      !window.confirm(
-        'Restaurar os componentes locais? Histórico e configurações serão preservados.'
-      )
-    )
-      return;
-    await preserveThemeAround(async () => {
-      notifyResult(await animeDesk.diagnostics.restoreComponents());
-      await hydratePlayerStatus();
-      await runDiagnostics();
-      await hydrateProviderHealth();
-      await checkUpdates(false);
-    });
-  });
-  document.querySelectorAll('[data-repair-provider]').forEach((button) => {
-    button.addEventListener('click', () => startInstallation(button.dataset.repairProvider));
-  });
-}
-
-async function hydrateProviderHealth() {
-  const dot = $('provider-health-dot');
-  dot.className = 'status-dot is-checking';
-  $('provider-health-summary').textContent = 'Verificando provedores';
-  const result = await animeDesk.providers.health();
-  if (!result.ok) {
-    dot.className = 'status-dot is-offline';
-    $('provider-health-summary').textContent = 'Falha na verificação';
-    return;
-  }
-  const online = result.data.providers.filter((provider) => provider.state === 'online').length;
-  const unstable = result.data.providers.filter((provider) => provider.state === 'unstable').length;
-  dot.className = `status-dot ${online >= 2 ? 'is-online' : online ? 'is-warning' : 'is-offline'}`;
-  $('provider-health-summary').textContent =
-    `${online} online${unstable ? ` · ${unstable} instável` : ''}`;
-  showToast({
-    title: 'Saúde dos provedores',
-    message: result.data.providers
-      .map((provider) => `${provider.name}: ${provider.message}`)
-      .join(' | '),
-    variant: online ? 'info' : 'warning'
-  });
-}
-
-function renderDiagnosticsIdleState() {
-  const container = $('diagnostic-grid');
-  if (container.children.length > 0) return;
-  container.append(
-    diagnosticCard('Pronto para verificar', [
-      ['Tema', state.settings?.theme || document.body.dataset.theme || 'dark'],
-      ['Ação', 'Clique em Verificar sistema'],
-      ['Escopo', 'Sistema, provedores e atualizações']
-    ])
-  );
-  $('diagnostic-log').textContent =
-    'Aguardando verificação manual para evitar travamento ao abrir.';
-}
-
-async function runMaintenanceCheck() {
-  await preserveThemeAround(async () => {
-    appendDiagnosticLog('Verificação manual iniciada. O tema atual será preservado.');
-    appendDiagnosticLog('Restaurando componentes locais sem alterar tema, histórico ou perfis...');
-    notifyResult(await animeDesk.diagnostics.restoreComponents());
-    await runDiagnostics();
-    await hydrateProviderHealth();
-    await hydratePlayerStatus();
-    await checkUpdates(false);
-    appendDiagnosticLog('Sistema, provedores e atualizações verificados. Tema preservado.');
-  });
-}
-
-async function preserveThemeAround(action) {
-  const theme = state.settings?.theme || document.body.dataset.theme || 'dark';
-  try {
-    return await action();
-  } finally {
-    applyTheme(theme);
-    if (state.settings) state.settings.theme = theme;
-    const field = $('setting-theme');
-    if (field) field.value = theme;
-  }
-}
-
-async function runDiagnostics() {
-  const result = await animeDesk.diagnostics.run();
-  if (!result.ok) {
-    notifyResultError(result);
-    return;
-  }
-  const report = result.data;
-  const container = $('diagnostic-grid');
-  container.replaceChildren();
-  container.append(
-    diagnosticCard('Aplicativo', [
-      ['Versão', report.app.version],
-      ['Electron', report.app.electron],
-      ['Node', report.app.node],
-      ['Modo', report.app.packaged ? 'Instalado' : 'Desenvolvimento']
-    ]),
-    diagnosticCard('Banco local', [
-      ['Modo', report.database.mode],
-      ['Módulo nativo', report.database.nativeModule],
-      ['Arquivo', report.database.exists ? 'Encontrado' : 'Ausente']
-    ]),
-    diagnosticCard('GoAnime', [
-      ['GUI', report.providers.goAnime.ready ? 'Pronto' : 'Reparo necessário'],
-      ['Clássico', report.providers.goAnime.classicReady ? 'Pronto' : 'Indisponível'],
-      ['Bridge', report.providers.goAnime.bridge?.version || 'Não instalado'],
-      ['MPV', report.dependencies.mpv.available ? 'Encontrado' : 'Ausente']
-    ]),
-    diagnosticCard('Ferramentas', [
-      ['anime-cli-br', report.providers.animeCliBr.ready ? 'Pronto' : 'Indisponível'],
-      ['ani-cli', report.providers.aniCli.ready ? 'Experimental' : 'Indisponível'],
-      ['FAST Anime VSR', report.tools.fastAnimeVsr.ready ? 'Pronto' : 'Não preparado']
-    ]),
-    diagnosticCard('Telemetria local', [
-      ['Estado', report.telemetry?.enabled ? 'Ativa' : 'Desativada'],
-      ['Falhas recentes', report.telemetry?.recentFailures?.length || 0]
-    ]),
-    diagnosticCard('Tempo de abertura', [
-      ['Estado', report.startupPerformance?.enabled ? 'Ativo' : 'Desativado'],
-      ['Amostras', report.startupPerformance?.count || 0],
-      ['Média da interface', formatDuration(report.startupPerformance?.averageShellMs)],
-      ['Média dos dados principais', formatDuration(report.startupPerformance?.averageCoreMs)]
-    ])
-  );
-  appendDiagnosticLog(
-    `Verificação concluída em ${new Date(report.checkedAt).toLocaleString('pt-BR')}.`
-  );
-}
-
-function diagnosticCard(title, rows) {
-  const card = document.createElement('article');
-  card.className = 'diagnostic-card';
-  const header = document.createElement('header');
-  const heading = document.createElement('strong');
-  heading.textContent = title;
-  header.append(heading);
-  const list = document.createElement('dl');
-  rows.forEach(([term, value]) => {
-    const row = document.createElement('div');
-    const dt = document.createElement('dt');
-    dt.textContent = term;
-    const dd = document.createElement('dd');
-    dd.textContent = String(value);
-    row.append(dt, dd);
-    list.append(row);
-  });
-  card.append(header, list);
-  return card;
-}
-
-function appendDiagnosticLog(message) {
-  if (!message) return;
-  const current =
-    $('diagnostic-log').textContent === 'Aguardando verificação...'
-      ? ''
-      : $('diagnostic-log').textContent;
-  $('diagnostic-log').textContent =
-    `${current}${current ? '\n' : ''}${new Date().toLocaleTimeString('pt-BR')}  ${message}`;
-  $('diagnostic-log').scrollTop = $('diagnostic-log').scrollHeight;
-}
-
-function formatDuration(value) {
-  const milliseconds = Number(value || 0);
-  return milliseconds > 0 ? `${milliseconds.toLocaleString('pt-BR')} ms` : 'Sem amostras';
-}
-
-async function hydrateUpdateStatus() {
-  const result = await animeDesk.updates.status();
-  if (!result.ok) return;
-  handleUpdateState(result.data, false);
-}
-
-async function checkUpdates(showFeedback) {
-  const result = await animeDesk.updates.check();
-  if (!result.ok) {
-    if (showFeedback) notifyResultError(result);
-    return;
-  }
-  handleUpdateState(result.data, showFeedback);
-}
-
-async function installDownloadedUpdate() {
-  const button = $('install-update-button');
-  button.disabled = true;
-  button.innerHTML = '<span class="neon-spinner neon-spinner-sm"></span> Reiniciando...';
-  const result = await animeDesk.updates.install();
-  if (!result.ok || !result.data?.installed) {
-    button.disabled = false;
-    button.innerHTML = '<i class="bi bi-arrow-repeat"></i> Instalar e reiniciar';
-    notifyResult(result);
-  }
-}
-
-function handleUpdateState(update, showFeedback = false) {
-  if (!update) return;
-  const previousState = state.update?.state;
-  const previousVersion = state.update?.info?.version;
-  const incomingVersion = update.info?.version;
-  if (incomingVersion && incomingVersion !== previousVersion) state.updateBannerDismissed = false;
-  if (update.state === 'downloaded' && previousState !== 'downloaded') {
-    state.updateBannerDismissed = false;
-  }
-  state.update = update;
-
-  const available = ['available', 'downloading', 'downloaded'].includes(update.state);
-  $('update-notification').classList.toggle('d-none', !available);
-  renderUpdateBanner(update);
-
-  const messages = {
-    development: update.message,
-    checking: 'Procurando uma nova versão no GitHub...',
-    available: `Nova versão ${formatUpdateVersion(update)} encontrada. O download foi iniciado.`,
-    downloading: `Baixando atualização: ${Math.round(update.progress?.percent || 0)}%`,
-    downloaded: `A versão ${formatUpdateVersion(update)} está pronta para instalar.`,
-    'not-available': 'Você já está usando a versão mais recente.',
-    error: update.message || 'Não foi possível verificar atualizações.'
-  };
-
-  const isNewImportantState =
-    ['available', 'downloaded', 'error'].includes(update.state) &&
-    (previousState !== update.state || previousVersion !== update.info?.version);
-
-  if (!showFeedback && !isNewImportantState) return;
-  showToast({
-    title: 'Atualizações',
-    message: messages[update.state] || 'Estado de atualização recebido.',
-    variant:
-      update.state === 'error'
-        ? 'error'
-        : update.state === 'downloaded'
-          ? 'success'
-          : update.state === 'not-available'
-            ? 'success'
-            : 'info'
-  });
-}
-
-function renderUpdateBanner(update) {
-  const banner = $('update-banner');
-  const visibleState = ['available', 'downloading', 'downloaded'].includes(update?.state);
-  if (!visibleState || state.updateBannerDismissed) {
-    banner.classList.add('d-none');
-    return;
-  }
-
-  banner.classList.remove('d-none');
-  const version = formatUpdateVersion(update);
-  $('update-banner-version').textContent = version;
-  $('update-banner-title').textContent =
-    update.state === 'downloaded' ? 'Atualização pronta para instalar' : 'Nova versão disponível';
-
-  const percent = Math.max(0, Math.min(100, Math.round(update.progress?.percent || 0)));
-  const progressVisible = update.state === 'downloading';
-  $('update-progress-wrap').classList.toggle('d-none', !progressVisible);
-  $('update-progress-bar').style.width = `${percent}%`;
-  $('update-progress-label').textContent = `${percent}%`;
-
-  const messages = {
-    available: 'O download foi iniciado em segundo plano. Você pode continuar usando o aplicativo.',
-    downloading: `Baixando os arquivos da versão ${version}.`,
-    downloaded:
-      'Clique em Instalar e reiniciar, ou feche o aplicativo para atualizar automaticamente.'
-  };
-  $('update-banner-message').textContent = messages[update.state] || 'Preparando atualização...';
-
-  const notes = String(update.info?.releaseNotes || '').trim();
-  $('update-release-notes-wrap').classList.toggle('d-none', !notes);
-  $('update-release-notes').textContent = notes;
-  $('install-update-button').classList.toggle('d-none', update.state !== 'downloaded');
-}
-
-function formatUpdateVersion(update) {
-  const version = String(update?.info?.version || '').trim();
-  return version ? `v${version.replace(/^v/i, '')}` : 'mais recente';
-}
-
-function bindBackup() {
-  $('export-library-button').addEventListener('click', async () => {
-    const result = await animeDesk.backup.exportLibrary();
-    if (!result.ok) return notifyResultError(result);
-    if (!result.data?.canceled) {
-      showToast({
-        title: 'Biblioteca exportada',
-        message: formatBackupSummary(result.data.summary),
-        variant: 'success'
-      });
-    }
-  });
-  $('import-library-button').addEventListener('click', async () => {
-    const replace = window.confirm(
-      'Deseja substituir a biblioteca atual? Clique em Cancelar para mesclar os dados.'
-    );
-    const result = await animeDesk.backup.importLibrary(replace ? 'replace' : 'merge');
-    if (!result.ok) return notifyResultError(result);
-    if (!result.data?.canceled) {
-      showToast({
-        title: 'Biblioteca restaurada',
-        message: formatBackupSummary(result.data.summary),
-        variant: 'success'
-      });
-      await hydrateDashboard();
-    }
-  });
-  $('export-profiles-button').addEventListener('click', async () => {
-    const password = window.prompt(
-      'Digite uma senha com pelo menos 8 caracteres para proteger o backup:'
-    );
-    if (!password) return;
-    const result = await animeDesk.backup.exportProfiles(password);
-    if (!result.ok) return notifyResultError(result);
-    if (!result.data?.canceled)
-      showToast({
-        title: 'Perfis protegidos',
-        message: `${result.data.profiles} perfil(is) exportado(s).`,
-        variant: 'success'
-      });
-  });
-  $('import-profiles-button').addEventListener('click', async () => {
-    const password = window.prompt('Digite a senha do backup criptografado:');
-    if (!password) return;
-    const result = await animeDesk.backup.importProfiles(password);
-    if (!result.ok) return notifyResultError(result);
-    if (!result.data?.canceled) {
-      showToast({
-        title: 'Perfis restaurados',
-        message: `${result.data.createdProfiles} criado(s) e ${result.data.updatedProfiles} atualizado(s). Tema preservado.`,
-        variant: 'success'
-      });
-      applyTheme(state.settings?.theme || document.body.dataset.theme || 'dark');
-    }
-  });
-  $('schedule-profiles-button').addEventListener('click', scheduleProfilesBackup);
-  $('run-scheduled-backup-button').addEventListener('click', runScheduledProfilesBackup);
-  $('validate-profiles-backup-button').addEventListener('click', validateProfilesBackup);
-  $('clear-app-cache-button').addEventListener('click', async () => {
-    if (!window.confirm('Limpar resultados, capas e avatares armazenados localmente?')) return;
-    notifyResult(await animeDesk.cache.clear());
-    await hydrateCacheSummary();
-  });
-}
-
-async function hydrateCacheSummary() {
-  const result = await animeDesk.cache.stats();
-  if (!result.ok) return;
-  const entries = (result.data.entries || []).reduce(
-    (total, item) => total + Number(item.total || 0),
-    0
-  );
-  const bytes = (result.data.disk || []).reduce(
-    (total, item) => total + Number(item.bytes || 0),
-    0
-  );
-  $('cache-summary').textContent =
-    `${entries} resultado(s) em cache · ${formatBytes(bytes)} em capas e avatares.`;
-}
-
-async function startEmbeddedPlayback(result, payload) {
-  const video = $('embedded-video');
-  $('embedded-player-title').textContent =
-    `${payload.anime?.name || 'Anime'} · Episódio ${payload.episode?.number || ''}`;
-  $('embedded-player').classList.remove('is-hidden');
-  const metadata = result.streamMetadata || {};
-  const needsHeaders =
-    Boolean(metadata.referer) || String(metadata.requiresHeaders || '').toLowerCase() === 'true';
-  const hls = /\.m3u8(?:$|[?#])/i.test(result.streamUrl) || metadata.container === 'hls';
-  $('embedded-player-status').textContent =
-    needsHeaders || hls
-      ? translate('embeddedHeadersFallback')
-      : 'Stream carregado no player embutido.';
-  video.src = result.streamUrl;
-  video.volume = Math.max(0, Math.min(1, Number(state.settings?.playerVolume ?? 80) / 100));
-  video.currentTime = Number(result.resumedAt || 0);
-  await video.play();
-}
-
-async function scheduleProfilesBackup() {
-  const password = window.prompt('Digite uma senha com pelo menos 8 caracteres para a agenda:');
-  if (!password) return;
-  const cadence =
-    window.prompt('Frequência do backup: daily, weekly ou monthly', 'daily') || 'daily';
-  const result = await animeDesk.backup.scheduleProfiles({
-    password,
-    cadence: cadence.trim(),
-    validateRestore: true
-  });
-  if (!result.ok) return notifyResultError(result);
-  if (!result.data?.canceled) {
-    showToast({
-      title: 'Backup agendado',
-      message: 'A agenda criptografada foi salva e validará os arquivos automaticamente.',
-      variant: 'success'
-    });
-    await renderBackupSchedules();
-  }
-}
-
-async function runScheduledProfilesBackup() {
-  const result = await animeDesk.backup.runScheduledProfiles();
-  if (!result.ok) return notifyResultError(result);
-  if (result.data?.executed) {
-    showToast({
-      title: 'Backup agendado executado',
-      message: `${result.data.profiles} perfil(is) exportado(s) e validação concluída.`,
-      variant: 'success'
-    });
-    await renderBackupSchedules();
-  }
-}
-
-async function validateProfilesBackup() {
-  const password = window.prompt('Digite a senha do backup criptografado:');
-  if (!password) return;
-  const result = await animeDesk.backup.validateProfiles(password);
-  if (!result.ok) return notifyResultError(result);
-  if (!result.data?.canceled) {
-    showToast({
-      title: 'Backup validado',
-      message: `${result.data.profiles} perfil(is) lido(s). Nenhum dado foi restaurado.`,
-      variant: 'success'
-    });
-  }
-}
-
-async function renderBackupSchedules() {
-  if (state.session?.user?.role !== 'ADMIN' || !animeDesk.backup?.listSchedules) return;
-  const summary = $('backup-schedule-summary');
-  const result = await animeDesk.backup.listSchedules();
-  if (!result.ok) {
-    summary.textContent = 'Não foi possível carregar a agenda de backup.';
-    return;
-  }
-  const schedule = (result.data || [])[0];
-  if (!schedule) {
-    summary.textContent = 'Nenhum backup criptografado agendado.';
-    return;
-  }
-  const last = schedule.lastRunAt
-    ? new Date(schedule.lastRunAt).toLocaleString('pt-BR')
-    : 'ainda não executado';
-  summary.textContent = `Agenda: ${schedule.cadence} · pasta: ${schedule.targetPath} · último: ${last} · ${schedule.validateRestore ? 'validação ativa' : 'sem validação'}`;
-}
-
-async function runDueBackupsSilently() {
-  if (!animeDesk.backup?.runDue || state.session?.user?.role !== 'ADMIN') return;
-  try {
-    const result = await animeDesk.backup.runDue();
-    if (result.ok && result.data?.executed) await renderBackupSchedules();
-  } catch {
-    // Agenda de backup não deve atrasar a abertura.
-  }
-}
-
-function formatBackupSummary(summary = {}) {
-  return `${summary.favorites || 0} favorito(s), ${summary.watchlist || 0} item(ns) na lista, ${summary.history || 0} registro(s) de histórico e ${summary.playbackSessions || 0} progresso(s).`;
-}
-
-function bindTelemetry() {
-  $('telemetry-filter-button').addEventListener('click', () => {
-    state.telemetryPage = 1;
-    void renderTelemetry();
-  });
-  $('telemetry-query').addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      state.telemetryPage = 1;
-      void renderTelemetry();
-    }
-  });
-  $('telemetry-prev').addEventListener('click', () => {
-    if (state.telemetryPage > 1) {
-      state.telemetryPage -= 1;
-      void renderTelemetry();
-    }
-  });
-  $('telemetry-next').addEventListener('click', () => {
-    if (state.telemetryPage < state.telemetryPages) {
-      state.telemetryPage += 1;
-      void renderTelemetry();
-    }
-  });
-  $('clear-telemetry-button').addEventListener('click', async () => {
-    if (!window.confirm('Apagar todos os registros locais de telemetria deste perfil?')) return;
-    notifyResult(await animeDesk.diagnostics.clearFailures());
-    state.telemetryPage = 1;
-    await renderTelemetry();
-  });
-  $('export-telemetry-json').addEventListener('click', () => exportTelemetry('json'));
-  $('export-telemetry-csv').addEventListener('click', () => exportTelemetry('csv'));
-}
-
-function telemetryFilters() {
-  return {
-    page: state.telemetryPage,
-    pageSize: 25,
-    query: $('telemetry-query').value,
-    scope: $('telemetry-scope').value,
-    event: $('telemetry-event').value,
-    from: $('telemetry-from').value,
-    to: $('telemetry-to').value
-  };
-}
-
-async function renderTelemetry() {
-  const result = await animeDesk.diagnostics.listFailures(telemetryFilters());
-  if (!result.ok) return notifyResultError(result);
-  const data = result.data;
-  state.telemetryPages = data.pages || 1;
-  state.telemetryPage = Math.min(data.page || 1, state.telemetryPages);
-  populateTelemetryFacets(data.facets);
-  $('telemetry-summary').textContent =
-    `${data.total || 0} registro(s) encontrado(s). A telemetria fica somente neste computador.`;
-  $('telemetry-page').textContent = `Página ${state.telemetryPage} de ${state.telemetryPages}`;
-  $('telemetry-prev').disabled = state.telemetryPage <= 1;
-  $('telemetry-next').disabled = state.telemetryPage >= state.telemetryPages;
-  const container = $('telemetry-list');
-  container.replaceChildren();
-  if (!data.items?.length) {
-    container.append(emptyState('bi-activity', 'Nenhuma falha registrada com esses filtros.'));
-    return;
-  }
-  data.items.forEach((item) => container.append(createTelemetryItem(item)));
-}
-
-function populateTelemetryFacets(facets = {}) {
-  const fill = (select, rows, label) => {
-    const current = select.value;
-    select.replaceChildren(new Option(label, ''));
-    (rows || []).forEach((row) =>
-      select.append(new Option(`${row.value} (${row.total})`, row.value))
-    );
-    select.value = current;
-  };
-  fill($('telemetry-scope'), facets.scopes, 'Todos os contextos');
-  fill($('telemetry-event'), facets.events, 'Todos os eventos');
-}
-
-function createTelemetryItem(item) {
-  const article = document.createElement('article');
-  article.className = 'telemetry-item';
-  const header = document.createElement('header');
-  const title = document.createElement('div');
-  title.innerHTML = `<code>${escapeHtml(item.scope)}</code> · <strong>${escapeHtml(item.event)}</strong>`;
-  const time = document.createElement('small');
-  time.textContent = new Date(`${item.created_at}Z`).toLocaleString('pt-BR');
-  header.append(title, time);
-  const message = document.createElement('p');
-  message.textContent = item.message || 'Sem mensagem.';
-  const details = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = 'Detalhes técnicos';
-  const pre = document.createElement('pre');
-  pre.textContent = formatJsonText(item.metadata);
-  details.append(summary, pre);
-  const actions = document.createElement('div');
-  actions.className = 'history-actions';
-  const copy = document.createElement('button');
-  copy.className = 'btn btn-outline-light btn-sm';
-  copy.type = 'button';
-  copy.innerHTML = '<i class="bi bi-copy"></i> Copiar';
-  copy.addEventListener('click', () =>
-    navigator.clipboard.writeText(
-      `${item.scope} · ${item.event}\n${item.message}\n${pre.textContent}`
-    )
-  );
-  const remove = document.createElement('button');
-  remove.className = 'btn btn-outline-danger btn-sm';
-  remove.type = 'button';
-  remove.innerHTML = '<i class="bi bi-trash"></i> Excluir';
-  remove.addEventListener('click', async () => {
-    const result = await animeDesk.diagnostics.removeFailures([item.id]);
-    if (!result.ok) return notifyResultError(result);
-    await renderTelemetry();
-  });
-  actions.append(copy, remove);
-  article.append(header, message, details, actions);
-  return article;
-}
-
-async function exportTelemetry(format) {
-  const result = await animeDesk.diagnostics.exportFailures(format, telemetryFilters());
-  if (!result.ok) return notifyResultError(result);
-  if (!result.data?.canceled)
-    showToast({
-      title: 'Telemetria exportada',
-      message: 'O arquivo foi salvo com os filtros atuais.',
-      variant: 'success'
-    });
-}
-
-function formatJsonText(value) {
-  try {
-    return JSON.stringify(JSON.parse(value || '{}'), null, 2);
-  } catch {
-    return String(value || '');
-  }
-}
-
-function formatBytes(value) {
-  const bytes = Math.max(0, Number(value || 0));
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function bindAdmin() {
-  $('new-user-button').addEventListener('click', () => openUserModal());
-  $('save-user-button').addEventListener('click', saveUser);
-  $('user-avatar-style').addEventListener('change', updateUserAvatarPreview);
-  $('user-avatar-seed').addEventListener('input', updateUserAvatarPreview);
-  $('user-color').addEventListener('input', updateUserAvatarPreview);
-}
-
-async function hydrateAvatarStyles() {
-  if (!animeDesk.avatars?.styles) return;
-  const select = $('user-avatar-style');
-  const current = select.value || 'thumbs';
-  try {
-    const result = await animeDesk.avatars.styles();
-    if (!result?.ok || !Array.isArray(result.data) || !result.data.length) return;
-    select.replaceChildren();
-    for (const style of result.data) {
-      select.append(new Option(`DiceBear ${style.name}`, style.id));
-    }
-    select.value = result.data.some((style) => style.id === current) ? current : 'thumbs';
-  } catch {
-    // A lista estatica do HTML continua disponivel se o IPC falhar.
-  }
-}
-
-async function renderUsers() {
-  const result = await animeDesk.users.list();
-  if (!result.ok) {
-    notifyResultError(result);
-    return;
-  }
-  state.users = result.data;
-  const container = $('users-list');
-  container.replaceChildren();
-  result.data.forEach((user) => {
-    const card = document.createElement('article');
-    card.className = 'user-card';
-    const header = document.createElement('div');
-    header.className = 'user-card-header';
-    const avatar = document.createElement('img');
-    avatar.className = 'profile-avatar';
-    avatar.alt = '';
-    void setCachedAvatar(avatar, user);
-    avatar.style.backgroundColor = user.profileColor;
-    const text = document.createElement('div');
-    text.innerHTML = `<strong>${escapeHtml(user.name)}</strong><div class="text-secondary">@${escapeHtml(user.username)} · ${user.role}</div>`;
-    header.append(avatar, text);
-    const status = document.createElement('span');
-    status.className = user.active ? 'text-success' : 'text-danger';
-    status.textContent = user.active ? 'Ativo' : 'Desativado';
-    const actions = document.createElement('div');
-    actions.className = 'user-card-actions';
-    const edit = document.createElement('button');
-    edit.className = 'btn btn-outline-light btn-sm';
-    edit.type = 'button';
-    edit.innerHTML = '<i class="bi bi-pencil"></i> Editar';
-    edit.addEventListener('click', () => openUserModal(user));
-    actions.append(edit);
-    card.append(header, status, actions);
-    container.append(card);
-  });
-}
-
-function openUserModal(user = null) {
-  $('user-modal-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
-  $('user-id').value = user?.id || '';
-  $('user-name').value = user?.name || '';
-  $('user-username').value = user?.username || '';
-  $('user-username').disabled = Boolean(user);
-  $('user-password').value = '';
-  $('user-password-field').querySelector('label').textContent = user
-    ? 'Nova senha (opcional)'
-    : 'Senha inicial';
-  $('user-role').value = user?.role || 'USER';
-  $('user-parental-level').value = user?.parentalLevel || 'ADULT';
-  $('user-color').value = user?.profileColor || '#6f5cff';
-  $('user-avatar-style').value = user?.avatarStyle || 'thumbs';
-  $('user-avatar-seed').value =
-    user?.avatarSeed || user?.username || $('user-username').value || '';
-  $('user-active').checked = user?.active ?? true;
-  updateUserAvatarPreview();
-  setVisualAlert($('user-form-alert'), '');
-  modals.user.show();
-}
-
-async function saveUser() {
-  const id = Number($('user-id').value || 0);
-  const payload = {
-    id,
-    name: $('user-name').value,
-    username: $('user-username').value,
-    password: $('user-password').value,
-    role: $('user-role').value,
-    parentalLevel: $('user-parental-level').value,
-    profileColor: $('user-color').value,
-    avatarSeed: $('user-avatar-seed').value || $('user-username').value,
-    avatarStyle: $('user-avatar-style').value,
-    active: $('user-active').checked
-  };
-  let result;
-  if (id) {
-    result = await animeDesk.users.update(payload);
-    if (result.ok && payload.password) {
-      result = await animeDesk.users.resetPassword({
-        id,
-        password: payload.password,
-        mustChangePassword: false
-      });
-    }
-  } else {
-    result = await animeDesk.users.create(payload);
-  }
-  if (!result.ok) {
-    setVisualAlert($('user-form-alert'), result.error?.message || 'Não foi possível salvar.');
-    return;
-  }
-  modals.user.hide();
-  await renderUsers();
-  showToast({
-    title: 'Usuário salvo',
-    message: 'As permissões foram atualizadas.',
-    variant: 'success'
-  });
-}
-
 function bindModals() {
   $('parental-unlock-button').addEventListener('click', async () => {
     const result = await animeDesk.settings.verifyParentalPin($('parental-unlock-pin').value);
@@ -1997,7 +870,7 @@ function bindModals() {
     state.parentalUnlockedUntil = Date.now() + 30 * 60 * 1000;
     $('parental-unlock-pin').value = '';
     setVisualAlert($('parental-unlock-alert'), '');
-    modals.parental.hide();
+    getModal('parental', 'parental-pin-modal').hide();
     const action = state.pendingParentalAction;
     state.pendingParentalAction = null;
     if (action) action();
@@ -2041,7 +914,7 @@ function requestParentalUnlock(action) {
     return;
   }
   state.pendingParentalAction = action;
-  modals.parental.show();
+  getModal('parental', 'parental-pin-modal').show();
 }
 
 function parentalUnlocked() {
@@ -2075,7 +948,7 @@ function openReportModal() {
   $('report-summary').textContent =
     `${context.anime.name} · Episódio ${cleanEpisode(episode.number || episode.num || 1)}`;
   $('report-details').value = state.lastIssue?.technicalError || '';
-  modals.report.show();
+  getModal('report', 'report-modal').show();
 }
 
 async function submitReport() {
@@ -2096,7 +969,7 @@ async function submitReport() {
     notifyResultError(result);
     return;
   }
-  modals.report.hide();
+  getModal('report', 'report-modal').hide();
   showToast({
     title: 'Relatório salvo',
     message: 'O problema foi registrado no banco local.',

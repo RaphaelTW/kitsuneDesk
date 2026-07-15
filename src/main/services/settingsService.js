@@ -7,6 +7,7 @@ const PROVIDERS = new Set(['goanime-gui', 'goanime', 'anime-cli-br', 'ani-cli'])
 const LANGUAGES = new Set(['sub', 'dub']);
 const INTERFACE_LANGUAGES = new Set(['pt-BR', 'en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP']);
 const QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
+const STARTUP_RETENTION_DAYS = new Set([0, 7, 30, 90]);
 const THEMES = new Set([
   'dark',
   'light',
@@ -30,15 +31,15 @@ class SettingsService {
     this.sessionRepository = sessionRepository;
   }
 
-  get() {
+  async get() {
     const userId = requireUserId(this.sessionRepository);
-    this.settingsRepository.createDefaultForUser(userId);
-    return mapSettings(this.settingsRepository.findByUserId(userId));
+    await this.settingsRepository.createDefaultForUser(userId);
+    return mapSettings(await this.settingsRepository.findByUserId(userId));
   }
 
-  update(payload) {
+  async update(payload) {
     const userId = requireUserId(this.sessionRepository);
-    const current = this.get();
+    const current = await this.get();
     const settings = {
       defaultProvider: PROVIDERS.has(payload?.defaultProvider)
         ? payload.defaultProvider
@@ -65,11 +66,16 @@ class SettingsService {
       checkUpdates: payload?.checkUpdates !== false,
       localTelemetryEnabled: Boolean(payload?.localTelemetryEnabled),
       startupMetricsEnabled: Boolean(payload?.startupMetricsEnabled),
+      startupMetricsRetentionDays: STARTUP_RETENTION_DAYS.has(
+        Number(payload?.startupMetricsRetentionDays)
+      )
+        ? Number(payload.startupMetricsRetentionDays)
+        : current.startupMetricsRetentionDays,
       interfaceLanguage: INTERFACE_LANGUAGES.has(payload?.interfaceLanguage)
         ? payload.interfaceLanguage
         : current.interfaceLanguage
     };
-    this.settingsRepository.update(userId, settings);
+    await this.settingsRepository.update(userId, settings);
     return this.get();
   }
 
@@ -77,13 +83,13 @@ class SettingsService {
     const userId = requireUserId(this.sessionRepository);
     const pin = normalizePin(payload?.pin);
     const pinHash = await bcrypt.hash(pin, 12);
-    this.settingsRepository.updateParentalPin(userId, pinHash);
+    await this.settingsRepository.updateParentalPin(userId, pinHash);
     return { configured: true };
   }
 
   async verifyParentalPin(payload) {
     const userId = requireUserId(this.sessionRepository);
-    const settings = this.settingsRepository.findByUserId(userId);
+    const settings = await this.settingsRepository.findByUserId(userId);
     if (!settings?.parental_pin_hash) {
       throw new AppError('PARENTAL_PIN_NOT_SET', 'Configure um PIN parental primeiro.', {
         status: 409
@@ -115,6 +121,11 @@ function mapSettings(row) {
     checkUpdates: row?.check_updates !== 0,
     localTelemetryEnabled: Boolean(row?.local_telemetry_enabled),
     startupMetricsEnabled: Boolean(row?.startup_metrics_enabled),
+    startupMetricsRetentionDays: STARTUP_RETENTION_DAYS.has(
+      Number(row?.startup_metrics_retention_days)
+    )
+      ? Number(row.startup_metrics_retention_days)
+      : 30,
     interfaceLanguage: INTERFACE_LANGUAGES.has(row?.interface_language)
       ? row.interface_language
       : 'pt-BR'

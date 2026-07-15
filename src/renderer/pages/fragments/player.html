@@ -1,0 +1,74 @@
+<section class="embedded-player is-hidden" id="embedded-player" aria-label="Player embutido">
+  <div class="embedded-player-heading">
+    <strong id="embedded-player-title">Player embutido</strong>
+    <button id="embedded-player-close" type="button" aria-label="Fechar player">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+  <p class="embedded-player-status" id="embedded-player-status">Aguardando stream compatível.</p>
+  <video id="embedded-video" controls playsinline></video>
+</section>
+<section class="mini-player is-hidden" id="mini-player" aria-label="Controles de reprodução">
+  <div class="mini-player-meta">
+    <img id="player-cover" src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" />
+    <div>
+      <strong id="player-title">Nenhuma reprodução</strong>
+      <span id="player-subtitle">Selecione um episódio</span>
+    </div>
+  </div>
+  <div class="mini-player-center">
+    <div class="player-buttons">
+      <button
+        id="player-previous"
+        type="button"
+        title="Episodio anterior"
+        aria-label="Episodio anterior"
+      >
+        <i class="bi bi-skip-backward-fill"></i>
+      </button>
+      <button
+        class="player-main-button"
+        id="player-toggle"
+        type="button"
+        title="Pausar ou continuar"
+        aria-label="Pausar ou continuar"
+      >
+        <i class="bi bi-play-fill"></i>
+      </button>
+      <button id="player-next" type="button" title="Proximo episodio" aria-label="Proximo episodio">
+        <i class="bi bi-skip-forward-fill"></i>
+      </button>
+    </div>
+    <div class="player-progress-row">
+      <span id="player-current-time">00:00</span>
+      <input
+        id="player-progress"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+        aria-label="Progresso da reproducao"
+      />
+      <span id="player-duration">00:00</span>
+    </div>
+  </div>
+  <div class="mini-player-actions">
+    <span class="player-source" id="player-source">GoAnime</span>
+    <i class="bi bi-volume-up"></i>
+    <input id="player-volume" type="range" min="0" max="100" value="80" aria-label="Volume" />
+    <button id="player-queue-button" type="button" title="Fila" aria-label="Abrir fila">
+      <i class="bi bi-list-ol"></i>
+    </button>
+    <button
+      id="report-episode-button"
+      type="button"
+      title="Reportar problema"
+      aria-label="Reportar problema"
+    >
+      <i class="bi bi-flag"></i>
+    </button>
+    <button id="player-stop" type="button" title="Parar" aria-label="Parar">
+      <i class="bi bi-stop-fill"></i>
+    </button>
+  </div>
+</section>

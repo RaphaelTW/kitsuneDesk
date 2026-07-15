@@ -299,6 +299,16 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_startup_performance_user_created
         ON startup_performance(user_id, created_at DESC);
     `
+  },
+  {
+    id: 11,
+    name: 'v0150-startup-retention-and-kinds',
+    sql: `
+      ALTER TABLE settings
+        ADD COLUMN startup_metrics_retention_days INTEGER NOT NULL DEFAULT 30;
+      ALTER TABLE startup_performance
+        ADD COLUMN startup_type TEXT NOT NULL DEFAULT 'cold';
+    `
   }
 ];
 
@@ -352,6 +362,12 @@ function repairPortableSchema(database) {
   ensureColumn(database, 'settings', 'local_telemetry_enabled', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'settings', 'interface_language', "TEXT NOT NULL DEFAULT 'pt-BR'");
   ensureColumn(database, 'settings', 'startup_metrics_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(
+    database,
+    'settings',
+    'startup_metrics_retention_days',
+    'INTEGER NOT NULL DEFAULT 30'
+  );
 
   ensureColumn(database, 'playback_sessions', 'anime_cover', 'TEXT');
   ensureColumn(database, 'playback_sessions', 'episode_title', 'TEXT');
@@ -489,6 +505,7 @@ function repairPortableSchema(database) {
     CREATE INDEX IF NOT EXISTS idx_startup_performance_user_created
       ON startup_performance(user_id, created_at DESC);
   `);
+  ensureColumn(database, 'startup_performance', 'startup_type', "TEXT NOT NULL DEFAULT 'cold'");
 }
 
 function ensureColumn(database, tableName, columnName, definition) {

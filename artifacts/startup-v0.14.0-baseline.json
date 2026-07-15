@@ -1,0 +1,302 @@
+{
+  "label": "v0.14.0-baseline",
+  "iterations": 20,
+  "createdAt": "2026-07-15T22:23:24.414Z",
+  "projectRoot": "H:\\projetos\\kitsuneDesk-v014-benchmark",
+  "cold": {
+    "coreMedianMs": 31,
+    "coreP95Ms": 39,
+    "memoryMedianMb": 359.6
+  },
+  "warm": {
+    "coreMedianMs": 28,
+    "coreP95Ms": 34,
+    "memoryMedianMb": 360.2
+  },
+  "samples": {
+    "cold": [
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 32,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:01",
+        "workingSetMb": 360.9
+      },
+      {
+        "shellReadyMs": 5,
+        "coreReadyMs": 31,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:03",
+        "workingSetMb": 360.6
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 30,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:05",
+        "workingSetMb": 359.6
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 38,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:07",
+        "workingSetMb": 355
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 30,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:09",
+        "workingSetMb": 360.1
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 29,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:11",
+        "workingSetMb": 366.3
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 48,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:13",
+        "workingSetMb": 358.7
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 39,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:16",
+        "workingSetMb": 359.7
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 29,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:18",
+        "workingSetMb": 357.4
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 33,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:20",
+        "workingSetMb": 358.9
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 27,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:22",
+        "workingSetMb": 362.4
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 36,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:24",
+        "workingSetMb": 356.5
+      },
+      {
+        "shellReadyMs": 5,
+        "coreReadyMs": 29,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:27",
+        "workingSetMb": 356.9
+      },
+      {
+        "shellReadyMs": 10,
+        "coreReadyMs": 32,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:29",
+        "workingSetMb": 360.6
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 30,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:31",
+        "workingSetMb": 359.6
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 31,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:33",
+        "workingSetMb": 356
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 30,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:35",
+        "workingSetMb": 362.1
+      },
+      {
+        "shellReadyMs": 11,
+        "coreReadyMs": 34,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:37",
+        "workingSetMb": 356.1
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 33,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:39",
+        "workingSetMb": 360.4
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 29,
+        "snapshotRestored": false,
+        "createdAt": "2026-07-15 22:22:41",
+        "workingSetMb": 361.3
+      }
+    ],
+    "warm": [
+      {
+        "shellReadyMs": 17,
+        "coreReadyMs": 34,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:47",
+        "workingSetMb": 363.4
+      },
+      {
+        "shellReadyMs": 17,
+        "coreReadyMs": 31,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:49",
+        "workingSetMb": 363.3
+      },
+      {
+        "shellReadyMs": 18,
+        "coreReadyMs": 25,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:51",
+        "workingSetMb": 361.7
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 29,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:52",
+        "workingSetMb": 361.4
+      },
+      {
+        "shellReadyMs": 18,
+        "coreReadyMs": 26,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:54",
+        "workingSetMb": 362.3
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 35,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:56",
+        "workingSetMb": 357.3
+      },
+      {
+        "shellReadyMs": 17,
+        "coreReadyMs": 30,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:22:58",
+        "workingSetMb": 361
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 23,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:00",
+        "workingSetMb": 358.3
+      },
+      {
+        "shellReadyMs": 19,
+        "coreReadyMs": 29,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:02",
+        "workingSetMb": 355
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 29,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:04",
+        "workingSetMb": 357.2
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 24,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:06",
+        "workingSetMb": 356.2
+      },
+      {
+        "shellReadyMs": 15,
+        "coreReadyMs": 27,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:08",
+        "workingSetMb": 358.9
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 23,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:10",
+        "workingSetMb": 362.5
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 27,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:12",
+        "workingSetMb": 361.5
+      },
+      {
+        "shellReadyMs": 17,
+        "coreReadyMs": 31,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:14",
+        "workingSetMb": 360.2
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 28,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:16",
+        "workingSetMb": 358.7
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 26,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:18",
+        "workingSetMb": 358.7
+      },
+      {
+        "shellReadyMs": 16,
+        "coreReadyMs": 28,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:19",
+        "workingSetMb": 360.4
+      },
+      {
+        "shellReadyMs": 24,
+        "coreReadyMs": 34,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:22",
+        "workingSetMb": 358.1
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 24,
+        "snapshotRestored": true,
+        "createdAt": "2026-07-15 22:23:24",
+        "workingSetMb": 360.2
+      }
+    ]
+  }
+}

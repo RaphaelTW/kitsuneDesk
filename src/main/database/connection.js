@@ -1,8 +1,8 @@
 const fs = require('fs');
 const { getAppPaths } = require('../utils/paths');
 const logger = require('../utils/logger');
-const BridgeDatabaseClient = require('./databaseBridge');
 const NativeDatabaseClient = require('./nativeDatabaseClient');
+const { createSqlJsCompatibilityDatabase } = require('./sqlJsCompatibilityDatabase');
 
 let database = null;
 
@@ -10,13 +10,13 @@ let database = null;
  * @param {Electron.App} app
  * @returns {Database.Database}
  */
-function getDatabase(app) {
+async function getDatabase(app) {
   if (database) {
     return database;
   }
 
   const paths = getAppPaths(app);
-  fs.mkdirSync(paths.databaseDir, { recursive: true });
+  await fs.promises.mkdir(paths.databaseDir, { recursive: true });
 
   try {
     database = new NativeDatabaseClient(paths.databasePath);
@@ -31,16 +31,16 @@ function getDatabase(app) {
     );
   }
 
-  database = new BridgeDatabaseClient(paths.databasePath);
+  database = await createSqlJsCompatibilityDatabase(paths.databasePath);
   return database;
 }
 
-function closeDatabase() {
+async function closeDatabase() {
   if (!database) {
     return;
   }
 
-  database.close();
+  await database.close();
   database = null;
 }
 

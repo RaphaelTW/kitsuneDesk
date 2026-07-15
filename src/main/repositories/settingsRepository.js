@@ -15,6 +15,7 @@ const DEFAULTS = Object.freeze({
   check_updates: 1,
   local_telemetry_enabled: 0,
   startup_metrics_enabled: 0,
+  startup_metrics_retention_days: 30,
   interface_language: 'pt-BR'
 });
 
@@ -28,14 +29,14 @@ class SettingsRepository {
   }
 
   createDefaultForUser(userId) {
-    this.database.run(
+    return this.database.run(
       `INSERT OR IGNORE INTO settings (
          user_id, default_language, default_quality, auto_play_next,
          player_volume, theme, default_provider, downloads_path,
          audio_preference, parental_control_enabled, max_content_rating,
          remember_position, check_updates, player_mode, local_telemetry_enabled,
-         startup_metrics_enabled, interface_language
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         startup_metrics_enabled, startup_metrics_retention_days, interface_language
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         DEFAULTS.default_language,
@@ -53,20 +54,22 @@ class SettingsRepository {
         DEFAULTS.player_mode,
         DEFAULTS.local_telemetry_enabled,
         DEFAULTS.startup_metrics_enabled,
+        DEFAULTS.startup_metrics_retention_days,
         DEFAULTS.interface_language
       ]
     );
   }
 
-  update(userId, settings) {
-    this.createDefaultForUser(userId);
+  async update(userId, settings) {
+    await this.createDefaultForUser(userId);
     return this.database.run(
       `UPDATE settings SET
          default_provider = ?, default_language = ?, default_quality = ?,
          auto_play_next = ?, player_volume = ?, theme = ?, downloads_path = ?,
          audio_preference = ?, parental_control_enabled = ?, max_content_rating = ?,
          remember_position = ?, check_updates = ?, player_mode = ?,
-         local_telemetry_enabled = ?, startup_metrics_enabled = ?, interface_language = ?,
+         local_telemetry_enabled = ?, startup_metrics_enabled = ?,
+         startup_metrics_retention_days = ?, interface_language = ?,
          updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
@@ -85,14 +88,15 @@ class SettingsRepository {
         settings.playerMode,
         settings.localTelemetryEnabled ? 1 : 0,
         settings.startupMetricsEnabled ? 1 : 0,
+        settings.startupMetricsRetentionDays,
         settings.interfaceLanguage || 'pt-BR',
         userId
       ]
     );
   }
 
-  updateParentalPin(userId, pinHash) {
-    this.createDefaultForUser(userId);
+  async updateParentalPin(userId, pinHash) {
+    await this.createDefaultForUser(userId);
     return this.database.run(
       `UPDATE settings
        SET parental_pin_hash = ?, parental_control_enabled = 1,

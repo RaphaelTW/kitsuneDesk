@@ -30,7 +30,7 @@ function registerDiagnosticsHandlers(ipcMain, diagnosticsController) {
   handle('diagnostics:clear-failures', () => diagnosticsController.clearFailureTelemetry());
   handle('diagnostics:export-failures', async (payload) => {
     const format = payload?.format === 'csv' ? 'csv' : 'json';
-    const exportData = diagnosticsController.exportFailureTelemetry(format, payload?.filters);
+    const exportData = await diagnosticsController.exportFailureTelemetry(format, payload?.filters);
     const result = await dialog.showSaveDialog({
       title: 'Exportar telemetria local',
       defaultPath: path.join(
@@ -44,7 +44,7 @@ function registerDiagnosticsHandlers(ipcMain, diagnosticsController) {
       ]
     });
     if (result.canceled || !result.filePath) return { exported: false, canceled: true };
-    fs.writeFileSync(result.filePath, exportData.content, 'utf8');
+    await fs.promises.writeFile(result.filePath, exportData.content, 'utf8');
     return { exported: true, path: result.filePath };
   });
   handle('diagnostics:export', async () => {

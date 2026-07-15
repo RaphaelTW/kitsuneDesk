@@ -1,0 +1,70 @@
+<div class="section-heading">
+  <div>
+    <p class="eyebrow">Falhas locais</p>
+    <h2>Gerenciamento de telemetria</h2>
+  </div>
+  <div class="history-actions">
+    <button class="btn btn-outline-light" id="export-telemetry-json" type="button">
+      <i class="bi bi-filetype-json"></i> JSON
+    </button>
+    <button class="btn btn-outline-light" id="export-telemetry-csv" type="button">
+      <i class="bi bi-filetype-csv"></i> CSV
+    </button>
+    <button class="btn btn-outline-danger" id="clear-telemetry-button" type="button">
+      <i class="bi bi-trash"></i> Limpar tudo
+    </button>
+  </div>
+</div>
+<section class="panel startup-metrics-panel" aria-labelledby="startup-metrics-title">
+  <div class="settings-card-heading">
+    <i class="bi bi-speedometer2"></i>
+    <div>
+      <h3 id="startup-metrics-title">Desempenho de abertura</h3>
+      <p id="startup-metrics-summary">As métricas são opcionais e permanecem locais.</p>
+    </div>
+  </div>
+  <div class="startup-metrics-cards" id="startup-metrics-cards"></div>
+  <div class="startup-chart-wrap">
+    <svg
+      id="startup-metrics-chart"
+      viewBox="0 0 720 240"
+      role="img"
+      aria-label="Evolução local do tempo de abertura"
+    ></svg>
+  </div>
+  <div class="startup-chart-legend" aria-hidden="true">
+    <span class="is-cold">Fria</span><span class="is-warm">Quente</span
+    ><span class="is-snapshot">Com snapshot</span>
+  </div>
+</section>
+
+<section class="panel telemetry-toolbar">
+  <input
+    class="form-control"
+    id="telemetry-query"
+    type="search"
+    placeholder="Pesquisar mensagem ou detalhe técnico"
+  />
+  <select class="form-select" id="telemetry-scope">
+    <option value="">Todos os contextos</option>
+  </select>
+  <select class="form-select" id="telemetry-event">
+    <option value="">Todos os eventos</option>
+  </select>
+  <input class="form-control" id="telemetry-from" type="date" aria-label="Data inicial" />
+  <input class="form-control" id="telemetry-to" type="date" aria-label="Data final" />
+  <button class="btn btn-primary" id="telemetry-filter-button" type="button">
+    <i class="bi bi-funnel"></i> Filtrar
+  </button>
+</section>
+<div class="telemetry-summary" id="telemetry-summary">Nenhum registro carregado.</div>
+<p class="section-description" data-i18n="telemetryPrivacy">
+  Os registros de falha e as métricas de abertura permanecem somente neste computador e podem ser
+  desativados separadamente.
+</p>
+<div class="telemetry-list" id="telemetry-list"></div>
+<div class="telemetry-pagination">
+  <button class="btn btn-outline-light" id="telemetry-prev" type="button">Anterior</button>
+  <span id="telemetry-page">Página 1</span>
+  <button class="btn btn-outline-light" id="telemetry-next" type="button">Próxima</button>
+</div>

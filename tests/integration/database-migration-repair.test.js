@@ -153,6 +153,7 @@ test(
       .map((row) => row.name);
     assert.ok(settingsColumns.includes('interface_language'));
     assert.ok(settingsColumns.includes('startup_metrics_enabled'));
+    assert.ok(settingsColumns.includes('startup_metrics_retention_days'));
 
     const backupSchedules = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'backup_schedules'")

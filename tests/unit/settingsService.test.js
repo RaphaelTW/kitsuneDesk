@@ -21,6 +21,7 @@ function createService() {
     check_updates: 1,
     local_telemetry_enabled: 0,
     startup_metrics_enabled: 0,
+    startup_metrics_retention_days: 30,
     interface_language: 'pt-BR'
   };
   const repository = {
@@ -46,6 +47,7 @@ function createService() {
         check_updates: input.checkUpdates ? 1 : 0,
         local_telemetry_enabled: input.localTelemetryEnabled ? 1 : 0,
         startup_metrics_enabled: input.startupMetricsEnabled ? 1 : 0,
+        startup_metrics_retention_days: input.startupMetricsRetentionDays,
         interface_language: input.interfaceLanguage
       };
     },
@@ -58,9 +60,9 @@ function createService() {
   return new SettingsService({ settingsRepository: repository, sessionRepository });
 }
 
-test('normaliza e persiste configurações do usuário', () => {
+test('normaliza e persiste configurações do usuário', async () => {
   const service = createService();
-  const settings = service.update({
+  const settings = await service.update({
     defaultProvider: 'ani-cli',
     defaultLanguage: 'dub',
     defaultQuality: '720',
@@ -76,6 +78,7 @@ test('normaliza e persiste configurações do usuário', () => {
     checkUpdates: false,
     localTelemetryEnabled: true,
     startupMetricsEnabled: true,
+    startupMetricsRetentionDays: 90,
     interfaceLanguage: 'ja-JP'
   });
 
@@ -89,6 +92,7 @@ test('normaliza e persiste configurações do usuário', () => {
   assert.equal(settings.checkUpdates, false);
   assert.equal(settings.localTelemetryEnabled, true);
   assert.equal(settings.startupMetricsEnabled, true);
+  assert.equal(settings.startupMetricsRetentionDays, 90);
   assert.equal(settings.interfaceLanguage, 'ja-JP');
 });
 
@@ -100,7 +104,7 @@ test('configura e valida PIN parental', async () => {
   await assert.rejects(() => service.verifyParentalPin({ pin: '9999' }), /PIN parental incorreto/);
 });
 
-test('aceita os temas extras, incluindo Game Neon', () => {
+test('aceita os temas extras, incluindo Game Neon', async () => {
   const service = createService();
   for (const theme of [
     'older-brother-core',
@@ -110,7 +114,7 @@ test('aceita os temas extras, incluindo Game Neon', () => {
     'synthwave',
     'game-neon'
   ]) {
-    const settings = service.update({ theme });
+    const settings = await service.update({ theme });
     assert.equal(settings.theme, theme);
   }
 });

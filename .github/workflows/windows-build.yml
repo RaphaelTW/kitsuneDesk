@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_installed_matrix:
+        description: Run the complete installed update and recovery matrix
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -40,17 +46,26 @@ jobs:
         run: npm run release:verify
 
       - name: Build Windows installer and update metadata
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          WINDOWS_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npm run providers:bundle && npm run release:build
 
+      - name: Verify optional Authenticode signature
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          WINDOWS_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: npm run release:verify-signing
+
       - name: Verify installer, blockmap and latest.yml
-        run: npm run release:verify-artifacts
+        run: npm run release:verify-native && npm run release:verify-artifacts
 
       - name: Test installed upgrade from previous GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.run_installed_matrix }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/test-installed-update.ps1 -PreviousTag v0.13.0
+        run: ./scripts/test-installed-update.ps1 -PreviousTag v0.13.0,v0.14.0
 
       - name: Publish GitHub release assets
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}

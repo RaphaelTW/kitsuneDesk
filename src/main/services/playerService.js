@@ -3,13 +3,18 @@ const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const { EventEmitter } = require('events');
-const dns = require('dns').promises;
-const https = require('https');
 const AppError = require('../utils/AppError');
 const GoAnimeGuiService = require('./goAnimeGuiService');
 const InstallationService = require('./installationService');
+const embeddedCompatibilityModel = require('./player/embeddedCompatibility');
+const embeddedPlayer = require('./player/embeddedPlayer');
+const EpisodeResolver = require('./player/episodeResolver');
+const externalMpv = require('./player/externalMpv');
+const networkDiagnostics = require('./player/networkDiagnostics');
+const playbackQueue = require('./player/playbackQueue');
+const playbackStateModel = require('./player/playbackState');
+const providerAdapters = require('./player/providerAdapters');
 
-const SUPPORTED_PROVIDERS = new Set(['auto', 'goanime', 'anime-cli-br', 'ani-cli']);
 const SUPPORTED_INSTALL_TARGETS = new Set([
   'goanime',
   'goanime-gui',
@@ -17,10 +22,6 @@ const SUPPORTED_INSTALL_TARGETS = new Set([
   'ani-cli',
   'fast-anime-vsr'
 ]);
-const SUPPORTED_QUALITIES = new Set(['auto', '360', '480', '720', '1080']);
-const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
-const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const EPISODE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const STATUS_CACHE_TTL_MS = 60 * 1000;
 const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 const E2E_FIXTURES =
@@ -34,6 +35,10 @@ class PlayerService extends EventEmitter {
     this.settingsService = settingsService;
     this.libraryService = libraryService;
     this.cacheService = cacheService;
+    this.episodeResolver = new EpisodeResolver({
+      engine: this.goAnimeGui,
+      cacheService
+    });
     this.statusCache = null;
     this.healthCache = null;
     this.currentPlayback = null;
@@ -52,21 +57,8 @@ class PlayerService extends EventEmitter {
    * @returns {Promise<object[]>}
    */
   async searchAnimes(payload) {
-    const key = stableCacheKey(payload);
-    const fresh = this.cacheService?.getJson('anime-search', key);
-    if (fresh) return markCached(fresh.payload, fresh);
-    try {
-      const result = await this.goAnimeGui.search(payload);
-      this.cacheService?.setJson('anime-search', key, result, {
-        ttlMs: SEARCH_CACHE_TTL_MS,
-        staleTtlMs: SEARCH_CACHE_TTL_MS * 8
-      });
-      return result;
-    } catch (error) {
-      const stale = this.cacheService?.getJson('anime-search', key, { allowExpired: true });
-      if (stale?.stale) return markCached(stale.payload, stale, true);
-      throw error;
-    }
+    this.episodeResolver.engine = this.goAnimeGui;
+    return this.episodeResolver.search(payload);
   }
 
   /**
@@ -76,21 +68,8 @@ class PlayerService extends EventEmitter {
    * @returns {Promise<object[]>}
    */
   async listEpisodes(payload) {
-    const key = stableCacheKey(payload);
-    const fresh = this.cacheService?.getJson('anime-episodes', key);
-    if (fresh) return markCached(fresh.payload, fresh);
-    try {
-      const result = await this.goAnimeGui.episodes(payload);
-      this.cacheService?.setJson('anime-episodes', key, result, {
-        ttlMs: EPISODE_CACHE_TTL_MS,
-        staleTtlMs: EPISODE_CACHE_TTL_MS * 12
-      });
-      return result;
-    } catch (error) {
-      const stale = this.cacheService?.getJson('anime-episodes', key, { allowExpired: true });
-      if (stale?.stale) return markCached(stale.payload, stale, true);
-      throw error;
-    }
+    this.episodeResolver.engine = this.goAnimeGui;
+    return this.episodeResolver.episodes(payload);
   }
 
   /**
@@ -110,56 +89,38 @@ class PlayerService extends EventEmitter {
       );
     }
 
-    const settings = this.getUserSettings();
+    const settings = await this.getUserSettings();
     const episodes = Array.isArray(payload?.episodes) ? payload.episodes : [];
     const episodeIndex = Number.isInteger(payload?.episodeIndex)
       ? payload.episodeIndex
       : episodes.findIndex((item) => String(item?.number) === String(payload?.episode?.number));
-    const queue = buildPlaybackQueue(episodes, Math.max(0, episodeIndex), payload?.queue);
-    const queueIndex = findEpisodeIndexInList(queue, payload.episode);
+    const queue = playbackQueue.buildPlaybackQueue(
+      episodes,
+      Math.max(0, episodeIndex),
+      payload?.queue
+    );
+    const queueIndex = playbackQueue.findEpisodeIndexInList(queue, payload.episode);
     const startPosition = settings.rememberPosition
       ? Math.max(0, Number(payload?.resumePosition ?? payload?.startPosition ?? 0))
       : 0;
 
     let embeddedCompatibility = null;
     if (settings.playerMode === 'embedded') {
-      const stream = await this.goAnimeGui.resolveStream(payload);
-      embeddedCompatibility = analyzeEmbeddedCompatibility(stream);
+      this.episodeResolver.engine = this.goAnimeGui;
+      const stream = await this.episodeResolver.resolveStream(payload);
+      embeddedCompatibility = embeddedCompatibilityModel.analyzeEmbeddedCompatibility(stream);
       if (embeddedCompatibility.compatible) {
-        const embeddedResult = {
-          launched: true,
-          provider: 'goanime-gui',
-          providerName: 'GoAnime GUI',
-          player: 'HTML5',
-          anime: payload.anime?.name || '',
-          episode: payload.episode?.number || '',
-          source: payload.anime?.source || '',
-          quality: payload?.quality || settings.defaultQuality || 'auto',
-          mode: payload?.language === 'dub' ? 'dub' : 'sub',
-          streamUrl: stream.url,
-          streamMetadata: stream.metadata || {},
-          resumedAt: startPosition,
-          embedded: true,
-          embeddedFallback: false,
-          playerMode: 'embedded'
-        };
-        this.currentPlayback = {
-          providerId: 'goanime-gui',
-          anime: payload.anime,
-          episode: payload.episode,
-          episodes: queue,
-          episodeIndex: queueIndex,
+        const playback = embeddedPlayer.createEmbeddedPlayback(payload, {
+          settings,
+          stream,
           queue,
           queueIndex,
-          language: payload?.language === 'dub' ? 'dub' : 'sub',
-          quality: String(payload?.quality || settings.defaultQuality || 'auto'),
-          source: embeddedResult.source || payload?.anime?.source || '',
-          playerMode: 'embedded',
-          startedAt: new Date().toISOString()
-        };
+          startPosition
+        });
+        this.currentPlayback = playback.context;
         this.lastProgressSaveAt = 0;
-        this.emit('playback-started', { ...embeddedResult, context: this.currentPlayback });
-        return { ...embeddedResult, context: this.currentPlayback };
+        this.emit('playback-started', { ...playback.result, context: this.currentPlayback });
+        return { ...playback.result, context: this.currentPlayback };
       }
     }
 
@@ -176,50 +137,12 @@ class PlayerService extends EventEmitter {
   }
 
   async launchExternalEpisode(payload, options) {
-    const {
-      settings,
-      status,
-      startPosition,
-      queue,
-      queueIndex,
-      embeddedFallback,
-      embeddedFallbackReason
-    } = options;
-    const result = await this.goAnimeGui.playEpisode(
-      {
-        ...payload,
-        startPosition,
-        volume: settings.playerVolume
-      },
-      status.dependencies.mpv.path
-    );
-
-    const normalizedResult = {
-      ...result,
-      embedded: false,
-      embeddedFallback: Boolean(embeddedFallback),
-      embeddedFallbackReason: embeddedFallbackReason || null,
-      playerMode: 'external'
-    };
-
-    this.currentPlayback = {
-      providerId: 'goanime-gui',
-      anime: payload.anime,
-      episode: payload.episode,
-      episodes: queue,
-      episodeIndex: queueIndex,
-      queue,
-      queueIndex,
-      language: payload?.language === 'dub' ? 'dub' : 'sub',
-      quality: String(payload?.quality || settings.defaultQuality || 'auto'),
-      source: normalizedResult.source || payload?.anime?.source || '',
-      playerMode: 'external',
-      startedAt: new Date().toISOString()
-    };
+    const playback = await externalMpv.launchExternalMpv(this.goAnimeGui, payload, options);
+    this.currentPlayback = playback.context;
     this.lastProgressSaveAt = 0;
     await this.persistPlayback(this.goAnimeGui.getPlayerState());
-    this.emit('playback-started', { ...normalizedResult, context: this.currentPlayback });
-    return { ...normalizedResult, context: this.currentPlayback };
+    this.emit('playback-started', { ...playback.result, context: this.currentPlayback });
+    return { ...playback.result, context: this.currentPlayback };
   }
 
   /**
@@ -230,38 +153,13 @@ class PlayerService extends EventEmitter {
    * @returns {Promise<{launched: boolean, provider: string, providerName: string, terminal: string}>}
    */
   async play(payload) {
-    const request = normalizePlayPayload(payload);
-    const status = this.status();
-    const provider = resolveProvider(request.provider, status);
-
-    if (provider === 'goanime') {
-      const terminal = launchGoAnime({ request, status });
-      return {
-        launched: true,
-        provider,
-        providerName: 'GoAnime classico',
-        terminal
-      };
-    }
-
-    if (provider === 'anime-cli-br') {
-      await assertAnimeFireReachable();
-      const terminal = launchAnimeCliBr({ request, status });
-      return {
-        launched: true,
-        provider,
-        providerName: 'anime-cli-br',
-        terminal
-      };
-    }
-
-    const terminal = launchAniCli({ request, status });
-    return {
-      launched: true,
-      provider,
-      providerName: 'ani-cli experimental',
-      terminal
-    };
+    return providerAdapters.launchLegacyProvider(payload, {
+      status: () => this.status(),
+      assertAnimeFireReachable: networkDiagnostics.assertAnimeFireReachable,
+      launchGoAnime,
+      launchAnimeCliBr,
+      launchAniCli
+    });
   }
 
   /**
@@ -499,54 +397,17 @@ class PlayerService extends EventEmitter {
   }
 
   playbackState() {
-    return {
-      ...this.goAnimeGui.getPlayerState(),
-      context: this.currentPlayback
-    };
+    return playbackStateModel.snapshot(this.goAnimeGui, this.currentPlayback);
   }
 
   queue() {
-    const context = this.currentPlayback;
-    if (!context) return { active: false, items: [], currentIndex: -1 };
-    return {
-      active: true,
-      currentIndex: Number.isInteger(context.queueIndex) ? context.queueIndex : 0,
-      items: Array.isArray(context.queue) ? context.queue : []
-    };
+    return playbackStateModel.queue(this.currentPlayback);
   }
 
   reorderQueue(payload) {
-    const context = this.currentPlayback;
-    if (!context || !Array.isArray(context.queue) || context.queue.length === 0) {
-      throw new AppError('PLAYBACK_QUEUE_UNAVAILABLE', 'Nao existe fila ativa para reordenar.', {
-        status: 409
-      });
-    }
-
-    const fromIndex = Number(payload?.fromIndex);
-    const toIndex = Number(payload?.toIndex);
-    if (
-      !Number.isInteger(fromIndex) ||
-      !Number.isInteger(toIndex) ||
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= context.queue.length ||
-      toIndex >= context.queue.length
-    ) {
-      throw new AppError('PLAYBACK_QUEUE_INVALID', 'A posicao informada para a fila e invalida.', {
-        status: 400
-      });
-    }
-
-    const queue = [...context.queue];
-    const [item] = queue.splice(fromIndex, 1);
-    queue.splice(toIndex, 0, item);
-    context.queue = queue;
-    context.episodes = queue;
-    context.queueIndex = findEpisodeIndexInList(queue, context.episode);
-    context.episodeIndex = context.queueIndex;
-    this.emit('state', { ...this.goAnimeGui.getPlayerState(), context });
-    return this.queue();
+    const result = playbackStateModel.reorder(this.currentPlayback, payload);
+    this.emit('state', playbackStateModel.snapshot(this.goAnimeGui, this.currentPlayback));
+    return result;
   }
 
   next() {
@@ -607,60 +468,15 @@ class PlayerService extends EventEmitter {
     if (!force && this.healthCache && this.healthCache.expiresAt > Date.now()) {
       return this.healthCache.value;
     }
-    const status = this.status(force);
-    let animeFireOnline = false;
-    let animeFireMessage = 'AnimeFire indisponível';
-    try {
-      await assertAnimeFireReachable();
-      animeFireOnline = true;
-      animeFireMessage = 'Online';
-    } catch (error) {
-      animeFireMessage = error.publicMessage || error.message || animeFireMessage;
-    }
-
-    const value = {
-      checkedAt: new Date().toISOString(),
-      providers: [
-        {
-          id: 'goanime-gui',
-          name: 'GoAnime GUI',
-          state: status.providers.goAnime.ready ? 'online' : 'offline',
-          message: status.providers.goAnime.ready ? 'Online' : 'Bridge ou MPV não está pronto'
-        },
-        {
-          id: 'goanime',
-          name: 'GoAnime clássico',
-          state: status.providers.goAnime.classicReady ? 'online' : 'offline',
-          message: status.providers.goAnime.classicReady
-            ? 'Online'
-            : 'GoAnime ou MPV não está pronto'
-        },
-        {
-          id: 'anime-cli-br',
-          name: 'anime-cli-br',
-          state: animeFireOnline && status.providers.animeCliBr.ready ? 'online' : 'offline',
-          message: status.providers.animeCliBr.ready
-            ? animeFireMessage
-            : 'Dependências não instaladas'
-        },
-        {
-          id: 'ani-cli',
-          name: 'ani-cli',
-          state: status.providers.aniCli.ready ? 'unstable' : 'offline',
-          message: status.providers.aniCli.ready
-            ? 'Instável: depende de fontes externas'
-            : 'Dependências não instaladas'
-        }
-      ]
-    };
+    const value = await networkDiagnostics.buildProviderHealth(this.status(force));
     this.healthCache = { value, expiresAt: Date.now() + HEALTH_CACHE_TTL_MS };
     return value;
   }
 
-  getUserSettings() {
+  async getUserSettings() {
     try {
       return (
-        this.settingsService?.get() ?? {
+        (await this.settingsService?.get()) ?? {
           playerVolume: 80,
           playerMode: 'external',
           autoPlayNext: false,
@@ -691,7 +507,7 @@ class PlayerService extends EventEmitter {
   async handlePlaybackEnded(state) {
     if (!this.currentPlayback) return;
     await this.persistPlayback({ ...state, completed: true });
-    const settings = this.getUserSettings();
+    const settings = await this.getUserSettings();
     if (!settings.autoPlayNext || this.autoNextInProgress) return;
     this.autoNextInProgress = true;
     try {
@@ -786,96 +602,6 @@ function createE2eProviderStatus() {
   };
 }
 
-function buildPlaybackQueue(episodes, episodeIndex, requestedQueue) {
-  const baseQueue =
-    Array.isArray(requestedQueue) && requestedQueue.length > 0 ? requestedQueue : episodes;
-  if (!Array.isArray(baseQueue) || baseQueue.length === 0) return [];
-  const queue = baseQueue.filter(Boolean);
-  const currentEpisode = Array.isArray(episodes) ? episodes[episodeIndex] : null;
-  const currentIndex = findEpisodeIndexInList(queue, currentEpisode);
-  if (currentIndex <= 0) return queue;
-  const [current] = queue.splice(currentIndex, 1);
-  queue.splice(episodeIndex, 0, current);
-  return queue;
-}
-
-function findEpisodeIndexInList(episodes, episode) {
-  if (!Array.isArray(episodes) || episodes.length === 0) return 0;
-  const index = episodes.findIndex((candidate) => sameEpisode(candidate, episode));
-  return index >= 0 ? index : 0;
-}
-
-function sameEpisode(left, right) {
-  if (!left || !right) return false;
-  const leftNumber = String(left.num ?? left.number ?? '').trim();
-  const rightNumber = String(right.num ?? right.number ?? '').trim();
-  if (leftNumber && rightNumber && leftNumber === rightNumber) return true;
-  const leftTitle = String(left.title || '').trim();
-  const rightTitle = String(right.title || '').trim();
-  return Boolean(leftTitle && rightTitle && leftTitle === rightTitle);
-}
-
-function analyzeEmbeddedCompatibility(stream) {
-  const metadata = stream?.metadata || {};
-  const url = String(stream?.url || '');
-  const urlLower = url.toLowerCase();
-  const container = String(metadata.container || metadata.format || '').toLowerCase();
-  const codec = String(
-    metadata.videoCodec || metadata.codec || metadata.codecs || ''
-  ).toLowerCase();
-  const requiresHeaders = String(metadata.requiresHeaders || '').toLowerCase() === 'true';
-  const hasHeaderRequirements = Boolean(metadata.referer || requiresHeaders);
-
-  if (/\.m3u8(?:$|[?#])/.test(urlLower) || container === 'hls') {
-    return {
-      compatible: false,
-      reason: 'HLS detectado. O KitsuneDesk abriu no MPV para preservar compatibilidade.'
-    };
-  }
-  if (hasHeaderRequirements) {
-    return {
-      compatible: false,
-      reason:
-        'A fonte exige cabeçalhos HTTP. O KitsuneDesk abriu no MPV para enviar os cabeçalhos corretos.'
-    };
-  }
-  if (/\.(mkv|avi|flv|ts)(?:$|[?#])/.test(urlLower) || ['matroska', 'mpegts'].includes(container)) {
-    return {
-      compatible: false,
-      reason: 'Contêiner não suportado nativamente pelo Chromium. O KitsuneDesk abriu no MPV.'
-    };
-  }
-  if (/\b(hevc|h265|h\.265|av1|ac3|eac3|dts)\b/.test(codec)) {
-    return {
-      compatible: false,
-      reason: 'Codec sem suporte garantido no Chromium. O KitsuneDesk abriu no MPV.'
-    };
-  }
-
-  return { compatible: true, reason: null };
-}
-
-/**
- * @param {unknown} payload
- * @returns {{query: string, provider: 'auto'|'goanime'|'anime-cli-br'|'ani-cli', language: 'sub'|'dub', quality: string}}
- */
-function normalizePlayPayload(payload) {
-  const query = typeof payload?.query === 'string' ? payload.query.trim() : '';
-  const provider = SUPPORTED_PROVIDERS.has(payload?.provider) ? payload.provider : 'auto';
-  const language = SUPPORTED_LANGUAGES.has(payload?.language) ? payload.language : 'sub';
-  const quality = SUPPORTED_QUALITIES.has(String(payload?.quality))
-    ? String(payload.quality)
-    : 'auto';
-
-  if (query.length < 2) {
-    throw new AppError('ANIME_NOT_FOUND', 'Digite pelo menos dois caracteres para pesquisar.', {
-      status: 400
-    });
-  }
-
-  return { query, provider, language, quality };
-}
-
 /**
  * @param {unknown} payload
  * @returns {'goanime'|'goanime-gui'|'anime-cli-br'|'ani-cli'|'fast-anime-vsr'}
@@ -886,97 +612,11 @@ function normalizeInstallProvider(payload) {
 }
 
 /**
- * @param {'auto'|'goanime'|'anime-cli-br'|'ani-cli'} requestedProvider
- * @param {object} status
- * @returns {'goanime'|'anime-cli-br'|'ani-cli'}
- */
-function resolveProvider(requestedProvider, status) {
-  if (requestedProvider === 'goanime') {
-    assertGoAnimeReady(status);
-    return 'goanime';
-  }
-
-  if (requestedProvider === 'anime-cli-br') {
-    assertAnimeCliBrReady(status);
-    return 'anime-cli-br';
-  }
-
-  if (requestedProvider === 'ani-cli') {
-    assertAniCliReady(status);
-    return 'ani-cli';
-  }
-
-  if (status.providers.goAnime.classicReady) return 'goanime';
-  if (status.providers.animeCliBr.ready) return 'anime-cli-br';
-  if (status.providers.aniCli.ready) return 'ani-cli';
-
-  throw new AppError(
-    'PROVIDER_UNAVAILABLE',
-    'Nenhum provedor esta pronto. Instale o GoAnime pelo botao Instalar GoAnime.',
-    { status: 424 }
-  );
-}
-
-/** @param {object} status */
-function assertGoAnimeReady(status) {
-  if (!status.dependencies.goAnime.available) {
-    throw new AppError(
-      'PROVIDER_UNAVAILABLE',
-      'GoAnime nao foi encontrado. Use o botao Instalar GoAnime e atualize o status.',
-      { status: 424 }
-    );
-  }
-
-  if (!status.dependencies.mpv.available) {
-    throw new AppError(
-      'PLAYER_NOT_FOUND',
-      'MPV nao foi encontrado. Reinstale o GoAnime mantendo a opcao de incluir o MPV.',
-      { status: 424 }
-    );
-  }
-}
-
-/** @param {object} status */
-function assertAnimeCliBrReady(status) {
-  const missing = [];
-  if (!status.dependencies.animeCliBr.available) missing.push('anime-cli-br');
-  if (!status.dependencies.vlc.available) missing.push('VLC');
-
-  if (missing.length > 0) {
-    throw new AppError(
-      'PROVIDER_UNAVAILABLE',
-      `O anime-cli-br nao esta pronto. Faltando: ${missing.join(', ')}.`,
-      { status: 424 }
-    );
-  }
-}
-
-/** @param {object} status */
-function assertAniCliReady(status) {
-  const missing = [];
-
-  if (!status.dependencies.aniCli.available) missing.push('ani-cli');
-  if (!status.dependencies.gitBash.available) missing.push('Git Bash');
-  if (!status.dependencies.mpv.available) missing.push('MPV');
-  if (!status.dependencies.fzf.available) missing.push('fzf');
-  if (!status.dependencies.ffmpeg.available) missing.push('ffmpeg');
-  if (!status.dependencies.openssl.available) missing.push('OpenSSL');
-
-  if (missing.length > 0) {
-    throw new AppError(
-      'PROVIDER_UNAVAILABLE',
-      `O provedor ani-cli nao esta pronto. Faltando: ${missing.join(', ')}.`,
-      { status: 424 }
-    );
-  }
-}
-
-/**
  * @param {{request: object, status: object}} options
  * @returns {string}
  */
 function launchGoAnime({ request, status }) {
-  assertGoAnimeReady(status);
+  providerAdapters.assertGoAnimeReady(status);
 
   const executablePath = status.dependencies.goAnime.path;
   const args = buildGoAnimeArgs(request);
@@ -1023,59 +663,11 @@ function writeGoAnimeLaunchScript({ executablePath, args, status }) {
 }
 
 /**
- * Verifica a fonte do anime-cli-br antes de abrir o terminal. Isso evita que
- * falhas de DNS gerem um traceback Python enorme para o usuario.
- *
- * @returns {Promise<void>}
- */
-async function assertAnimeFireReachable() {
-  try {
-    await Promise.race([
-      dns.lookup('animefire.net'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), 5000))
-    ]);
-    await probeHttpsHost('https://animefire.net/', 7000);
-  } catch (error) {
-    throw new AppError(
-      'ANIMEFIRE_UNAVAILABLE',
-      'A fonte animefire.net nao esta acessivel neste momento. O anime-cli-br nao foi aberto para evitar o traceback. Use o GoAnime GUI e tente novamente mais tarde.',
-      { status: 502, technicalMessage: error?.message ?? String(error) }
-    );
-  }
-}
-
-/**
- * @param {string} target
- * @param {number} timeoutMs
- * @returns {Promise<void>}
- */
-function probeHttpsHost(target, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const request = https.request(
-      target,
-      {
-        method: 'GET',
-        timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.11.0', Range: 'bytes=0-0' }
-      },
-      (response) => {
-        response.resume();
-        resolve();
-      }
-    );
-
-    request.on('timeout', () => request.destroy(new Error('HTTPS timeout')));
-    request.on('error', reject);
-    request.end();
-  });
-}
-
-/**
  * @param {{request: object, status: object}} options
  * @returns {string}
  */
 function launchAnimeCliBr({ request, status }) {
-  assertAnimeCliBrReady(status);
+  providerAdapters.assertAnimeCliBrReady(status);
 
   const terminal = chooseInteractiveWindowsTerminal(status);
   const scriptPath = writeAnimeCliBrLaunchScript({ request, status });
@@ -1107,7 +699,7 @@ function writeAnimeCliBrLaunchScript({ request, status }) {
  * @returns {string}
  */
 function launchAniCli({ request, status }) {
-  assertAniCliReady(status);
+  providerAdapters.assertAniCliReady(status);
 
   const terminal = chooseAniCliTerminal(status);
   const command = buildAniCliCommand(request, status.dependencies.aniCli.path);
@@ -1827,32 +1419,6 @@ function findPowerShell() {
 /** @param {string} left @param {string} right @returns {boolean} */
 function samePath(left, right) {
   return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
-}
-
-function stableCacheKey(payload) {
-  return JSON.stringify(sortObject(payload && typeof payload === 'object' ? payload : {}));
-}
-
-function sortObject(value) {
-  if (Array.isArray(value)) return value.map(sortObject);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.keys(value)
-      .sort()
-      .map((key) => [key, sortObject(value[key])])
-  );
-}
-
-function markCached(value, entry, offline = false) {
-  if (Array.isArray(value)) {
-    Object.defineProperties(value, {
-      cacheInfo: {
-        value: { cached: true, offline, expiresAt: entry.expiresAt },
-        enumerable: false
-      }
-    });
-  }
-  return value;
 }
 
 module.exports = PlayerService;

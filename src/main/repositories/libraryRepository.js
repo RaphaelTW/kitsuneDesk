@@ -3,13 +3,20 @@ class LibraryRepository {
     this.database = database;
   }
 
-  dashboard(userId) {
+  async dashboard(userId) {
+    const [continueWatching, recent, favorites, watchlist, stats] = await Promise.all([
+      this.continueWatching(userId, 8),
+      this.history(userId, { limit: 8 }),
+      this.favorites(userId, 8),
+      this.watchlist(userId, 8),
+      this.stats(userId)
+    ]);
     return {
-      continueWatching: this.continueWatching(userId, 8),
-      recent: this.history(userId, { limit: 8 }),
-      favorites: this.favorites(userId, 8),
-      watchlist: this.watchlist(userId, 8),
-      stats: this.stats(userId)
+      continueWatching,
+      recent,
+      favorites,
+      watchlist,
+      stats
     };
   }
 
@@ -62,8 +69,8 @@ class LibraryRepository {
     );
   }
 
-  stats(userId) {
-    const history = this.database.get(
+  async stats(userId) {
+    const history = await this.database.get(
       `SELECT COUNT(*) AS total_plays,
               COUNT(DISTINCT anime_id) AS distinct_animes,
               SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS completed_episodes,
@@ -71,11 +78,11 @@ class LibraryRepository {
        FROM watch_history WHERE user_id = ?`,
       [userId]
     );
-    const favoriteCount = this.database.get(
+    const favoriteCount = await this.database.get(
       'SELECT COUNT(*) AS total FROM favorites WHERE user_id = ?',
       [userId]
     );
-    const watchlistCount = this.database.get(
+    const watchlistCount = await this.database.get(
       'SELECT COUNT(*) AS total FROM watchlist WHERE user_id = ?',
       [userId]
     );
@@ -86,18 +93,21 @@ class LibraryRepository {
     };
   }
 
-  toggleCollection(table, userId, item) {
-    const existing = this.database.get(
+  async toggleCollection(table, userId, item) {
+    const existing = await this.database.get(
       `SELECT id FROM ${table} WHERE user_id = ? AND provider_id = ? AND anime_id = ?`,
       [userId, item.providerId, item.animeId]
     );
 
     if (existing) {
-      this.database.run(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [existing.id, userId]);
+      await this.database.run(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [
+        existing.id,
+        userId
+      ]);
       return { active: false };
     }
 
-    this.database.run(
+    await this.database.run(
       `INSERT INTO ${table} (
          user_id, provider_id, anime_id, anime_title, anime_cover, anime_payload
        ) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -113,12 +123,12 @@ class LibraryRepository {
     return { active: true };
   }
 
-  collectionState(userId, providerId, animeId) {
-    const favorite = this.database.get(
+  async collectionState(userId, providerId, animeId) {
+    const favorite = await this.database.get(
       'SELECT id FROM favorites WHERE user_id = ? AND provider_id = ? AND anime_id = ?',
       [userId, providerId, animeId]
     );
-    const watchlist = this.database.get(
+    const watchlist = await this.database.get(
       'SELECT id FROM watchlist WHERE user_id = ? AND provider_id = ? AND anime_id = ?',
       [userId, providerId, animeId]
     );
@@ -132,13 +142,13 @@ class LibraryRepository {
     ]);
   }
 
-  clearHistory(userId) {
-    this.database.run('DELETE FROM watch_history WHERE user_id = ?', [userId]);
+  async clearHistory(userId) {
+    await this.database.run('DELETE FROM watch_history WHERE user_id = ?', [userId]);
     return { cleared: true };
   }
 
-  markCompleted(userId, historyId, completed) {
-    this.database.run(
+  async markCompleted(userId, historyId, completed) {
+    await this.database.run(
       `UPDATE watch_history
        SET completed = ?,
            playback_position = CASE WHEN ? = 1 AND duration > 0 THEN duration ELSE playback_position END
@@ -148,10 +158,10 @@ class LibraryRepository {
     return { completed: Boolean(completed) };
   }
 
-  savePlayback(userId, playback) {
+  async savePlayback(userId, playback) {
     const completed =
       playback.completed || (playback.duration > 0 && playback.position >= playback.duration * 0.9);
-    this.database.run(
+    await this.database.run(
       `INSERT INTO playback_sessions (
          user_id, provider_id, anime_id, anime_title, anime_cover, current_episode,
          episode_title, language, quality, playback_position, duration, source,
@@ -187,7 +197,7 @@ class LibraryRepository {
       ]
     );
 
-    const latest = this.database.get(
+    const latest = await this.database.get(
       `SELECT id FROM watch_history
        WHERE user_id = ? AND provider_id = ? AND anime_id = ?
          AND episode_number = ? AND language = ?
@@ -196,7 +206,7 @@ class LibraryRepository {
     );
 
     if (latest) {
-      this.database.run(
+      await this.database.run(
         `UPDATE watch_history SET
            anime_title = ?, anime_cover = ?, episode_title = ?, quality = ?,
            playback_position = ?, duration = ?, completed = ?, source = ?,
@@ -217,7 +227,7 @@ class LibraryRepository {
         ]
       );
     } else {
-      this.database.run(
+      await this.database.run(
         `INSERT INTO watch_history (
            user_id, provider_id, anime_id, anime_title, anime_cover, episode_number,
            episode_title, language, quality, playback_position, duration, completed,
@@ -244,7 +254,7 @@ class LibraryRepository {
     }
 
     if (completed) {
-      this.database.run(
+      await this.database.run(
         `DELETE FROM playback_sessions
          WHERE user_id = ? AND provider_id = ? AND anime_id = ? AND language = ?`,
         [userId, playback.providerId, playback.animeId, playback.language]
@@ -254,8 +264,8 @@ class LibraryRepository {
     return { saved: true, completed: Boolean(completed) };
   }
 
-  report(userId, report) {
-    const result = this.database.run(
+  async report(userId, report) {
+    const result = await this.database.run(
       `INSERT INTO episode_reports (
          user_id, anime_id, anime_title, episode_number, language,
          provider_id, source, error_code, technical_error

@@ -343,6 +343,84 @@ body[data-theme='classic-98'] .nav-item.is-active i {
   color: var(--app-muted);
 }
 
+.startup-metrics-panel {
+  margin-bottom: 1rem;
+}
+
+.startup-metrics-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.startup-metrics-cards article {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+}
+
+.startup-metrics-cards strong {
+  font-size: 1.15rem;
+}
+
+.startup-metrics-cards small,
+.startup-chart-legend {
+  color: var(--app-muted);
+}
+
+.startup-chart-wrap {
+  overflow-x: auto;
+}
+
+.startup-chart-wrap svg {
+  min-width: 560px;
+  width: 100%;
+}
+
+.startup-chart-grid {
+  stroke: var(--app-border);
+  stroke-width: 1;
+}
+
+.startup-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
+
+.startup-chart-legend span::before {
+  content: '';
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.startup-chart-legend .is-cold {
+  color: #ff6b9f;
+}
+
+.startup-chart-legend .is-warm {
+  color: #56c8ff;
+}
+
+.startup-chart-legend .is-snapshot {
+  color: #9c7cff;
+}
+
+@media (max-width: 760px) {
+  .startup-metrics-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .cache-summary {
   margin-top: 0.8rem;
 }

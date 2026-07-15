@@ -22,10 +22,20 @@ class DiagnosticsService {
     this.cacheService = cacheService;
   }
 
-  run() {
+  async run() {
     const paths = getAppPaths(this.app);
     const player = this.playerService.status();
     const userId = this.currentUserId();
+    const [telemetryEnabled, telemetryPage, startupPerformance, cache] = await Promise.all([
+      this.telemetryRepository?.enabledForUser(userId) ?? false,
+      this.telemetryRepository?.list(userId, { pageSize: 10 }) ?? { items: [] },
+      this.telemetryRepository?.startupSummary(userId) ?? {
+        enabled: false,
+        count: 0,
+        recent: []
+      },
+      this.cacheService?.stats() ?? { entries: [], disk: [] }
+    ]);
     return {
       checkedAt: new Date().toISOString(),
       app: {
@@ -57,15 +67,11 @@ class DiagnosticsService {
         totalMemory: os.totalmem()
       },
       telemetry: {
-        enabled: this.telemetryRepository?.enabledForUser(userId) ?? false,
-        recentFailures: this.telemetryRepository?.list(userId, { pageSize: 10 })?.items ?? []
+        enabled: telemetryEnabled,
+        recentFailures: telemetryPage.items ?? []
       },
-      startupPerformance: this.telemetryRepository?.startupSummary(userId) ?? {
-        enabled: false,
-        count: 0,
-        recent: []
-      },
-      cache: this.cacheService?.stats() ?? { entries: [], disk: [] }
+      startupPerformance,
+      cache
     };
   }
 
@@ -149,7 +155,7 @@ class DiagnosticsService {
     );
   }
 
-  clearCache() {
+  async clearCache() {
     const removed = [];
     const candidates = [
       path.join(this.app.getPath('userData'), 'Cache'),
@@ -180,7 +186,7 @@ class DiagnosticsService {
       }
     }
 
-    const appCache = this.cacheService?.clear();
+    const appCache = await this.cacheService?.clear();
     if (Array.isArray(appCache?.removed)) removed.push(...appCache.removed);
     return { cleared: true, removed, appCache };
   }
@@ -208,9 +214,9 @@ class DiagnosticsService {
     };
   }
 
-  exportReport(filePath) {
-    const report = this.run();
-    fs.writeFileSync(filePath, JSON.stringify(report, null, 2), 'utf8');
+  async exportReport(filePath) {
+    const report = await this.run();
+    await fs.promises.writeFile(filePath, JSON.stringify(report, null, 2), 'utf8');
     return { exported: true, path: filePath };
   }
 

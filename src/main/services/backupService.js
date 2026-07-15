@@ -16,13 +16,20 @@ class BackupService {
     this.sessionRepository = sessionRepository;
   }
 
-  exportLibrary(filePath) {
+  async exportLibrary(filePath) {
     const userId = requireUserId(this.sessionRepository);
-    const profile = this.database.get(
+    const profile = await this.database.get(
       `SELECT id, username, name, role, profile_color, avatar_seed, avatar_style, parental_level
        FROM users WHERE id = ?`,
       [userId]
     );
+    const [favorites, watchlist, history, playbackSessions, settings] = await Promise.all([
+      this.database.all('SELECT * FROM favorites WHERE user_id = ?', [userId]),
+      this.database.all('SELECT * FROM watchlist WHERE user_id = ?', [userId]),
+      this.database.all('SELECT * FROM watch_history WHERE user_id = ?', [userId]),
+      this.database.all('SELECT * FROM playback_sessions WHERE user_id = ?', [userId]),
+      this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId])
+    ]);
     const payload = {
       format: LIBRARY_FORMAT,
       version: 1,
@@ -30,18 +37,14 @@ class BackupService {
       appVersion: this.app.getVersion(),
       profile,
       data: {
-        favorites: this.database.all('SELECT * FROM favorites WHERE user_id = ?', [userId]),
-        watchlist: this.database.all('SELECT * FROM watchlist WHERE user_id = ?', [userId]),
-        history: this.database.all('SELECT * FROM watch_history WHERE user_id = ?', [userId]),
-        playbackSessions: this.database.all('SELECT * FROM playback_sessions WHERE user_id = ?', [
-          userId
-        ]),
-        settings: sanitizeSettings(
-          this.database.get('SELECT * FROM settings WHERE user_id = ?', [userId])
-        )
+        favorites,
+        watchlist,
+        history,
+        playbackSessions,
+        settings: sanitizeSettings(settings)
       }
     };
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+    await fs.promises.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
     return {
       exported: true,
       path: filePath,
@@ -49,7 +52,7 @@ class BackupService {
     };
   }
 
-  importLibrary(filePath, mode = 'merge') {
+  async importLibrary(filePath, mode = 'merge') {
     const userId = requireUserId(this.sessionRepository);
     const payload = parseJsonFile(filePath);
     if (payload?.format !== LIBRARY_FORMAT || payload?.version !== 1) {
@@ -60,15 +63,15 @@ class BackupService {
     const importMode = mode === 'replace' ? 'replace' : 'merge';
     if (importMode === 'replace') {
       for (const table of ['favorites', 'watchlist', 'watch_history', 'playback_sessions']) {
-        this.database.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+        await this.database.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
       }
     }
 
-    importCollection(this.database, 'favorites', userId, payload.data?.favorites);
-    importCollection(this.database, 'watchlist', userId, payload.data?.watchlist);
-    importHistory(this.database, userId, payload.data?.history);
-    importPlaybackSessions(this.database, userId, payload.data?.playbackSessions);
-    if (payload.data?.settings) importSettings(this.database, userId, payload.data.settings);
+    await importCollection(this.database, 'favorites', userId, payload.data?.favorites);
+    await importCollection(this.database, 'watchlist', userId, payload.data?.watchlist);
+    await importHistory(this.database, userId, payload.data?.history);
+    await importPlaybackSessions(this.database, userId, payload.data?.playbackSessions);
+    if (payload.data?.settings) await importSettings(this.database, userId, payload.data.settings);
 
     return {
       imported: true,
@@ -79,28 +82,31 @@ class BackupService {
     };
   }
 
-  exportProfilesEncrypted(filePath, password) {
+  async exportProfilesEncrypted(filePath, password) {
     requireAdmin(this.sessionRepository);
     const secret = normalizeBackupPassword(password);
-    const users = this.database.all('SELECT * FROM users ORDER BY id');
+    const users = await this.database.all('SELECT * FROM users ORDER BY id');
+    const usersWithSettings = await Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        settings: await this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id])
+      }))
+    );
     const payload = {
       format: 'kitsunedesk-profiles',
       version: 1,
       exportedAt: new Date().toISOString(),
       appVersion: this.app.getVersion(),
-      users: users.map((user) => ({
-        ...user,
-        settings: this.database.get('SELECT * FROM settings WHERE user_id = ?', [user.id])
-      }))
+      users: usersWithSettings
     };
     const encrypted = encryptPayload(payload, secret);
-    fs.writeFileSync(filePath, JSON.stringify(encrypted, null, 2), 'utf8');
+    await fs.promises.writeFile(filePath, JSON.stringify(encrypted, null, 2), 'utf8');
     return { exported: true, path: filePath, profiles: users.length, encrypted: true };
   }
 
-  importProfilesEncrypted(filePath, password) {
+  async importProfilesEncrypted(filePath, password) {
     const currentAdmin = requireAdmin(this.sessionRepository);
-    const payload = this.validateProfilesEncrypted(filePath, password).payload;
+    const payload = (await this.validateProfilesEncrypted(filePath, password)).payload;
 
     let imported = 0;
     let updated = 0;
@@ -110,11 +116,13 @@ class BackupService {
         .toLowerCase();
       if (!username) continue;
       const protectsCurrentAdmin = username === currentAdmin.username;
-      const existing = this.database.get('SELECT id FROM users WHERE username = ?', [username]);
+      const existing = await this.database.get('SELECT id FROM users WHERE username = ?', [
+        username
+      ]);
       let userId;
       if (existing) {
         userId = existing.id;
-        this.database.run(
+        await this.database.run(
           `UPDATE users SET
              password_hash = ?, name = ?, role = ?, must_change_password = ?, active = ?,
              profile_color = ?, avatar_seed = ?, avatar_style = ?, parental_level = ?,
@@ -135,7 +143,7 @@ class BackupService {
         );
         updated += 1;
       } else {
-        const result = this.database.run(
+        const result = await this.database.run(
           `INSERT INTO users (
              username, password_hash, name, role, must_change_password, active,
              profile_color, avatar_seed, avatar_style, parental_level
@@ -156,15 +164,15 @@ class BackupService {
         userId = result.lastInsertRowid;
         imported += 1;
       }
-      if (profile.settings) importSettings(this.database, userId, profile.settings);
+      if (profile.settings) await importSettings(this.database, userId, profile.settings);
     }
 
-    const activeAdmins = Number(
-      this.database.get("SELECT COUNT(*) AS total FROM users WHERE role = 'ADMIN' AND active = 1")
-        ?.total || 0
+    const activeAdminRow = await this.database.get(
+      "SELECT COUNT(*) AS total FROM users WHERE role = 'ADMIN' AND active = 1"
     );
+    const activeAdmins = Number(activeAdminRow?.total || 0);
     if (activeAdmins === 0) {
-      this.database.run(
+      await this.database.run(
         "UPDATE users SET role = 'ADMIN', active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         [currentAdmin.id]
       );
@@ -207,34 +215,34 @@ class BackupService {
     };
   }
 
-  listSchedules() {
+  async listSchedules() {
     const userId = requireUserId(this.sessionRepository);
-    return this.database
-      .all(
+    return (
+      await this.database.all(
         `SELECT id, kind, target_path, cadence, validate_restore, enabled,
                 last_run_at, last_status, last_error, created_at, updated_at
          FROM backup_schedules WHERE user_id = ? ORDER BY updated_at DESC`,
         [userId]
       )
-      .map(mapScheduleRow);
+    ).map(mapScheduleRow);
   }
 
-  scheduleProfilesBackup(payload) {
+  async scheduleProfilesBackup(payload) {
     requireAdmin(this.sessionRepository);
     const userId = requireUserId(this.sessionRepository);
     const targetPath = normalizeBackupDirectory(payload?.directory || payload?.targetPath);
     const cadence = CADENCES.has(payload?.cadence) ? payload.cadence : 'daily';
     const password = normalizeBackupPassword(payload?.password);
     const validateRestore = payload?.validateRestore !== false;
-    fs.mkdirSync(targetPath, { recursive: true });
+    await fs.promises.mkdir(targetPath, { recursive: true });
     const secret = encryptSchedulerSecret(password, getSchedulerKey(this.app));
 
-    const existing = this.database.get(
+    const existing = await this.database.get(
       "SELECT id FROM backup_schedules WHERE user_id = ? AND kind = 'profiles'",
       [userId]
     );
     if (existing) {
-      this.database.run(
+      await this.database.run(
         `UPDATE backup_schedules SET
            target_path = ?, cadence = ?, password_secret = ?, validate_restore = ?, enabled = 1,
            updated_at = CURRENT_TIMESTAMP
@@ -242,7 +250,7 @@ class BackupService {
         [targetPath, cadence, secret, validateRestore ? 1 : 0, existing.id, userId]
       );
     } else {
-      this.database.run(
+      await this.database.run(
         `INSERT INTO backup_schedules (
            user_id, kind, target_path, cadence, password_secret, validate_restore, enabled
          ) VALUES (?, 'profiles', ?, ?, ?, ?, 1)`,
@@ -252,21 +260,21 @@ class BackupService {
 
     return {
       scheduled: true,
-      schedule: this.database
-        .all(
+      schedule: (
+        await this.database.all(
           `SELECT id, kind, target_path, cadence, validate_restore, enabled,
                   last_run_at, last_status, last_error, created_at, updated_at
            FROM backup_schedules WHERE user_id = ? AND kind = 'profiles'`,
           [userId]
         )
-        .map(mapScheduleRow)[0]
+      ).map(mapScheduleRow)[0]
     };
   }
 
-  runScheduledProfilesBackup(payload = {}) {
+  async runScheduledProfilesBackup(payload = {}) {
     requireAdmin(this.sessionRepository);
     const userId = requireUserId(this.sessionRepository);
-    const schedule = this.findScheduleForRun(userId, payload?.scheduleId);
+    const schedule = await this.findScheduleForRun(userId, payload?.scheduleId);
     if (!schedule) {
       throw new AppError('BACKUP_SCHEDULE_NOT_FOUND', 'Nenhuma agenda de perfis foi configurada.', {
         status: 404
@@ -275,10 +283,10 @@ class BackupService {
     return this.executeSchedule(schedule, { force: true });
   }
 
-  runDueSchedules() {
+  async runDueSchedules() {
     requireAdmin(this.sessionRepository);
     const userId = requireUserId(this.sessionRepository);
-    const rows = this.database.all(
+    const rows = await this.database.all(
       `SELECT * FROM backup_schedules
        WHERE user_id = ? AND enabled = 1 AND kind = 'profiles'
        ORDER BY updated_at DESC`,
@@ -287,7 +295,7 @@ class BackupService {
     const results = [];
     for (const row of rows) {
       if (!isScheduleDue(row)) continue;
-      results.push(this.executeSchedule(row, { force: false }));
+      results.push(await this.executeSchedule(row, { force: false }));
     }
     return { checked: true, executed: results.length, results };
   }
@@ -305,7 +313,7 @@ class BackupService {
     );
   }
 
-  executeSchedule(schedule, { force }) {
+  async executeSchedule(schedule, { force }) {
     if (!force && !isScheduleDue(schedule)) {
       return { skipped: true, reason: 'not-due', schedule: mapScheduleRow(schedule) };
     }
@@ -314,11 +322,11 @@ class BackupService {
     const fileName = `kitsunedesk-perfis-agendado-${timestampForFile(new Date())}.kitsunebackup`;
     const filePath = path.join(schedule.target_path, fileName);
     try {
-      fs.mkdirSync(schedule.target_path, { recursive: true });
-      const exported = this.exportProfilesEncrypted(filePath, password);
+      await fs.promises.mkdir(schedule.target_path, { recursive: true });
+      const exported = await this.exportProfilesEncrypted(filePath, password);
       let validation = null;
       if (schedule.validate_restore) {
-        const checked = this.validateProfilesEncrypted(filePath, password);
+        const checked = await this.validateProfilesEncrypted(filePath, password);
         validation = {
           valid: checked.valid,
           profiles: checked.profiles,
@@ -326,7 +334,7 @@ class BackupService {
           appVersion: checked.appVersion
         };
       }
-      this.database.run(
+      await this.database.run(
         `UPDATE backup_schedules SET
            last_run_at = CURRENT_TIMESTAMP, last_status = 'success', last_error = NULL,
            updated_at = CURRENT_TIMESTAMP
@@ -341,7 +349,7 @@ class BackupService {
         schedule: mapScheduleRow({ ...schedule, last_status: 'success' })
       };
     } catch (error) {
-      this.database.run(
+      await this.database.run(
         `UPDATE backup_schedules SET
            last_run_at = CURRENT_TIMESTAMP, last_status = 'error', last_error = ?,
            updated_at = CURRENT_TIMESTAMP
@@ -435,10 +443,10 @@ function sanitizeSettings(settings) {
   return safe;
 }
 
-function importCollection(database, table, userId, rows) {
+async function importCollection(database, table, userId, rows) {
   if (!Array.isArray(rows)) return;
   for (const row of rows.slice(0, 10000)) {
-    database.run(
+    await database.run(
       `INSERT INTO ${table} (
          user_id, provider_id, anime_id, anime_title, anime_cover, anime_payload, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -459,10 +467,10 @@ function importCollection(database, table, userId, rows) {
   }
 }
 
-function importHistory(database, userId, rows) {
+async function importHistory(database, userId, rows) {
   if (!Array.isArray(rows)) return;
   for (const row of rows.slice(0, 25000)) {
-    database.run(
+    await database.run(
       `INSERT INTO watch_history (
          user_id, provider_id, anime_id, anime_title, anime_cover, episode_number,
          episode_title, language, quality, playback_position, duration, completed,
@@ -490,10 +498,10 @@ function importHistory(database, userId, rows) {
   }
 }
 
-function importPlaybackSessions(database, userId, rows) {
+async function importPlaybackSessions(database, userId, rows) {
   if (!Array.isArray(rows)) return;
   for (const row of rows.slice(0, 5000)) {
-    database.run(
+    await database.run(
       `INSERT INTO playback_sessions (
          user_id, provider_id, anime_id, anime_title, anime_cover, current_episode,
          episode_title, language, quality, playback_position, duration, source,
@@ -532,10 +540,10 @@ function importPlaybackSessions(database, userId, rows) {
   }
 }
 
-function importSettings(database, userId, settings) {
-  const current = database.get('SELECT theme FROM settings WHERE user_id = ?', [userId]);
+async function importSettings(database, userId, settings) {
+  const current = await database.get('SELECT theme FROM settings WHERE user_id = ?', [userId]);
   const preservedTheme = current?.theme || settings.theme || 'dark';
-  database.run(
+  await database.run(
     `INSERT INTO settings (
        user_id, default_language, default_quality, auto_play_next, player_volume, theme,
        default_provider, downloads_path, audio_preference, parental_control_enabled,

@@ -6,6 +6,12 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024;
+const MAX_CACHE_BYTES = Object.freeze({
+  covers: 192 * 1024 * 1024,
+  avatars: 64 * 1024 * 1024
+});
+const WARM_IMAGE_CONCURRENCY = 4;
+const MAX_MEMORY_CACHE_BYTES = 16 * 1024 * 1024;
 const ASSET_TTL_MS = Object.freeze({
   covers: 14 * 24 * 60 * 60 * 1000,
   avatars: 90 * 24 * 60 * 60 * 1000
@@ -17,30 +23,32 @@ class CacheService {
     this.cacheRepository = cacheRepository;
     this.root = path.join(app.getPath('userData'), 'cache');
     this.memory = new Map();
-    fs.mkdirSync(this.root, { recursive: true });
-    try {
-      this.cacheRepository.prune();
+    this.memoryBytes = 0;
+    this.ready = fs.promises
+      .mkdir(this.root, { recursive: true })
+      .then(() => this.cacheRepository.prune())
+      .catch(() => ({ removed: 0 }));
+    void this.ready.then(() => {
       setTimeout(() => {
-        try {
-          this.pruneDiskAssets();
-        } catch {
+        void this.pruneDiskAssets().catch(() => {
           // Limpeza de arquivos antigos roda em segundo plano e nunca bloqueia a abertura.
-        }
+        });
       }, 1500).unref?.();
-    } catch {
-      // Cache antigo nunca impede a abertura do aplicativo.
-    }
+    });
   }
 
-  getJson(namespace, key, options) {
+  async getJson(namespace, key, options) {
+    await this.ready;
     return this.cacheRepository.get(namespace, key, options);
   }
 
-  setJson(namespace, key, payload, options) {
+  async setJson(namespace, key, payload, options) {
+    await this.ready;
     return this.cacheRepository.set(namespace, key, payload, options);
   }
 
   async cacheImage(url, kind = 'covers') {
+    await this.ready;
     const source = String(url || '').trim();
     if (!source || source.startsWith('data:') || source.startsWith('file:')) {
       return { url: source, cached: Boolean(source), offline: false };
@@ -54,23 +62,23 @@ class CacheService {
     const staleTtlMs = safeKind === 'avatars' ? ttlMs * 2 : ttlMs * 4;
     const cacheKey = crypto.createHash('sha256').update(source).digest('hex');
     const memoryKey = `${safeKind}:${cacheKey}`;
-    if (this.memory.has(memoryKey)) return this.memory.get(memoryKey);
+    if (this.memory.has(memoryKey)) return this.memory.get(memoryKey).value;
 
     const directory = path.join(this.root, safeKind);
-    fs.mkdirSync(directory, { recursive: true });
+    await fs.promises.mkdir(directory, { recursive: true });
     const dataPath = path.join(directory, `${cacheKey}.bin`);
     const metaPath = path.join(directory, `${cacheKey}.json`);
 
-    const cached = this.readCachedAsset(dataPath, metaPath, source);
+    const cached = await this.readCachedAsset(dataPath, metaPath, source);
     if (cached && cached.fresh) {
-      this.remember(memoryKey, cached.result);
+      this.remember(memoryKey, cached.result, cached.bytes);
       return cached.result;
     }
 
     try {
       const response = await downloadBuffer(source);
-      fs.writeFileSync(dataPath, response.buffer);
-      fs.writeFileSync(
+      await fs.promises.writeFile(dataPath, response.buffer);
+      await fs.promises.writeFile(
         metaPath,
         JSON.stringify(
           {
@@ -86,65 +94,73 @@ class CacheService {
         ),
         'utf8'
       );
+      const fileUrl = pathToFileURL(dataPath).href;
       const result = {
-        url: toDataUrl(response.buffer, response.contentType),
-        fileUrl: pathToFileURL(dataPath).href,
+        url: fileUrl,
+        fileUrl,
         cached: true,
         offline: false
       };
-      this.remember(memoryKey, result);
+      this.remember(memoryKey, result, response.buffer.length);
       return result;
     } catch {
       if (cached) {
         const result = { ...cached.result, offline: true, stale: true };
-        this.remember(memoryKey, result);
+        this.remember(memoryKey, result, cached.bytes);
         return result;
       }
       return { url: source, cached: false, offline: true };
     }
   }
 
-  readCachedAsset(dataPath, metaPath, source) {
-    if (!fs.existsSync(dataPath) || !fs.existsSync(metaPath)) return null;
+  async readCachedAsset(dataPath, metaPath, source) {
     try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      const [metaText, buffer] = await Promise.all([
+        fs.promises.readFile(metaPath, 'utf8'),
+        fs.promises.readFile(dataPath)
+      ]);
+      const meta = JSON.parse(metaText);
       if (meta.source !== source) return null;
-      const buffer = fs.readFileSync(dataPath);
       const expiresAt = Date.parse(meta.expiresAt);
       return {
         fresh: Number.isFinite(expiresAt) && expiresAt > Date.now(),
         result: {
-          url: toDataUrl(buffer, meta.contentType),
+          url: pathToFileURL(dataPath).href,
           fileUrl: pathToFileURL(dataPath).href,
           cached: true,
           offline: false
-        }
+        },
+        bytes: Number(meta.bytes || buffer.length)
       };
     } catch {
       return null;
     }
   }
 
-  stats() {
+  async stats() {
+    await this.ready;
     return {
-      entries: this.cacheRepository.stats(),
-      disk: ['covers', 'avatars'].map((kind) => ({
-        kind,
-        ...directoryStats(path.join(this.root, kind))
-      }))
+      entries: await this.cacheRepository.stats(),
+      disk: await Promise.all(
+        ['covers', 'avatars'].map(async (kind) => ({
+          kind,
+          ...(await directoryStats(path.join(this.root, kind)))
+        }))
+      )
     };
   }
 
-  clear() {
+  async clear() {
+    await this.ready;
     this.memory.clear();
+    this.memoryBytes = 0;
     const removed = [];
     for (const kind of ['covers', 'avatars']) {
       const directory = path.join(this.root, kind);
-      if (!fs.existsSync(directory)) continue;
-      fs.rmSync(directory, { recursive: true, force: true });
+      await fs.promises.rm(directory, { recursive: true, force: true });
       removed.push(directory);
     }
-    const database = this.cacheRepository.clear();
+    const database = await this.cacheRepository.clear();
     return { cleared: true, removed, database };
   }
 
@@ -156,48 +172,88 @@ class CacheService {
     const selected = uniqueUrls.slice(0, 80);
     let cached = 0;
     let failed = 0;
-    for (const url of selected) {
-      try {
-        const result = await this.cacheImage(url, kind);
-        if (result.cached) cached += 1;
-      } catch {
-        failed += 1;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < selected.length) {
+        const url = selected[cursor++];
+        try {
+          const result = await this.cacheImage(url, kind);
+          if (result.cached) cached += 1;
+        } catch {
+          failed += 1;
+        }
       }
-    }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(WARM_IMAGE_CONCURRENCY, selected.length) }, () => worker())
+    );
     return { warmed: true, total: selected.length, cached, failed };
   }
 
-  pruneDiskAssets() {
+  async pruneDiskAssets() {
     let removed = 0;
     for (const kind of ['covers', 'avatars']) {
       const directory = path.join(this.root, kind);
-      if (!fs.existsSync(directory)) continue;
-      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      let entries;
+      try {
+        entries = await fs.promises.readdir(directory, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      const retained = [];
+      for (const entry of entries) {
         if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
         const metaPath = path.join(directory, entry.name);
         try {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+          const meta = JSON.parse(await fs.promises.readFile(metaPath, 'utf8'));
           const fallbackStaleUntil =
             Date.parse(meta.expiresAt) + (ASSET_TTL_MS[kind] || ASSET_TTL_MS.covers);
           const staleUntil = Date.parse(meta.staleUntil) || fallbackStaleUntil;
-          if (!Number.isFinite(staleUntil) || staleUntil > Date.now()) continue;
           const dataPath = path.join(directory, entry.name.replace(/\.json$/, '.bin'));
-          fs.rmSync(metaPath, { force: true });
-          fs.rmSync(dataPath, { force: true });
-          removed += 1;
+          if (Number.isFinite(staleUntil) && staleUntil <= Date.now()) {
+            await Promise.all([
+              fs.promises.rm(metaPath, { force: true }),
+              fs.promises.rm(dataPath, { force: true })
+            ]);
+            removed += 1;
+          } else {
+            retained.push({
+              metaPath,
+              dataPath,
+              bytes: Number(meta.bytes || 0),
+              savedAt: Date.parse(meta.savedAt) || 0
+            });
+          }
         } catch {
           // Metadado quebrado nao deve atrasar a abertura; a limpeza fica para uma proxima rodada.
         }
+      }
+      let totalBytes = retained.reduce((total, item) => total + item.bytes, 0);
+      for (const item of retained.sort((a, b) => a.savedAt - b.savedAt)) {
+        if (totalBytes <= MAX_CACHE_BYTES[kind]) break;
+        await Promise.all([
+          fs.promises.rm(item.metaPath, { force: true }),
+          fs.promises.rm(item.dataPath, { force: true })
+        ]);
+        totalBytes -= item.bytes;
+        removed += 1;
       }
     }
     return { removed };
   }
 
-  remember(key, value) {
-    this.memory.set(key, value);
-    if (this.memory.size <= 120) return;
-    const firstKey = this.memory.keys().next().value;
-    this.memory.delete(firstKey);
+  remember(key, value, bytes = 0) {
+    const previous = this.memory.get(key);
+    if (previous) this.memoryBytes -= previous.bytes;
+    const safeBytes = Math.max(0, Number(bytes) || 0);
+    this.memory.set(key, { value, bytes: safeBytes });
+    this.memoryBytes += safeBytes;
+    while (this.memoryBytes > MAX_MEMORY_CACHE_BYTES && this.memory.size > 1) {
+      const firstKey = this.memory.keys().next().value;
+      const removed = this.memory.get(firstKey);
+      this.memory.delete(firstKey);
+      this.memoryBytes -= removed?.bytes || 0;
+    }
   }
 }
 
@@ -259,24 +315,23 @@ function normalizeContentType(value) {
   return type.startsWith('image/') ? type : 'image/png';
 }
 
-function toDataUrl(buffer, contentType) {
-  return `data:${normalizeContentType(contentType)};base64,${buffer.toString('base64')}`;
-}
-
-function directoryStats(directory) {
-  if (!fs.existsSync(directory)) return { files: 0, bytes: 0 };
-  const files = fs
-    .readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile());
+async function directoryStats(directory) {
+  let files;
+  try {
+    files = (await fs.promises.readdir(directory, { withFileTypes: true })).filter((entry) =>
+      entry.isFile()
+    );
+  } catch {
+    return { files: 0, bytes: 0 };
+  }
+  const sizes = await Promise.all(
+    files.map((entry) => fs.promises.stat(path.join(directory, entry.name)))
+  );
   return {
     files: files.length,
-    bytes: files.reduce(
-      (total, entry) => total + fs.statSync(path.join(directory, entry.name)).size,
-      0
-    )
+    bytes: sizes.reduce((total, stat) => total + stat.size, 0)
   };
 }
 
 module.exports = CacheService;
 module.exports.downloadBuffer = downloadBuffer;
-module.exports.toDataUrl = toDataUrl;

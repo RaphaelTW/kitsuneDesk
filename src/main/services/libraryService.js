@@ -22,8 +22,8 @@ class LibraryService {
     });
   }
 
-  exportHistoryCsv(filters) {
-    const rows = this.libraryRepository.history(requireUserId(this.sessionRepository), {
+  async exportHistoryCsv(filters) {
+    const rows = await this.libraryRepository.history(requireUserId(this.sessionRepository), {
       limit: Math.min(5000, Math.max(1, Number(filters?.limit ?? 5000))),
       query: String(filters?.query ?? '')
     });
@@ -66,8 +66,8 @@ class LibraryService {
     );
   }
 
-  removeHistory(payload) {
-    this.libraryRepository.removeHistory(
+  async removeHistory(payload) {
+    await this.libraryRepository.removeHistory(
       requireUserId(this.sessionRepository),
       Number(payload?.historyId)
     );

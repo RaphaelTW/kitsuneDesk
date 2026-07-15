@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const channels = Object.freeze({
   appGetInfo: 'app:get-info',
   appPing: 'app:ping',
+  appBootstrap: 'app:bootstrap',
   authSetupStatus: 'auth:setup-status',
   authCreateInitialAdmin: 'auth:create-initial-admin',
   authLogin: 'auth:login',
@@ -103,7 +104,8 @@ function subscribe(channel, callback) {
 const animeDeskApi = Object.freeze({
   app: Object.freeze({
     getInfo: () => invoke(channels.appGetInfo),
-    ping: () => invoke(channels.appPing)
+    ping: () => invoke(channels.appPing),
+    bootstrap: () => invoke(channels.appBootstrap)
   }),
   auth: Object.freeze({
     setupStatus: () => invoke(channels.authSetupStatus),

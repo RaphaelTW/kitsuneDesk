@@ -1,0 +1,50 @@
+<div class="diagnostic-actions">
+  <button class="btn btn-primary" id="run-diagnostics-button" type="button">
+    <i class="bi bi-heart-pulse"></i> Verificar sistema
+  </button>
+  <button class="btn btn-outline-light" id="export-diagnostics-button" type="button">
+    <i class="bi bi-file-earmark-arrow-down"></i> Exportar relatório
+  </button>
+  <button class="btn btn-outline-light" id="check-updates-button" type="button">
+    <i class="bi bi-cloud-arrow-down"></i> Verificar atualização
+  </button>
+</div>
+<div class="diagnostic-grid" id="diagnostic-grid"></div>
+<section class="panel repair-panel">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Correções automáticas</p>
+      <h3>Diagnóstico e reparo</h3>
+    </div>
+  </div>
+  <div class="repair-grid">
+    <button class="repair-action" data-repair-provider="goanime-gui" type="button">
+      <i class="bi bi-window-stack"></i
+      ><span
+        ><strong>Reparar GoAnime GUI</strong><small>Recompila bridge e verifica MPV.</small></span
+      >
+    </button>
+    <button class="repair-action" id="repair-native-button" type="button">
+      <i class="bi bi-database-gear"></i
+      ><span
+        ><strong>Corrigir better-sqlite3</strong
+        ><small>Reconstrói o módulo para a versão do Electron.</small></span
+      >
+    </button>
+    <button class="repair-action" id="clear-cache-button" type="button">
+      <i class="bi bi-eraser"></i
+      ><span
+        ><strong>Limpar cache</strong><small>Não apaga histórico nem configurações.</small></span
+      >
+    </button>
+    <button class="repair-action is-danger" id="restore-components-button" type="button">
+      <i class="bi bi-arrow-counterclockwise"></i
+      ><span
+        ><strong>Restaurar componentes</strong
+        ><small>Remove ferramentas locais, preservando os dados.</small></span
+      >
+    </button>
+  </div>
+  <pre class="diagnostic-log" id="diagnostic-log" data-i18n="diagnosticsWaiting">
+Aguardando verificação manual. Nenhuma tarefa pesada será executada automaticamente ao abrir.</pre>
+</section>

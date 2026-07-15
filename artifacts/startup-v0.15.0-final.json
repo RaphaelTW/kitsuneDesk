@@ -1,0 +1,342 @@
+{
+  "label": "v0.15.0-final",
+  "iterations": 20,
+  "createdAt": "2026-07-15T22:34:00.311Z",
+  "projectRoot": "H:\\projetos\\kitsuneDesk",
+  "cold": {
+    "coreMedianMs": 28,
+    "coreP95Ms": 58,
+    "memoryMedianMb": 359.4
+  },
+  "warm": {
+    "coreMedianMs": 24,
+    "coreP95Ms": 44,
+    "memoryMedianMb": 359.7
+  },
+  "samples": {
+    "cold": [
+      {
+        "shellReadyMs": 1,
+        "coreReadyMs": 61,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:29",
+        "workingSetMb": 359.4
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 58,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:31",
+        "workingSetMb": 359.4
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 19,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:34",
+        "workingSetMb": 359.6
+      },
+      {
+        "shellReadyMs": 1,
+        "coreReadyMs": 34,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:36",
+        "workingSetMb": 354
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 25,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:38",
+        "workingSetMb": 359.9
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 27,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:41",
+        "workingSetMb": 357.4
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 28,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:43",
+        "workingSetMb": 362.1
+      },
+      {
+        "shellReadyMs": 1,
+        "coreReadyMs": 21,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:45",
+        "workingSetMb": 357.8
+      },
+      {
+        "shellReadyMs": 5,
+        "coreReadyMs": 28,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:47",
+        "workingSetMb": 359.2
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 32,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:50",
+        "workingSetMb": 357.4
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 20,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:52",
+        "workingSetMb": 358.4
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 26,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:54",
+        "workingSetMb": 360.4
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 30,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:56",
+        "workingSetMb": 358.9
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 27,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:32:58",
+        "workingSetMb": 358.8
+      },
+      {
+        "shellReadyMs": 19,
+        "coreReadyMs": 35,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:00",
+        "workingSetMb": 359.5
+      },
+      {
+        "shellReadyMs": 1,
+        "coreReadyMs": 18,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:03",
+        "workingSetMb": 358.3
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 36,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:05",
+        "workingSetMb": 360.3
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 20,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:07",
+        "workingSetMb": 362.4
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 31,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:09",
+        "workingSetMb": 361.3
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 36,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-15 22:33:11",
+        "workingSetMb": 364.9
+      }
+    ],
+    "warm": [
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 24,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:17",
+        "workingSetMb": 362.1
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 25,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:19",
+        "workingSetMb": 362.2
+      },
+      {
+        "shellReadyMs": 26,
+        "coreReadyMs": 33,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:22",
+        "workingSetMb": 357
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 20,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:24",
+        "workingSetMb": 362.9
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 24,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:26",
+        "workingSetMb": 360.4
+      },
+      {
+        "shellReadyMs": 37,
+        "coreReadyMs": 44,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:28",
+        "workingSetMb": 359.3
+      },
+      {
+        "shellReadyMs": 15,
+        "coreReadyMs": 24,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:30",
+        "workingSetMb": 360.9
+      },
+      {
+        "shellReadyMs": 24,
+        "coreReadyMs": 29,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:32",
+        "workingSetMb": 359.7
+      },
+      {
+        "shellReadyMs": 18,
+        "coreReadyMs": 28,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:34",
+        "workingSetMb": 355.6
+      },
+      {
+        "shellReadyMs": 26,
+        "coreReadyMs": 35,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:37",
+        "workingSetMb": 363.1
+      },
+      {
+        "shellReadyMs": 34,
+        "coreReadyMs": 47,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:40",
+        "workingSetMb": 356.8
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 21,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:42",
+        "workingSetMb": 360
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 23,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:44",
+        "workingSetMb": 359.5
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 18,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:47",
+        "workingSetMb": 359.2
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 19,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:49",
+        "workingSetMb": 359.3
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 18,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:51",
+        "workingSetMb": 356.6
+      },
+      {
+        "shellReadyMs": 13,
+        "coreReadyMs": 27,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:53",
+        "workingSetMb": 361
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 18,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:55",
+        "workingSetMb": 356.3
+      },
+      {
+        "shellReadyMs": 14,
+        "coreReadyMs": 25,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:57",
+        "workingSetMb": 362
+      },
+      {
+        "shellReadyMs": 17,
+        "coreReadyMs": 27,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-15 22:33:59",
+        "workingSetMb": 361.4
+      }
+    ]
+  }
+}

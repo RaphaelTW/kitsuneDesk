@@ -3,8 +3,8 @@ class CacheRepository {
     this.database = database;
   }
 
-  get(namespace, cacheKey, { allowExpired = false } = {}) {
-    const row = this.database.get(
+  async get(namespace, cacheKey, { allowExpired = false } = {}) {
+    const row = await this.database.get(
       `SELECT namespace, cache_key, payload, expires_at, stale_until, created_at, updated_at
        FROM cache_entries
        WHERE namespace = ? AND cache_key = ?`,
@@ -20,7 +20,7 @@ class CacheRepository {
 
     if (expired && !allowExpired) return null;
 
-    this.database.run(
+    await this.database.run(
       `UPDATE cache_entries SET last_accessed_at = CURRENT_TIMESTAMP WHERE namespace = ? AND cache_key = ?`,
       [namespace, cacheKey]
     );
@@ -38,13 +38,13 @@ class CacheRepository {
     };
   }
 
-  set(namespace, cacheKey, payload, { ttlMs, staleTtlMs = ttlMs * 4 } = {}) {
+  async set(namespace, cacheKey, payload, { ttlMs, staleTtlMs = ttlMs * 4 } = {}) {
     const safeTtl = Math.max(60_000, Number(ttlMs) || 60_000);
     const safeStaleTtl = Math.max(safeTtl, Number(staleTtlMs) || safeTtl);
     const expiresAt = new Date(Date.now() + safeTtl).toISOString();
     const staleUntil = new Date(Date.now() + safeStaleTtl).toISOString();
 
-    this.database.run(
+    await this.database.run(
       `INSERT INTO cache_entries (
          namespace, cache_key, payload, expires_at, stale_until, created_at, updated_at, last_accessed_at
        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -60,8 +60,8 @@ class CacheRepository {
     return { saved: true, expiresAt, staleUntil };
   }
 
-  prune() {
-    const result = this.database.run(
+  async prune() {
+    const result = await this.database.run(
       `DELETE FROM cache_entries
        WHERE stale_until < ?`,
       [new Date().toISOString()]
@@ -69,15 +69,15 @@ class CacheRepository {
     return { removed: Number(result.changes || 0) };
   }
 
-  clear(namespace = null) {
+  async clear(namespace = null) {
     const result = namespace
-      ? this.database.run('DELETE FROM cache_entries WHERE namespace = ?', [namespace])
-      : this.database.run('DELETE FROM cache_entries');
+      ? await this.database.run('DELETE FROM cache_entries WHERE namespace = ?', [namespace])
+      : await this.database.run('DELETE FROM cache_entries');
     return { cleared: true, removed: Number(result.changes || 0) };
   }
 
-  stats() {
-    const rows = this.database.all(
+  async stats() {
+    const rows = await this.database.all(
       `SELECT namespace, COUNT(*) AS total
        FROM cache_entries
        GROUP BY namespace

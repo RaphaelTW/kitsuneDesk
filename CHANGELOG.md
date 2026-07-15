@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.15.0 - Stable
+
+- Substituído o fallback SQLite que abria um processo por consulta por um worker `sql.js` persistente, com I/O assíncrono e gravação atômica agrupada.
+- Unificado o bootstrap da Home e separados pesquisa, biblioteca, player, backups, manutenção, telemetria e usuários em módulos; telas secundárias agora carregam fragmentos HTML na primeira visita.
+- Cache de imagens migrado para I/O assíncrono, concorrência limitada, teto de 256 MB, orçamento de memória por bytes e URLs locais em vez de Base64.
+- Adicionadas retenção configurável, mediana, percentil 95, tipos de abertura e gráficos SVG às métricas locais opt-in.
+- Dividido o serviço de reprodução em adaptadores de providers, resolução de episódios, MPV externo, player embutido, fila/estado e diagnóstico de rede; o MPV externo permanece como padrão estável.
+- Adicionada assinatura Authenticode opcional com validação obrigatória quando o certificado está configurado.
+- Ampliada a matriz instalada para instalação limpa e upgrades desde v0.13.0/v0.14.0, incluindo banco parcial, corrupção, interrupção, rollback, reinstalação e restauração de backup real.
+- Reduzido o pacote com apenas os idiomas usados pelo Electron e sem objetos intermediários do `better-sqlite3`.
+- Adicionado benchmark reproduzível de 20 aberturas frias e 20 quentes.
+
 ## v0.14.0 - Stable
 
 - Expandida a tradução da interface para português do Brasil, inglês, espanhol, francês, alemão e japonês.

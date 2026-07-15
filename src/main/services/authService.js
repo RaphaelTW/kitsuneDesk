@@ -20,12 +20,12 @@ class AuthService {
     this.settingsRepository = settingsRepository;
   }
 
-  setupStatus() {
-    return { needsSetup: this.userRepository.count() === 0 };
+  async setupStatus() {
+    return { needsSetup: (await this.userRepository.count()) === 0 };
   }
 
   async createInitialAdmin(payload) {
-    if (this.userRepository.count() > 0) {
+    if ((await this.userRepository.count()) > 0) {
       throw new AppError('SETUP_ALREADY_COMPLETED', 'A configuracao inicial ja foi concluida.', {
         status: 409
       });
@@ -33,9 +33,9 @@ class AuthService {
 
     const input = normalizeNewUser(payload, { forceAdmin: true });
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const result = this.userRepository.create({ ...input, passwordHash });
-    this.settingsRepository.createDefaultForUser(result.lastInsertRowid);
-    const user = this.userRepository.findById(result.lastInsertRowid);
+    const result = await this.userRepository.create({ ...input, passwordHash });
+    await this.settingsRepository.createDefaultForUser(result.lastInsertRowid);
+    const user = await this.userRepository.findById(result.lastInsertRowid);
     const safeUser = toSafeUser(user);
     this.sessionRepository.create(safeUser);
 
@@ -44,11 +44,11 @@ class AuthService {
 
   async login(payload) {
     const credentials = validateLoginPayload(payload);
-    this.assertNotLocked(credentials.username);
+    await this.assertNotLocked(credentials.username);
 
-    const user = this.userRepository.findByUsername(credentials.username);
+    const user = await this.userRepository.findByUsername(credentials.username);
     if (!user || !user.active) {
-      this.registerFailedAttempt(credentials.username);
+      await this.registerFailedAttempt(credentials.username);
       throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuario ou senha invalidos.', {
         status: 401
       });
@@ -56,14 +56,14 @@ class AuthService {
 
     const passwordMatches = await bcrypt.compare(credentials.password, user.password_hash);
     if (!passwordMatches) {
-      this.registerFailedAttempt(credentials.username);
+      await this.registerFailedAttempt(credentials.username);
       throw new AppError('AUTH_INVALID_CREDENTIALS', 'Usuario ou senha invalidos.', {
         status: 401
       });
     }
 
-    this.securityRepository.clear(credentials.username);
-    this.settingsRepository.createDefaultForUser(user.id);
+    await this.securityRepository.clear(credentials.username);
+    await this.settingsRepository.createDefaultForUser(user.id);
     const safeUser = toSafeUser(user);
     this.sessionRepository.create(safeUser);
 
@@ -82,7 +82,7 @@ class AuthService {
   async changePassword(payload) {
     const userId = requireUserId(this.sessionRepository);
     const passwordPayload = validateChangePasswordPayload(payload);
-    const user = this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
 
     if (!user || !user.active) {
       throw new AppError('AUTH_USER_DISABLED', 'Usuario desativado.', { status: 403 });
@@ -97,35 +97,35 @@ class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(passwordPayload.newPassword, 12);
-    this.userRepository.updatePassword(user.id, passwordHash, false);
-    const safeUser = toSafeUser(this.userRepository.findById(user.id));
+    await this.userRepository.updatePassword(user.id, passwordHash, false);
+    const safeUser = toSafeUser(await this.userRepository.findById(user.id));
     this.sessionRepository.create(safeUser);
     return { user: safeUser, mustChangePassword: false };
   }
 
-  listUsers() {
+  async listUsers() {
     requireAdmin(this.sessionRepository);
-    return this.userRepository.list().map(toSafeUser);
+    return (await this.userRepository.list()).map(toSafeUser);
   }
 
   async createUser(payload) {
     requireAdmin(this.sessionRepository);
     const input = normalizeNewUser(payload);
-    if (this.userRepository.findByUsername(input.username)) {
+    if (await this.userRepository.findByUsername(input.username)) {
       throw new AppError('USERNAME_IN_USE', 'Esse nome de usuario ja esta em uso.', {
         status: 409
       });
     }
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const result = this.userRepository.create({ ...input, passwordHash });
-    this.settingsRepository.createDefaultForUser(result.lastInsertRowid);
-    return toSafeUser(this.userRepository.findById(result.lastInsertRowid));
+    const result = await this.userRepository.create({ ...input, passwordHash });
+    await this.settingsRepository.createDefaultForUser(result.lastInsertRowid);
+    return toSafeUser(await this.userRepository.findById(result.lastInsertRowid));
   }
 
-  updateUser(payload) {
+  async updateUser(payload) {
     const admin = requireAdmin(this.sessionRepository);
     const userId = Number(payload?.id);
-    const current = this.userRepository.findById(userId);
+    const current = await this.userRepository.findById(userId);
     if (!current) {
       throw new AppError('USER_NOT_FOUND', 'Usuario nao encontrado.', { status: 404 });
     }
@@ -140,14 +140,14 @@ class AuthService {
       );
     }
     if (current.role === 'ADMIN' && current.active && (!active || role !== 'ADMIN')) {
-      if (this.userRepository.countActiveAdminsExcept(userId) === 0) {
+      if ((await this.userRepository.countActiveAdminsExcept(userId)) === 0) {
         throw new AppError('LAST_ADMIN', 'O sistema precisa manter pelo menos um administrador.', {
           status: 409
         });
       }
     }
 
-    this.userRepository.update(userId, {
+    await this.userRepository.update(userId, {
       name: normalizeName(payload?.name),
       role,
       active,
@@ -156,29 +156,33 @@ class AuthService {
       avatarStyle: normalizeAvatarStyle(payload?.avatarStyle),
       parentalLevel: normalizeParentalLevel(payload?.parentalLevel)
     });
-    return toSafeUser(this.userRepository.findById(userId));
+    return toSafeUser(await this.userRepository.findById(userId));
   }
 
   async resetUserPassword(payload) {
     requireAdmin(this.sessionRepository);
     const userId = Number(payload?.id);
-    const user = this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new AppError('USER_NOT_FOUND', 'Usuario nao encontrado.', { status: 404 });
     }
     const password = normalizePassword(payload?.password);
     const passwordHash = await bcrypt.hash(password, 12);
-    this.userRepository.updatePassword(userId, passwordHash, Boolean(payload?.mustChangePassword));
-    this.securityRepository.clear(user.username);
+    await this.userRepository.updatePassword(
+      userId,
+      passwordHash,
+      Boolean(payload?.mustChangePassword)
+    );
+    await this.securityRepository.clear(user.username);
     return { updated: true };
   }
 
-  assertNotLocked(username) {
-    const record = this.securityRepository.find(username);
+  async assertNotLocked(username) {
+    const record = await this.securityRepository.find(username);
     if (!record?.locked_until) return;
     const lockedUntil = Date.parse(record.locked_until);
     if (!Number.isFinite(lockedUntil) || lockedUntil <= Date.now()) {
-      this.securityRepository.clear(username);
+      await this.securityRepository.clear(username);
       return;
     }
     const minutes = Math.max(1, Math.ceil((lockedUntil - Date.now()) / 60000));
@@ -189,14 +193,14 @@ class AuthService {
     );
   }
 
-  registerFailedAttempt(username) {
-    const record = this.securityRepository.find(username);
+  async registerFailedAttempt(username) {
+    const record = await this.securityRepository.find(username);
     const nextCount = Number(record?.failed_attempts ?? 0) + 1;
     const lockedUntil =
       nextCount >= MAX_FAILED_ATTEMPTS
         ? new Date(Date.now() + LOCK_DURATION_MS).toISOString()
         : null;
-    this.securityRepository.registerFailure(username, nextCount, lockedUntil);
+    await this.securityRepository.registerFailure(username, nextCount, lockedUntil);
   }
 }
 

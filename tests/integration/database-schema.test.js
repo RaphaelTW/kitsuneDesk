@@ -48,6 +48,7 @@ test('migra banco vazio com biblioteca, segurança e relatórios', { skip: !Data
   assert.ok(settingsColumns.includes('player_mode'));
   assert.ok(settingsColumns.includes('local_telemetry_enabled'));
   assert.ok(settingsColumns.includes('startup_metrics_enabled'));
+  assert.ok(settingsColumns.includes('startup_metrics_retention_days'));
   const defaultMode = database
     .prepare("SELECT dflt_value FROM pragma_table_info('settings') WHERE name = 'player_mode'")
     .get();

@@ -1,0 +1,167 @@
+<div class="section-heading">
+  <div>
+    <p class="eyebrow">Componentes locais</p>
+    <h2>Provedores e ferramentas</h2>
+  </div>
+</div>
+<div class="tool-grid" id="tool-grid">
+  <article class="tool-card panel" data-tool="goanime-gui">
+    <i class="bi bi-window-stack"></i>
+    <div>
+      <h3>GoAnime GUI</h3>
+      <p data-i18n="toolsDescriptionGoAnime">Busca, episódios, fallback e reprodução pelo MPV.</p>
+      <span class="tool-status">Verificando</span>
+    </div>
+    <button
+      class="btn btn-primary install-provider-button"
+      data-provider="goanime-gui"
+      type="button"
+    >
+      Instalar ou reparar
+    </button>
+  </article>
+  <article class="tool-card panel" data-tool="goanime">
+    <i class="bi bi-terminal"></i>
+    <div>
+      <h3>GoAnime clássico</h3>
+      <p data-i18n="toolsDescriptionClassic">
+        Fluxo original em terminal, preservado como alternativa.
+      </p>
+      <span class="tool-status">Verificando</span>
+    </div>
+    <div class="tool-card-actions">
+      <button
+        class="btn btn-outline-light open-provider-button"
+        data-provider="goanime"
+        type="button"
+      >
+        Abrir</button
+      ><button
+        class="btn btn-primary install-provider-button"
+        data-provider="goanime"
+        type="button"
+      >
+        Instalar ou reparar
+      </button>
+    </div>
+  </article>
+  <article class="tool-card panel" data-tool="anime-cli-br">
+    <i class="bi bi-translate"></i>
+    <div>
+      <h3>anime-cli-br</h3>
+      <p data-i18n="toolsDescriptionAnimeCli">
+        Alternativa brasileira com VLC e ambiente Python isolado.
+      </p>
+      <span class="tool-status">Verificando</span>
+    </div>
+    <div class="tool-card-actions">
+      <button
+        class="btn btn-outline-light open-provider-button"
+        data-provider="anime-cli-br"
+        type="button"
+      >
+        Abrir</button
+      ><button
+        class="btn btn-primary install-provider-button"
+        data-provider="anime-cli-br"
+        type="button"
+      >
+        Instalar ou reparar
+      </button>
+    </div>
+  </article>
+  <article class="tool-card panel" data-tool="ani-cli">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div>
+      <h3>ani-cli experimental</h3>
+      <p data-i18n="toolsDescriptionAniCli">
+        Cliente experimental; fontes externas podem ficar instáveis.
+      </p>
+      <span class="tool-status">Verificando</span>
+    </div>
+    <div class="tool-card-actions">
+      <button
+        class="btn btn-outline-light open-provider-button"
+        data-provider="ani-cli"
+        type="button"
+      >
+        Abrir</button
+      ><button
+        class="btn btn-primary install-provider-button"
+        data-provider="ani-cli"
+        type="button"
+      >
+        Instalar ou reparar
+      </button>
+    </div>
+  </article>
+  <article class="tool-card panel tool-card-wide" data-tool="fast-anime-vsr">
+    <i class="bi bi-gpu-card"></i>
+    <div>
+      <h3>FAST Anime VSR</h3>
+      <p data-i18n="fastVsrDescription">
+        Super-resolução para arquivos locais. Esta ferramenta não fornece catálogos nem streams.
+      </p>
+      <span class="tool-status">Verificando</span>
+    </div>
+    <div class="tool-card-actions">
+      <button class="btn btn-outline-light" id="open-fast-vsr-button" type="button">
+        Abrir ferramenta</button
+      ><button
+        class="btn btn-primary install-provider-button"
+        data-provider="fast-anime-vsr"
+        type="button"
+      >
+        Preparar ambiente
+      </button>
+    </div>
+  </article>
+</div>
+
+<section class="official-providers panel">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Opções oficiais em português</p>
+      <h3>Catálogos dublados e licenciados</h3>
+      <p class="section-description" data-i18n="officialProvidersDescription">
+        Estes serviços usam contas e DRM próprios. O KitsuneDesk apenas abre o site oficial no
+        navegador e não coleta credenciais.
+      </p>
+    </div>
+  </div>
+  <div class="official-provider-grid">
+    <button
+      class="official-provider-card"
+      data-official-url="https://www.crunchyroll.com/pt-br/videos/popular?tab=a"
+      type="button"
+    >
+      <i class="bi bi-play-btn-fill"></i
+      ><span
+        ><strong>Crunchyroll</strong
+        ><small>Maior foco em anime, com filtro de dublados.</small></span
+      ><i class="bi bi-box-arrow-up-right"></i>
+    </button>
+    <button
+      class="official-provider-card"
+      data-official-url="https://www.netflix.com/br-pt/browse/genre/81593939"
+      type="button"
+    >
+      <i class="bi bi-badge-hd-fill"></i
+      ><span
+        ><strong>Netflix — anime dublado</strong
+        ><small>Categoria oficial com áudio em português.</small></span
+      ><i class="bi bi-box-arrow-up-right"></i>
+    </button>
+    <button
+      class="official-provider-card"
+      data-official-url="https://www.primevideo.com/-/pt/region/na/genre/anime"
+      type="button"
+    >
+      <i class="bi bi-collection-play-fill"></i
+      ><span
+        ><strong>Prime Video</strong
+        ><small>Catálogo de animes, filmes e canais adicionais.</small></span
+      ><i class="bi bi-box-arrow-up-right"></i>
+    </button>
+  </div>
+</section>

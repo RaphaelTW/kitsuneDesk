@@ -16,6 +16,7 @@ const { registerDiagnosticsHandlers } = require('./ipc/registerDiagnosticsHandle
 const { registerLibraryHandlers } = require('./ipc/registerLibraryHandlers');
 const { registerPlayerHandlers } = require('./ipc/registerPlayerHandlers');
 const { registerSettingsHandlers } = require('./ipc/registerSettingsHandlers');
+const handleRequest = require('./ipc/handleRequest');
 const CacheRepository = require('./repositories/cacheRepository');
 const LibraryRepository = require('./repositories/libraryRepository');
 const SecurityRepository = require('./repositories/securityRepository');
@@ -37,6 +38,7 @@ const { createMainWindow } = require('./windowManager');
 
 let mainWindow = null;
 let updateService = null;
+let databaseClosed = false;
 
 if (process.env.KITSUNEDESK_USER_DATA_DIR) {
   fs.mkdirSync(process.env.KITSUNEDESK_USER_DATA_DIR, { recursive: true });
@@ -92,7 +94,7 @@ function registerDomainHandlers(database) {
   const recordFailure = (failure) => {
     try {
       const userId = Number(sessionRepository.getCurrent()?.user?.id || 0);
-      telemetryRepository.record(userId, failure);
+      void telemetryRepository.record(userId, failure).catch(() => {});
     } catch {
       // Falhas de telemetria local nao podem derrubar o app.
     }
@@ -130,6 +132,24 @@ function registerDomainHandlers(database) {
   registerLibraryHandlers(ipcMain, libraryController);
   registerPlayerHandlers(ipcMain, playerController);
   registerDiagnosticsHandlers(ipcMain, diagnosticsController);
+  ipcMain.handle('app:bootstrap', () =>
+    handleRequest('BOOTSTRAP', async () => {
+      const [settings, dashboard] = await Promise.all([
+        settingsService.get(),
+        libraryService.dashboard()
+      ]);
+      return {
+        appInfo: {
+          name: app.getName(),
+          version: app.getVersion(),
+          platform: process.platform,
+          isPackaged: app.isPackaged
+        },
+        settings,
+        dashboard
+      };
+    })
+  );
 
   const broadcast = (channel, payload) => {
     for (const window of BrowserWindow.getAllWindows()) {
@@ -177,8 +197,8 @@ if (!hasSingleInstanceLock) {
 } else {
   app.on('second-instance', focusExistingWindow);
 
-  app.whenReady().then(() => {
-    const database = initializeFirstRun(app);
+  app.whenReady().then(async () => {
+    const database = await initializeFirstRun(app);
     registerBaseHandlers();
     registerDomainHandlers(database);
     openMainWindow();
@@ -188,9 +208,14 @@ if (!hasSingleInstanceLock) {
     });
   });
 
-  app.on('before-quit', () => {
+  app.on('before-quit', (event) => {
     updateService?.stopAutomaticChecks();
-    closeDatabase();
+    if (databaseClosed) return;
+    event.preventDefault();
+    void closeDatabase().finally(() => {
+      databaseClosed = true;
+      app.quit();
+    });
   });
 
   app.on('window-all-closed', () => {

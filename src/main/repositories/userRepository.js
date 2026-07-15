@@ -11,8 +11,8 @@ class UserRepository {
     return this.database.findUserById(userId);
   }
 
-  count() {
-    return Number(this.database.get('SELECT COUNT(*) AS total FROM users')?.total ?? 0);
+  async count() {
+    return Number((await this.database.get('SELECT COUNT(*) AS total FROM users'))?.total ?? 0);
   }
 
   list() {
@@ -64,13 +64,15 @@ class UserRepository {
     );
   }
 
-  countActiveAdminsExcept(userId) {
+  async countActiveAdminsExcept(userId) {
     return Number(
-      this.database.get(
-        `SELECT COUNT(*) AS total
+      (
+        await this.database.get(
+          `SELECT COUNT(*) AS total
          FROM users
          WHERE role = 'ADMIN' AND active = 1 AND id <> ?`,
-        [userId]
+          [userId]
+        )
       )?.total ?? 0
     );
   }

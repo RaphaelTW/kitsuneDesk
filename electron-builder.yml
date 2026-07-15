@@ -3,6 +3,13 @@ productName: KitsuneDesk
 artifactName: KitsuneDesk-Setup-${version}.${ext}
 
 asar: true
+electronLanguages:
+  - pt-BR
+  - en-US
+  - es
+  - fr
+  - de
+  - ja
 
 asarUnpack:
   - scripts/windows/**/*
@@ -20,6 +27,13 @@ files:
   - assets/**/*
   - scripts/windows/**/*
   - package.json
+  - '!node_modules/better-sqlite3/build/Release/obj/**/*'
+  - '!node_modules/better-sqlite3/build/Release/*.iobj'
+  - '!node_modules/better-sqlite3/build/Release/*.ipdb'
+  - '!node_modules/better-sqlite3/build/Release/*.lib'
+  - '!node_modules/better-sqlite3/build/Release/*.exp'
+  - '!node_modules/better-sqlite3/build/Release/test_extension.node'
+  - '!node_modules/better-sqlite3/deps/**/*'
 
 win:
   icon: assets/icons/icon.ico

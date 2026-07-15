@@ -17,13 +17,15 @@ const workflow = fs.readFileSync(
 test('configuração do electron-builder possui uma única fonte', () => {
   assert.equal(packageJson.build, undefined);
 
-  assert.match(packageJson.scripts['build:win'], /--config electron-builder\.yml --win/);
+  assert.equal(packageJson.scripts['build:win'], 'node scripts/build-windows.js');
 
-  assert.match(packageJson.scripts['release:build'], /--publish never/);
+  assert.match(packageJson.scripts['release:build'], /--publish-never/);
 
   assert.match(builderConfig, /artifactName:\s*KitsuneDesk-Setup-\$\{version\}\.\$\{ext\}/);
 
   assert.match(builderConfig, /verifyUpdateCodeSignature:\s*false/);
+  assert.match(builderConfig, /electronLanguages:[\s\S]*pt-BR[\s\S]*ja/);
+  assert.match(builderConfig, /better-sqlite3\/build\/Release\/obj/);
   assert.match(builderConfig, /license:\s*docs\/INSTALLER_TERMS\.txt/);
   assert.deepEqual(
     [...installerTerms.subarray(0, 3)],
@@ -40,11 +42,11 @@ test('workflow só publica release com metadados do atualizador', () => {
   assert.match(workflow, /npm run release:verify-artifacts/);
   assert.match(workflow, /npm run test:e2e:electron/);
   assert.match(workflow, /test-installed-update\.ps1/);
-  assert.doesNotMatch(workflow, /npm run release:verify-signing/);
-  assert.doesNotMatch(workflow, /Get-AuthenticodeSignature/);
-  assert.doesNotMatch(workflow, /WINDOWS_CSC_LINK/);
-  assert.doesNotMatch(packageJson.scripts['release:win'], /release:verify-signing/);
-  assert.doesNotMatch(packageJson.scripts['release:stable'], /release:verify-signing/);
+  assert.match(workflow, /npm run release:verify-signing/);
+  assert.match(workflow, /WINDOWS_CSC_LINK/);
+  assert.match(packageJson.scripts['release:win'], /release:verify-signing/);
+  assert.match(packageJson.scripts['release:stable'], /release:verify-signing/);
+  assert.match(workflow, /-PreviousTag v0\.13\.0,v0\.14\.0/);
 
   assert.match(workflow, /dist\/latest\.yml/);
   assert.match(workflow, /resources\/providers\/SHA256SUMS/);

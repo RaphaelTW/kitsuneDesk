@@ -63,7 +63,7 @@ function createFixture() {
 
 test('criacao inicial de administrador exige senha forte', async () => {
   const fixture = createFixture();
-  assert.equal(fixture.service.setupStatus().needsSetup, true);
+  assert.equal((await fixture.service.setupStatus()).needsSetup, true);
   const result = await fixture.service.createInitialAdmin({
     name: 'Raphael',
     username: 'raphael',
@@ -71,7 +71,7 @@ test('criacao inicial de administrador exige senha forte', async () => {
   });
   assert.equal(result.user.role, 'ADMIN');
   assert.equal(result.user.avatarStyle, 'thumbs');
-  assert.equal(fixture.service.setupStatus().needsSetup, false);
+  assert.equal((await fixture.service.setupStatus()).needsSetup, false);
 });
 
 test('bloqueio de login e persistido apos cinco falhas', async () => {

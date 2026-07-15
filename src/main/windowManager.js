@@ -25,7 +25,8 @@ function createMainWindow() {
       preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
+      spellcheck: false
     }
   });
 

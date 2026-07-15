@@ -20,7 +20,7 @@
       <aside class="sidebar">
         <button class="brand-block" id="brand-home-button" type="button">
           <img src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" width="42" height="42" />
-          <span><strong>KitsuneDesk</strong><small id="app-version">v0.14.0</small></span>
+          <span><strong>KitsuneDesk</strong><small id="app-version">v0.15.0</small></span>
         </button>
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -288,224 +288,33 @@
             </section>
           </section>
 
-          <section class="app-view d-none" id="view-continue" data-view-panel="continue">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Progresso salvo</p>
-                <h2>Continuar assistindo</h2>
-              </div>
-            </div>
-            <div class="library-grid" id="continue-list"></div>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-continue"
+            data-view-panel="continue"
+            data-fragment="views/continue.html"
+          ></section>
 
-          <section class="app-view d-none" id="view-lists" data-view-panel="lists">
-            <div class="tab-switcher" role="tablist">
-              <button class="is-active" data-list-tab="favorites" type="button">
-                <i class="bi bi-heart-fill"></i> Favoritos
-              </button>
-              <button data-list-tab="watchlist" type="button">
-                <i class="bi bi-bookmark-fill"></i> Quero assistir
-              </button>
-            </div>
-            <div class="library-grid" id="favorites-list"></div>
-            <div class="library-grid d-none" id="watchlist-list"></div>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-lists"
+            data-view-panel="lists"
+            data-fragment="views/lists.html"
+          ></section>
 
-          <section class="app-view d-none" id="view-history" data-view-panel="history">
-            <div class="history-toolbar panel">
-              <div class="search-input-wrap compact">
-                <i class="bi bi-search"></i
-                ><input
-                  id="history-search"
-                  type="search"
-                  placeholder="Pesquisar no historico"
-                  aria-label="Pesquisar no historico"
-                />
-              </div>
-              <div class="history-actions">
-                <button class="btn btn-outline-light" id="export-history-button" type="button">
-                  <i class="bi bi-filetype-csv"></i> Exportar CSV
-                </button>
-                <button class="btn btn-outline-danger" id="clear-history-button" type="button">
-                  <i class="bi bi-trash"></i> Limpar historico
-                </button>
-              </div>
-            </div>
-            <div class="history-list" id="history-list"></div>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-history"
+            data-view-panel="history"
+            data-fragment="views/history.html"
+          ></section>
 
-          <section class="app-view d-none" id="view-tools" data-view-panel="tools">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Componentes locais</p>
-                <h2>Provedores e ferramentas</h2>
-              </div>
-            </div>
-            <div class="tool-grid" id="tool-grid">
-              <article class="tool-card panel" data-tool="goanime-gui">
-                <i class="bi bi-window-stack"></i>
-                <div>
-                  <h3>GoAnime GUI</h3>
-                  <p data-i18n="toolsDescriptionGoAnime">
-                    Busca, episódios, fallback e reprodução pelo MPV.
-                  </p>
-                  <span class="tool-status">Verificando</span>
-                </div>
-                <button
-                  class="btn btn-primary install-provider-button"
-                  data-provider="goanime-gui"
-                  type="button"
-                >
-                  Instalar ou reparar
-                </button>
-              </article>
-              <article class="tool-card panel" data-tool="goanime">
-                <i class="bi bi-terminal"></i>
-                <div>
-                  <h3>GoAnime clássico</h3>
-                  <p data-i18n="toolsDescriptionClassic">
-                    Fluxo original em terminal, preservado como alternativa.
-                  </p>
-                  <span class="tool-status">Verificando</span>
-                </div>
-                <div class="tool-card-actions">
-                  <button
-                    class="btn btn-outline-light open-provider-button"
-                    data-provider="goanime"
-                    type="button"
-                  >
-                    Abrir</button
-                  ><button
-                    class="btn btn-primary install-provider-button"
-                    data-provider="goanime"
-                    type="button"
-                  >
-                    Instalar ou reparar
-                  </button>
-                </div>
-              </article>
-              <article class="tool-card panel" data-tool="anime-cli-br">
-                <i class="bi bi-translate"></i>
-                <div>
-                  <h3>anime-cli-br</h3>
-                  <p data-i18n="toolsDescriptionAnimeCli">
-                    Alternativa brasileira com VLC e ambiente Python isolado.
-                  </p>
-                  <span class="tool-status">Verificando</span>
-                </div>
-                <div class="tool-card-actions">
-                  <button
-                    class="btn btn-outline-light open-provider-button"
-                    data-provider="anime-cli-br"
-                    type="button"
-                  >
-                    Abrir</button
-                  ><button
-                    class="btn btn-primary install-provider-button"
-                    data-provider="anime-cli-br"
-                    type="button"
-                  >
-                    Instalar ou reparar
-                  </button>
-                </div>
-              </article>
-              <article class="tool-card panel" data-tool="ani-cli">
-                <i class="bi bi-exclamation-triangle"></i>
-                <div>
-                  <h3>ani-cli experimental</h3>
-                  <p data-i18n="toolsDescriptionAniCli">
-                    Cliente experimental; fontes externas podem ficar instáveis.
-                  </p>
-                  <span class="tool-status">Verificando</span>
-                </div>
-                <div class="tool-card-actions">
-                  <button
-                    class="btn btn-outline-light open-provider-button"
-                    data-provider="ani-cli"
-                    type="button"
-                  >
-                    Abrir</button
-                  ><button
-                    class="btn btn-primary install-provider-button"
-                    data-provider="ani-cli"
-                    type="button"
-                  >
-                    Instalar ou reparar
-                  </button>
-                </div>
-              </article>
-              <article class="tool-card panel tool-card-wide" data-tool="fast-anime-vsr">
-                <i class="bi bi-gpu-card"></i>
-                <div>
-                  <h3>FAST Anime VSR</h3>
-                  <p data-i18n="fastVsrDescription">
-                    Super-resolução para arquivos locais. Esta ferramenta não fornece catálogos nem
-                    streams.
-                  </p>
-                  <span class="tool-status">Verificando</span>
-                </div>
-                <div class="tool-card-actions">
-                  <button class="btn btn-outline-light" id="open-fast-vsr-button" type="button">
-                    Abrir ferramenta</button
-                  ><button
-                    class="btn btn-primary install-provider-button"
-                    data-provider="fast-anime-vsr"
-                    type="button"
-                  >
-                    Preparar ambiente
-                  </button>
-                </div>
-              </article>
-            </div>
-
-            <section class="official-providers panel">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">Opções oficiais em português</p>
-                  <h3>Catálogos dublados e licenciados</h3>
-                  <p class="section-description" data-i18n="officialProvidersDescription">
-                    Estes serviços usam contas e DRM próprios. O KitsuneDesk apenas abre o site
-                    oficial no navegador e não coleta credenciais.
-                  </p>
-                </div>
-              </div>
-              <div class="official-provider-grid">
-                <button
-                  class="official-provider-card"
-                  data-official-url="https://www.crunchyroll.com/pt-br/videos/popular?tab=a"
-                  type="button"
-                >
-                  <i class="bi bi-play-btn-fill"></i
-                  ><span
-                    ><strong>Crunchyroll</strong
-                    ><small>Maior foco em anime, com filtro de dublados.</small></span
-                  ><i class="bi bi-box-arrow-up-right"></i>
-                </button>
-                <button
-                  class="official-provider-card"
-                  data-official-url="https://www.netflix.com/br-pt/browse/genre/81593939"
-                  type="button"
-                >
-                  <i class="bi bi-badge-hd-fill"></i
-                  ><span
-                    ><strong>Netflix — anime dublado</strong
-                    ><small>Categoria oficial com áudio em português.</small></span
-                  ><i class="bi bi-box-arrow-up-right"></i>
-                </button>
-                <button
-                  class="official-provider-card"
-                  data-official-url="https://www.primevideo.com/-/pt/region/na/genre/anime"
-                  type="button"
-                >
-                  <i class="bi bi-collection-play-fill"></i
-                  ><span
-                    ><strong>Prime Video</strong
-                    ><small>Catálogo de animes, filmes e canais adicionais.</small></span
-                  ><i class="bi bi-box-arrow-up-right"></i>
-                </button>
-              </div>
-            </section>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-tools"
+            data-view-panel="tools"
+            data-fragment="views/tools.html"
+          ></section>
 
           <section class="app-view d-none" id="view-settings" data-view-panel="settings">
             <form class="settings-layout" id="settings-form">
@@ -650,6 +459,14 @@
                       data-i18n="startupMetrics"
                       >Medir localmente o tempo de abertura</span
                     ></label
+                  ><label
+                    ><span>Retenção das métricas de abertura</span
+                    ><select class="form-select" id="setting-startup-retention">
+                      <option value="7">7 dias</option>
+                      <option value="30">30 dias</option>
+                      <option value="90">90 dias</option>
+                      <option value="0">Sem expiração</option>
+                    </select></label
                   >
                 </div>
                 <p class="section-description" data-i18n="startupMetricsHelp">
@@ -803,230 +620,31 @@
             </form>
           </section>
 
-          <section class="app-view d-none" id="view-diagnostics" data-view-panel="diagnostics">
-            <div class="diagnostic-actions">
-              <button class="btn btn-primary" id="run-diagnostics-button" type="button">
-                <i class="bi bi-heart-pulse"></i> Verificar sistema
-              </button>
-              <button class="btn btn-outline-light" id="export-diagnostics-button" type="button">
-                <i class="bi bi-file-earmark-arrow-down"></i> Exportar relatório
-              </button>
-              <button class="btn btn-outline-light" id="check-updates-button" type="button">
-                <i class="bi bi-cloud-arrow-down"></i> Verificar atualização
-              </button>
-            </div>
-            <div class="diagnostic-grid" id="diagnostic-grid"></div>
-            <section class="panel repair-panel">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">Correções automáticas</p>
-                  <h3>Diagnóstico e reparo</h3>
-                </div>
-              </div>
-              <div class="repair-grid">
-                <button class="repair-action" data-repair-provider="goanime-gui" type="button">
-                  <i class="bi bi-window-stack"></i
-                  ><span
-                    ><strong>Reparar GoAnime GUI</strong
-                    ><small>Recompila bridge e verifica MPV.</small></span
-                  >
-                </button>
-                <button class="repair-action" id="repair-native-button" type="button">
-                  <i class="bi bi-database-gear"></i
-                  ><span
-                    ><strong>Corrigir better-sqlite3</strong
-                    ><small>Reconstrói o módulo para a versão do Electron.</small></span
-                  >
-                </button>
-                <button class="repair-action" id="clear-cache-button" type="button">
-                  <i class="bi bi-eraser"></i
-                  ><span
-                    ><strong>Limpar cache</strong
-                    ><small>Não apaga histórico nem configurações.</small></span
-                  >
-                </button>
-                <button
-                  class="repair-action is-danger"
-                  id="restore-components-button"
-                  type="button"
-                >
-                  <i class="bi bi-arrow-counterclockwise"></i
-                  ><span
-                    ><strong>Restaurar componentes</strong
-                    ><small>Remove ferramentas locais, preservando os dados.</small></span
-                  >
-                </button>
-              </div>
-              <pre class="diagnostic-log" id="diagnostic-log" data-i18n="diagnosticsWaiting">
-Aguardando verificação manual. Nenhuma tarefa pesada será executada automaticamente ao abrir.</pre>
-            </section>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-diagnostics"
+            data-view-panel="diagnostics"
+            data-fragment="views/diagnostics.html"
+          ></section>
 
-          <section class="app-view d-none" id="view-telemetry" data-view-panel="telemetry">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Falhas locais</p>
-                <h2>Gerenciamento de telemetria</h2>
-              </div>
-              <div class="history-actions">
-                <button class="btn btn-outline-light" id="export-telemetry-json" type="button">
-                  <i class="bi bi-filetype-json"></i> JSON
-                </button>
-                <button class="btn btn-outline-light" id="export-telemetry-csv" type="button">
-                  <i class="bi bi-filetype-csv"></i> CSV
-                </button>
-                <button class="btn btn-outline-danger" id="clear-telemetry-button" type="button">
-                  <i class="bi bi-trash"></i> Limpar tudo
-                </button>
-              </div>
-            </div>
-            <section class="panel telemetry-toolbar">
-              <input
-                class="form-control"
-                id="telemetry-query"
-                type="search"
-                placeholder="Pesquisar mensagem ou detalhe técnico"
-              />
-              <select class="form-select" id="telemetry-scope">
-                <option value="">Todos os contextos</option>
-              </select>
-              <select class="form-select" id="telemetry-event">
-                <option value="">Todos os eventos</option>
-              </select>
-              <input
-                class="form-control"
-                id="telemetry-from"
-                type="date"
-                aria-label="Data inicial"
-              />
-              <input class="form-control" id="telemetry-to" type="date" aria-label="Data final" />
-              <button class="btn btn-primary" id="telemetry-filter-button" type="button">
-                <i class="bi bi-funnel"></i> Filtrar
-              </button>
-            </section>
-            <div class="telemetry-summary" id="telemetry-summary">Nenhum registro carregado.</div>
-            <p class="section-description" data-i18n="telemetryPrivacy">
-              Os registros de falha e as métricas de abertura permanecem somente neste computador e
-              podem ser desativados separadamente.
-            </p>
-            <div class="telemetry-list" id="telemetry-list"></div>
-            <div class="telemetry-pagination">
-              <button class="btn btn-outline-light" id="telemetry-prev" type="button">
-                Anterior
-              </button>
-              <span id="telemetry-page">Página 1</span>
-              <button class="btn btn-outline-light" id="telemetry-next" type="button">
-                Próxima
-              </button>
-            </div>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-telemetry"
+            data-view-panel="telemetry"
+            data-fragment="views/telemetry.html"
+          ></section>
 
-          <section class="app-view d-none" id="view-admin" data-view-panel="admin">
-            <div class="admin-intro panel">
-              <div>
-                <i class="bi bi-people-fill"></i
-                ><span
-                  ><strong>Perfis separados</strong
-                  ><small
-                    >Somente administradores podem criar usuários, definir permissões, controle
-                    parental e redefinir senhas.</small
-                  ></span
-                >
-              </div>
-              <span class="admin-badge">Área do administrador</span>
-            </div>
-            <div class="admin-toolbar">
-              <button class="btn btn-primary" id="new-user-button" type="button">
-                <i class="bi bi-person-plus"></i> Novo usuário
-              </button>
-            </div>
-            <div class="users-grid" id="users-list"></div>
-          </section>
+          <section
+            class="app-view d-none"
+            id="view-admin"
+            data-view-panel="admin"
+            data-fragment="views/admin.html"
+          ></section>
         </main>
       </div>
     </div>
 
-    <section class="embedded-player is-hidden" id="embedded-player" aria-label="Player embutido">
-      <div class="embedded-player-heading">
-        <strong id="embedded-player-title">Player embutido</strong
-        ><button id="embedded-player-close" type="button" aria-label="Fechar player">
-          <i class="bi bi-x-lg"></i>
-        </button>
-      </div>
-      <p class="embedded-player-status" id="embedded-player-status">
-        Aguardando stream compatível.
-      </p>
-      <video id="embedded-video" controls playsinline></video>
-    </section>
-    <section class="mini-player is-hidden" id="mini-player" aria-label="Controles de reprodução">
-      <div class="mini-player-meta">
-        <img id="player-cover" src="../../../assets/icons/kitsunedesk-icon-128.png" alt="" />
-        <div>
-          <strong id="player-title">Nenhuma reprodução</strong
-          ><span id="player-subtitle">Selecione um episódio</span>
-        </div>
-      </div>
-      <div class="mini-player-center">
-        <div class="player-buttons">
-          <button
-            id="player-previous"
-            type="button"
-            title="Episodio anterior"
-            aria-label="Episodio anterior"
-          >
-            <i class="bi bi-skip-backward-fill"></i></button
-          ><button
-            class="player-main-button"
-            id="player-toggle"
-            type="button"
-            title="Pausar ou continuar"
-            aria-label="Pausar ou continuar"
-          >
-            <i class="bi bi-play-fill"></i></button
-          ><button
-            id="player-next"
-            type="button"
-            title="Proximo episodio"
-            aria-label="Proximo episodio"
-          >
-            <i class="bi bi-skip-forward-fill"></i>
-          </button>
-        </div>
-        <div class="player-progress-row">
-          <span id="player-current-time">00:00</span
-          ><input
-            id="player-progress"
-            type="range"
-            min="0"
-            max="100"
-            value="0"
-            aria-label="Progresso da reproducao"
-          /><span id="player-duration">00:00</span>
-        </div>
-      </div>
-      <div class="mini-player-actions">
-        <span class="player-source" id="player-source">GoAnime</span><i class="bi bi-volume-up"></i
-        ><input
-          id="player-volume"
-          type="range"
-          min="0"
-          max="100"
-          value="80"
-          aria-label="Volume"
-        /><button id="player-queue-button" type="button" title="Fila" aria-label="Abrir fila">
-          <i class="bi bi-list-ol"></i></button
-        ><button
-          id="report-episode-button"
-          type="button"
-          title="Reportar problema"
-          aria-label="Reportar problema"
-        >
-          <i class="bi bi-flag"></i></button
-        ><button id="player-stop" type="button" title="Parar" aria-label="Parar">
-          <i class="bi bi-stop-fill"></i>
-        </button>
-      </div>
-    </section>
+    <div id="player-components"></div>
 
     <div
       class="installation-overlay d-none"
@@ -1281,6 +899,6 @@ Aguardando verificação manual. Nenhuma tarefa pesada será executada automatic
 
     <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
     <script src="../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="../js/home.js"></script>
+    <script type="module" src="../js/home-loader.js"></script>
   </body>
 </html>

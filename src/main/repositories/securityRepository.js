@@ -8,11 +8,11 @@ class SecurityRepository {
   }
 
   clear(username) {
-    this.database.run('DELETE FROM login_security WHERE username = ?', [username]);
+    return this.database.run('DELETE FROM login_security WHERE username = ?', [username]);
   }
 
   registerFailure(username, failedAttempts, lockedUntil) {
-    this.database.run(
+    return this.database.run(
       `INSERT INTO login_security (username, failed_attempts, locked_until, updated_at)
        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(username) DO UPDATE SET
