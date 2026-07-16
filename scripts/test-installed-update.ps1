@@ -7,6 +7,8 @@ $installed = Join-Path $env:LOCALAPPDATA 'Programs\KitsuneDesk\KitsuneDesk.exe'
 $uninstaller = Join-Path $env:LOCALAPPDATA 'Programs\KitsuneDesk\Uninstall KitsuneDesk.exe'
 $appData = Join-Path $env:APPDATA 'KitsuneDesk'
 $databasePath = Join-Path $appData 'database\kitsunedesk.sqlite'
+$electronNode = (Resolve-Path 'node_modules\electron\dist\electron.exe').Path
+$fixtureScript = (Resolve-Path 'scripts\installed-update-fixture.js').Path
 
 function Install-Silent([string]$InstallerPath, [string]$Label) {
   Write-Host "Instalando $Label..."
@@ -44,6 +46,31 @@ function Uninstall-Silent {
   }
 }
 
+function Invoke-Fixture(
+  [Parameter(Mandatory = $true)][string]$Mode,
+  [Parameter(Mandatory = $true)][string]$FixtureDatabasePath,
+  [string]$BackupPath = ''
+) {
+  $previousNodeMode = $env:ELECTRON_RUN_AS_NODE
+  try {
+    $env:ELECTRON_RUN_AS_NODE = '1'
+    if ($BackupPath) {
+      & $electronNode $fixtureScript $Mode $FixtureDatabasePath $BackupPath
+    } else {
+      & $electronNode $fixtureScript $Mode $FixtureDatabasePath
+    }
+    if ($LASTEXITCODE -ne 0) {
+      throw "Fixture instalada '$Mode' falhou com código $LASTEXITCODE."
+    }
+  } finally {
+    if ($null -eq $previousNodeMode) {
+      Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+    } else {
+      $env:ELECTRON_RUN_AS_NODE = $previousNodeMode
+    }
+  }
+}
+
 # Instalação realmente limpa: sem versão anterior e sem AppData.
 Uninstall-Silent
 if (Test-Path $appData) { Remove-Item -LiteralPath $appData -Recurse -Force }
@@ -52,7 +79,7 @@ if ((Install-Silent $newInstaller "instalação limpa da v$currentVersion") -ne 
 }
 Assert-InstalledVersion $currentVersion 'instalação limpa da versão atual'
 Start-Smoke 'primeira abertura limpa da versão atual'
-node scripts/installed-update-fixture.js clean $databasePath
+Invoke-Fixture clean $databasePath
 Uninstall-Silent
 if (Test-Path $appData) { Remove-Item -LiteralPath $appData -Recurse -Force }
 
@@ -75,7 +102,7 @@ foreach ($tag in $PreviousTag) {
     Assert-InstalledVersion $previousVersion 'instalação base'
     Start-Smoke 'primeira abertura da versão anterior'
     $backupFile = Join-Path $appData 'backups\stable-preservation.kitsunebackup'
-    node scripts/installed-update-fixture.js seed $databasePath $backupFile
+    Invoke-Fixture seed $databasePath $backupFile
 
     $truncated = Join-Path $folder "KitsuneDesk-Setup-$currentVersion-corrompido.exe"
     $stream = [System.IO.File]::OpenRead($newInstaller)
@@ -97,12 +124,12 @@ foreach ($tag in $PreviousTag) {
     if (-not $interrupted.HasExited) { Stop-Process -Id $interrupted.Id -Force }
     [void](Install-Silent $oldInstaller 'reparo após encerramento durante atualização')
     Assert-InstalledVersion $previousVersion 'recuperação após encerramento'
-    node scripts/installed-update-fixture.js partial $databasePath
+    Invoke-Fixture partial $databasePath
 
     if ((Install-Silent $newInstaller "upgrade para v$currentVersion") -ne 0) { throw 'Upgrade falhou.' }
     Assert-InstalledVersion $currentVersion 'upgrade'
     Start-Smoke 'abertura pós-upgrade'
-    node scripts/installed-update-fixture.js verify $databasePath $backupFile
+    Invoke-Fixture verify $databasePath $backupFile
 
     if ((Install-Silent $newInstaller 'reinstalação sobre a mesma versão') -ne 0) { throw 'Reinstalação falhou.' }
     Assert-InstalledVersion $currentVersion 'reinstalação da mesma versão'
@@ -118,7 +145,7 @@ foreach ($tag in $PreviousTag) {
     if ((Install-Silent $newInstaller 'reinstalação preservando dados') -ne 0) { throw 'Reinstalação falhou.' }
     Assert-InstalledVersion $currentVersion 'reinstalação preservando dados'
     Start-Smoke 'reabertura após desinstalar e reinstalar'
-    node scripts/installed-update-fixture.js verify $databasePath $backupFile
+    Invoke-Fixture verify $databasePath $backupFile
 
     Write-Host "Matriz instalada concluída de $tag para v$currentVersion."
   } finally {
