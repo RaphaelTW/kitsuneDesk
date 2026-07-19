@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.16.0 - Stable
+
+- Corrigida a navegação lateral para responder visualmente no primeiro clique, sem aguardar fragmentos, módulos ou hidratação de dados.
+- Corrigidos os botões globais de verificação de provedores e atualizações, que agora registram os eventos durante a inicialização da Home.
+- Adicionadas deduplicação de fragmentos, ativações e verificações concorrentes, com tratamento de falhas e nova tentativa segura.
+- O fragmento do player passa a carregar em paralelo e não bloqueia mais os primeiros controles da interface.
+- Reduzido o limite da verificação externa de provedores para aproximadamente 5,5 segundos, executando DNS e HTTPS em paralelo.
+- Extraídos o controlador de navegação, utilitários de runtime e composição do status dos provedores para módulos independentes.
+- Ampliada a cobertura unitária para navegação imediata, falha e nova tentativa de fragmentos e ausência total de executáveis.
+- Atualizado o Electron de 43.0.0 para 43.1.1; o benchmark local mediu redução de 3,6% na memória fria e 4,5% na quente.
+- Adicionado benchmark de memória por processo com estado da GPU, mantendo composição e aceleração de vídeo habilitadas.
+- Ampliada a matriz instalada para validar também o upgrade desde a v0.15.0.
+
 ## v0.15.0 - Stable
 
 - Substituído o fallback SQLite que abria um processo por consulta por um worker `sql.js` persistente, com I/O assíncrono e gravação atômica agrupada.

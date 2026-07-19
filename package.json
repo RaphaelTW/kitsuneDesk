@@ -1,6 +1,6 @@
 {
   "name": "kitsunedesk",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Aplicação desktop para pesquisar, assistir e acompanhar animes com player MPV externo estável, player embutido com fallback inteligente, perfis locais, biblioteca, backups criptografados agendados, instalação gráfica e atualização automática pelo GitHub.",
   "main": "src/main/main.js",
   "author": "Laurentino",
@@ -23,6 +23,7 @@
     "test:integration": "node --test tests/integration/*.test.js",
     "test:e2e:electron": "node --test tests/e2e/*.test.js",
     "benchmark:startup": "node scripts/benchmark-startup.js --iterations 20",
+    "benchmark:memory": "node scripts/benchmark-startup.js --iterations 5 --label memory-current --output artifacts/memory-current.json",
     "release:verify": "node scripts/verify-release-version.js",
     "release:verify-signing": "node scripts/verify-windows-signing.js",
     "release:verify-native": "node scripts/verify-native-packaging.js",
@@ -43,7 +44,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
-    "electron": "^43.0.0",
+    "electron": "^43.1.1",
     "electron-builder": "^26.15.3",
     "eslint": "^9.30.1",
     "globals": "^16.3.0",

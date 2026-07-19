@@ -5,10 +5,9 @@ const AppError = require('../../utils/AppError');
 async function assertAnimeFireReachable() {
   try {
     await Promise.race([
-      dns.lookup('animefire.net'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), 5000))
+      Promise.all([dns.lookup('animefire.net'), probeHttpsHost('https://animefire.net/', 5000)]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Provider timeout')), 5500))
     ]);
-    await probeHttpsHost('https://animefire.net/', 7000);
   } catch (error) {
     throw new AppError(
       'ANIMEFIRE_UNAVAILABLE',
@@ -70,7 +69,7 @@ function probeHttpsHost(target, timeoutMs) {
       {
         method: 'GET',
         timeout: timeoutMs,
-        headers: { 'User-Agent': 'KitsuneDesk/0.15.0', Range: 'bytes=0-0' }
+        headers: { 'User-Agent': 'KitsuneDesk/0.16.0', Range: 'bytes=0-0' }
       },
       (response) => {
         response.resume();

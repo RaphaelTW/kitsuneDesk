@@ -285,6 +285,18 @@ button {
   animation: view-in 180ms ease;
 }
 
+.app-view.is-loading:empty {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+}
+
+.app-view.is-loading:empty::before {
+  content: 'Carregando...';
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
 .welcome-banner {
   align-items: center;
   background:

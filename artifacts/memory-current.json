@@ -1,0 +1,417 @@
+{
+  "label": "memory-current",
+  "iterations": 5,
+  "createdAt": "2026-07-19T21:43:50.247Z",
+  "projectRoot": "H:\\projetos\\kitsuneDesk",
+  "electronExecutable": "playwright-default",
+  "runtime": {
+    "chrome": "150.0.7871.46",
+    "electron": "43.0.0",
+    "node": "24.17.0"
+  },
+  "gpuFeatureStatus": {
+    "2d_canvas": "enabled",
+    "direct_rendering_display_compositor": "disabled_off_ok",
+    "gpu_compositing": "enabled",
+    "multiple_raster_threads": "enabled_on",
+    "opengl": "enabled_on",
+    "rasterization": "enabled",
+    "raw_draw": "disabled_off_ok",
+    "skia_graphite": "disabled_off",
+    "trees_in_viz": "disabled_off",
+    "video_decode": "enabled",
+    "video_encode": "enabled",
+    "webgl": "enabled",
+    "webgpu": "enabled",
+    "webnn": "disabled_off"
+  },
+  "hardwareAccelerationPreserved": true,
+  "cold": {
+    "coreMedianMs": 16,
+    "coreP95Ms": 16,
+    "memoryMedianMb": 362.3,
+    "processMemoryMedianMb": {
+      "Browser": 110.4,
+      "GPU": 96.2,
+      "Tab": 108,
+      "Utility:Network Service": 47.9
+    }
+  },
+  "warm": {
+    "coreMedianMs": 13,
+    "coreP95Ms": 310,
+    "memoryMedianMb": 360.2,
+    "processMemoryMedianMb": {
+      "Browser": 109.7,
+      "GPU": 94,
+      "Tab": 107.5,
+      "Utility:Network Service": 47.8
+    }
+  },
+  "samples": {
+    "cold": [
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 16,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-19 21:43:25",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 110.5,
+          "GPU": 96.3,
+          "Utility:Network Service": 47.9,
+          "Tab": 110.9
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 365.6
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 16,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-19 21:43:27",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 110.4,
+          "GPU": 96.2,
+          "Utility:Network Service": 47.9,
+          "Tab": 105.5
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 360.1
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 16,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-19 21:43:30",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 113.1,
+          "GPU": 96.2,
+          "Utility:Network Service": 47.9,
+          "Tab": 105.2
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 362.3
+      },
+      {
+        "shellReadyMs": 2,
+        "coreReadyMs": 15,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-19 21:43:32",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 110.3,
+          "GPU": 95.7,
+          "Utility:Network Service": 47.9,
+          "Tab": 108
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 361.9
+      },
+      {
+        "shellReadyMs": 1,
+        "coreReadyMs": 5,
+        "snapshotRestored": false,
+        "startupType": "cold",
+        "createdAt": "2026-07-19 21:43:34",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 110.4,
+          "GPU": 96,
+          "Utility:Network Service": 48.1,
+          "Tab": 108.1
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 362.6
+      }
+    ],
+    "warm": [
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 310,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-19 21:43:39",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 108.2,
+          "GPU": 94,
+          "Utility:Network Service": 47.8,
+          "Tab": 104.7
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 354.7
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 13,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-19 21:43:43",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 110.8,
+          "GPU": 94.7,
+          "Utility:Network Service": 47.8,
+          "Tab": 107.5
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 360.8
+      },
+      {
+        "shellReadyMs": 3,
+        "coreReadyMs": 13,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-19 21:43:43",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 108.5,
+          "GPU": 92.2,
+          "Utility:Network Service": 47.8,
+          "Tab": 104.3
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 352.9
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 8,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-19 21:43:47",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 111.3,
+          "GPU": 93.9,
+          "Utility:Network Service": 47.8,
+          "Tab": 109.3
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 362.3
+      },
+      {
+        "shellReadyMs": 4,
+        "coreReadyMs": 8,
+        "snapshotRestored": true,
+        "startupType": "snapshot",
+        "createdAt": "2026-07-19 21:43:47",
+        "disabledGpuSwitches": [],
+        "gpuFeatureStatus": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "processMemoryMb": {
+          "Browser": 109.7,
+          "GPU": 94.5,
+          "Utility:Network Service": 47.8,
+          "Tab": 108.1
+        },
+        "runtime": {
+          "chrome": "150.0.7871.46",
+          "electron": "43.0.0",
+          "node": "24.17.0"
+        },
+        "workingSetMb": 360.2
+      }
+    ]
+  }
+}

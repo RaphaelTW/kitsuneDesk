@@ -2,6 +2,15 @@ import { animeDesk, hasAnimeDeskApi } from './api.js';
 import { clearSession, requireSession } from './auth.js';
 import { showToast } from './components/toast.js';
 import { applyInterfaceLanguage, translate } from './i18n.js';
+import { createNavigationController } from './navigation.mjs';
+import {
+  debounce,
+  deferTask,
+  downloadTextFile,
+  parseJson,
+  readJsonStorage,
+  writeJsonStorage
+} from './utils/runtime.js';
 import { formatBytes } from './views/formatters.js';
 
 const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
@@ -63,6 +72,8 @@ const state = {
 
 const modals = {};
 const activatedFeatures = new Set();
+const featureActivationPromises = new Map();
+let navigationController = null;
 let playerFeaturePromise = null;
 let backupFeaturePromise = null;
 let usersFeaturePromise = null;
@@ -86,27 +97,33 @@ const $ = (id) => document.getElementById(id);
 
 function getPlayerFeature() {
   if (!playerFeaturePromise) {
-    playerFeaturePromise = import('./views/player.js').then(({ createPlayerFeature }) => {
-      const feature = createPlayerFeature({
-        $,
-        animeDesk,
-        cleanEpisode,
-        debounce,
-        emptyState,
-        fallbackCover,
-        formatTime,
-        getModal,
-        iconButton,
-        notifyResult,
-        notifyResultError,
-        openReportModal,
-        state,
-        translate,
-        showToast
+    playerFeaturePromise = Promise.resolve(globalThis.kitsuneDeskPlayerComponentsReady)
+      .then((ready) => {
+        if (ready === false)
+          throw new Error('Os componentes do player não puderam ser carregados.');
+        return import('./views/player.js');
+      })
+      .then(({ createPlayerFeature }) => {
+        const feature = createPlayerFeature({
+          $,
+          animeDesk,
+          cleanEpisode,
+          debounce,
+          emptyState,
+          fallbackCover,
+          formatTime,
+          getModal,
+          iconButton,
+          notifyResult,
+          notifyResultError,
+          openReportModal,
+          state,
+          translate,
+          showToast
+        });
+        feature.bind();
+        return feature;
       });
-      feature.bind();
-      return feature;
-    });
   }
   return playerFeaturePromise;
 }
@@ -263,7 +280,7 @@ function getModal(name, elementId) {
 
 document.addEventListener('kitsunedesk:language-changed', () => {
   const activeView = document.querySelector('.nav-item.is-active[data-view]')?.dataset.view;
-  if (activeView && viewMeta[activeView]) updateViewHeading(activeView);
+  if (activeView && viewMeta[activeView]) navigationController?.updateHeading(activeView);
 });
 
 function bootstrapHome() {
@@ -272,6 +289,7 @@ function bootstrapHome() {
 
   hydrateProfile();
   bindNavigation();
+  bindMaintenanceActions();
   bindModals();
   bindFailureTelemetry();
   subscribeEvents();
@@ -367,12 +385,17 @@ function applyLanguage(language) {
 }
 
 function bindNavigation() {
-  document.querySelectorAll('[data-view]').forEach((button) => {
-    button.addEventListener('click', () => showView(button.dataset.view));
+  navigationController = createNavigationController({
+    $,
+    activateView: activateViewFeatures,
+    applyLanguage: applyInterfaceLanguage,
+    getLanguage: () => activeInterfaceLanguage || 'pt-BR',
+    hydrateView,
+    showToast,
+    translate,
+    viewMeta
   });
-  document.querySelectorAll('[data-go-view]').forEach((button) => {
-    button.addEventListener('click', () => showView(button.dataset.goView));
-  });
+  navigationController.bind();
   $('brand-home-button').addEventListener('click', () => showView('home'));
   $('logout-button').addEventListener('click', async () => {
     if (state.playback?.active) await animeDesk.player.stop();
@@ -382,51 +405,8 @@ function bindNavigation() {
   });
 }
 
-async function showView(view) {
-  if (!viewMeta[view]) return;
-  await loadViewFragment(view);
-  await activateViewFeatures(view);
-  document.querySelectorAll('[data-view-panel]').forEach((panel) => {
-    panel.classList.toggle('d-none', panel.dataset.viewPanel !== view);
-  });
-  document.querySelectorAll('.nav-item[data-view]').forEach((button) => {
-    const active = button.dataset.view === view;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-current', active ? 'page' : 'false');
-  });
-  updateViewHeading(view);
-  $('content-area').focus({ preventScroll: true });
-
-  if (view === 'home') await hydrateDashboard();
-  if (view === 'continue') await (await getLibraryFeature()).renderContinueView();
-  if (view === 'lists') await (await getLibraryFeature()).renderLists();
-  if (view === 'history') await (await getLibraryFeature()).renderHistoryView();
-  if (view === 'tools') await hydratePlayerStatus();
-  if (view === 'settings') {
-    await hydrateSettings();
-    const backup = await getBackupFeature();
-    await backup.hydrateCache();
-    await backup.renderSchedules();
-  }
-  if (view === 'diagnostics') (await getMaintenanceFeature()).renderIdle();
-  if (view === 'telemetry') await (await getTelemetryFeature()).render();
-  if (view === 'admin' && state.session.user.role === 'ADMIN') {
-    await (await getUsersFeature()).render();
-  }
-}
-
-async function loadViewFragment(view) {
-  const panel = document.querySelector(`[data-view-panel="${view}"]`);
-  if (!panel?.dataset.fragment || panel.dataset.fragmentLoaded === 'true') return;
-  const fragmentUrl = new URL(`./fragments/${panel.dataset.fragment}`, window.location.href);
-  const response = await fetch(fragmentUrl);
-  if (!response.ok) throw new Error(`Não foi possível carregar a tela ${view}.`);
-  panel.innerHTML = await response.text();
-  panel.dataset.fragmentLoaded = 'true';
-  panel.querySelectorAll('[data-go-view]').forEach((button) => {
-    button.addEventListener('click', () => showView(button.dataset.goView));
-  });
-  applyInterfaceLanguage(activeInterfaceLanguage || 'pt-BR');
+function showView(view) {
+  return navigationController?.showView(view);
 }
 
 async function activateViewFeatures(view) {
@@ -446,14 +426,68 @@ async function activateViewFeatures(view) {
   };
   for (const feature of module.features || []) {
     if (activatedFeatures.has(feature) || !binders[feature]) continue;
-    await binders[feature]();
-    activatedFeatures.add(feature);
+    if (!featureActivationPromises.has(feature)) {
+      const activation = Promise.resolve(binders[feature]())
+        .then(() => activatedFeatures.add(feature))
+        .catch((error) => {
+          featureActivationPromises.delete(feature);
+          throw error;
+        });
+      featureActivationPromises.set(feature, activation);
+    }
+    await featureActivationPromises.get(feature);
   }
 }
 
-function updateViewHeading(view) {
-  $('view-eyebrow').textContent = translate(viewMeta[view][0]);
-  $('view-title').textContent = translate(viewMeta[view][1]);
+async function hydrateView(view) {
+  if (view === 'home') await hydrateDashboard();
+  if (view === 'continue') await (await getLibraryFeature()).renderContinueView();
+  if (view === 'lists') await (await getLibraryFeature()).renderLists();
+  if (view === 'history') await (await getLibraryFeature()).renderHistoryView();
+  if (view === 'tools') await hydratePlayerStatus();
+  if (view === 'settings') {
+    await hydrateSettings();
+    const backup = await getBackupFeature();
+    await backup.hydrateCache();
+    await backup.renderSchedules();
+  }
+  if (view === 'diagnostics') (await getMaintenanceFeature()).renderIdle();
+  if (view === 'telemetry') await (await getTelemetryFeature()).render();
+  if (view === 'admin' && state.session.user.role === 'ADMIN') {
+    await (await getUsersFeature()).render();
+  }
+}
+
+function bindMaintenanceActions() {
+  $('provider-health-button').addEventListener('click', () => {
+    const dot = $('provider-health-dot');
+    dot.className = 'status-dot is-checking';
+    $('provider-health-summary').textContent = 'Verificando provedores';
+    void runMaintenanceAction((feature) => feature.hydrateProviderHealth());
+  });
+  $('updates-button').addEventListener('click', () => {
+    void runMaintenanceAction((feature) => feature.openUpdates());
+  });
+  $('install-update-button').addEventListener('click', () => {
+    void runMaintenanceAction((feature) => feature.installDownloadedUpdate());
+  });
+  $('dismiss-update-button').addEventListener('click', () => {
+    state.updateBannerDismissed = true;
+    $('update-banner').classList.add('d-none');
+  });
+}
+
+async function runMaintenanceAction(action) {
+  try {
+    return await action(await getMaintenanceFeature());
+  } catch (error) {
+    showToast({
+      title: 'Ação indisponível',
+      message: error?.message || 'Não foi possível concluir a ação.',
+      variant: 'error'
+    });
+    return null;
+  }
 }
 
 async function hydrateDashboard() {
@@ -1190,65 +1224,6 @@ function readProviderStatusSnapshot() {
   return snapshot.status;
 }
 
-function deferTask(task, delayMs = 0) {
-  const run = () => {
-    try {
-      const result = task();
-      if (result && typeof result.catch === 'function') result.catch(() => {});
-    } catch {
-      // Tarefa adiada não pode derrubar a interface.
-    }
-  };
-  if (delayMs > 0) {
-    setTimeout(() => deferTask(task, 0), delayMs);
-    return;
-  }
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(run, { timeout: 2500 });
-  } else {
-    setTimeout(run, 0);
-  }
-}
-
-function readJsonStorage(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) || 'null');
-  } catch {
-    localStorage.removeItem(key);
-    return null;
-  }
-}
-
-function writeJsonStorage(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Cache visual e snapshot de abertura sao apenas aceleradores locais.
-  }
-}
-
-function downloadTextFile(fileName, content, mimeType = 'text/plain;charset=utf-8') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function parseJson(value) {
-  if (!value) return null;
-  if (typeof value === 'object') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 function findEpisodeIndex(episodes, savedEpisode) {
   const wanted = Number(savedEpisode.num || Number.parseFloat(savedEpisode.number));
   const index = episodes.findIndex(
@@ -1289,12 +1264,4 @@ function escapeHtml(value) {
   const span = document.createElement('span');
   span.textContent = String(value ?? '');
   return span.innerHTML;
-}
-
-function debounce(fn, wait) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), wait);
-  };
 }

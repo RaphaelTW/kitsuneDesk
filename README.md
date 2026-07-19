@@ -2,7 +2,7 @@
   <img src="assets/kitsunedesk-banner.svg" alt="KitsuneDesk" width="900">
 </p>
 
-<h1 align="center">KitsuneDesk v0.15.0 Stable</h1>
+<h1 align="center">KitsuneDesk v0.16.0 Stable</h1>
 
 <p align="center">
   Aplicativo desktop para pesquisar, assistir e acompanhar animes com perfis locais, biblioteca individual e reprodução estável em uma janela externa do MPV.
@@ -20,23 +20,22 @@
 
 ## Navegação rápida
 
-[Novidades](#novidades-da-versão-0150) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0150) · [Limitações](#limitações-conhecidas)
+[Novidades](#novidades-da-versão-0160) · [Fluxo](#fluxo-do-sistema) · [Recursos](#recursos) · [Instalação](#executar-em-desenvolvimento) · [Release](#publicar-a-versão-0160) · [Limitações](#limitações-conhecidas)
 
-## Novidades da versão 0.15.0
+## Novidades da versão 0.16.0
 
-A v0.15.0 evolui a base estável 0.14.0 com foco em performance mensurável, resiliência do armazenamento, privacidade e segurança da distribuição.
+A v0.16.0 corrige a resposta dos controles depois do login, reduz a espera da verificação de provedores e continua a modularização da interface e do player.
 
-- fallback `sql.js` em um `worker_threads` persistente, com leitura e gravação assíncronas e sem abrir um processo por consulta;
-- pesquisa, biblioteca, player, backups, manutenção, telemetria e administração em módulos próprios; telas secundárias têm fragmentos HTML carregados somente na primeira visita;
-- bootstrap único para dados principais da Home, reduzindo viagens IPC durante a abertura;
-- cache de imagens com I/O assíncrono, quatro downloads concorrentes, limite total de 256 MB, orçamento de memória por bytes e preferência por `fileUrl`;
-- reprodução dividida em adaptadores de providers, resolução de episódios, MPV externo, player embutido, fila/estado e diagnóstico de rede;
-- métricas locais com retenção de 7, 30 ou 90 dias, opção sem expiração, mediana, percentil 95 e gráfico SVG;
-- diferenciação entre abertura fria, quente e restaurada por snapshot, sempre opt-in e sem conteúdo assistido;
-- assinatura Authenticode opcional: releases sem certificado continuam possíveis, mas uma assinatura configurada e inválida bloqueia a publicação;
-- matriz instalada de `v0.13.0` e `v0.14.0` para `v0.15.0`, incluindo instalação limpa, banco parcialmente migrado, corrupção, interrupção, rollback, reinstalação e preservação validada de backup real;
-- empacotamento limitado aos seis idiomas usados e remoção de objetos intermediários do `better-sqlite3`;
-- benchmark reproduzível com 20 aberturas frias e 20 quentes por versão.
+- navegação lateral responde visualmente no primeiro clique e carrega o conteúdo em segundo plano;
+- verificação de provedores e atualizações funciona desde a abertura da Home, sem depender da tela de diagnóstico;
+- fragmentos, ativações e verificações concorrentes são deduplicados e podem ser repetidos com segurança após uma falha;
+- player carrega em paralelo sem bloquear os primeiros controles da interface;
+- verificação de rede limitada a aproximadamente 5,5 segundos, com DNS e HTTPS em paralelo;
+- navegação, utilitários de runtime e composição do status dos provedores extraídos para módulos independentes;
+- testes unitários cobrem navegação imediata, falha e nova tentativa de fragmentos e executáveis ausentes;
+- Electron 43.1.1 reduziu a mediana de memória em 3,6% na abertura fria e 4,5% na quente neste hardware;
+- benchmark separa Browser, renderer, GPU e serviços, confirmando aceleração de vídeo preservada;
+- matriz instalada passa a validar também o upgrade desde `v0.15.0`.
 
 O MPV externo permanece como modo padrão estável. O player embutido continua opcional e com fallback automático.
 Consulte [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) para os resultados completos, incluindo as metas que não foram atingidas neste hardware.
@@ -215,27 +214,27 @@ npm run build:win
 Arquivo esperado:
 
 ```text
-dist\KitsuneDesk-Setup-0.15.0.exe
+dist\KitsuneDesk-Setup-0.16.0.exe
 ```
 
-## Publicar a versão 0.15.0
+## Publicar a versão 0.16.0
 
 Sem certificado configurado, o instalador continua sendo publicado sem Authenticode e o Windows pode exibir um aviso do SmartScreen. Quando `WINDOWS_CSC_LINK` e `WINDOWS_CSC_KEY_PASSWORD` estão disponíveis no GitHub Actions, o instalador é assinado e a release exige cadeia válida e carimbo de tempo. Uma configuração parcial ou uma assinatura inválida bloqueia a publicação.
 
 ```powershell
 git add .
-git commit -m "feat: publica KitsuneDesk v0.15.0"
+git commit -m "feat(release): publish KitsuneDesk v0.16.0 stable"
 git push origin main
 
-git tag -a v0.15.0 -m "KitsuneDesk v0.15.0"
-git push origin v0.15.0
+git tag -a v0.16.0 -m "KitsuneDesk v0.16.0"
+git push origin v0.16.0
 ```
 
 O GitHub Actions valida o código, cria a Release e publica:
 
 ```text
-KitsuneDesk-Setup-0.15.0.exe
-KitsuneDesk-Setup-0.15.0.exe.blockmap
+KitsuneDesk-Setup-0.16.0.exe
+KitsuneDesk-Setup-0.16.0.exe.blockmap
 latest.yml
 resources/providers/SHA256SUMS
 ```
@@ -246,15 +245,15 @@ O workflow interrompe a publicação se qualquer arquivo estiver ausente, vazio 
 <summary><strong>Publicar a próxima versão</strong></summary>
 
 ```powershell
-npm version 0.16.0 --no-git-tag-version
+npm version 0.17.0 --no-git-tag-version
 npm run validate
 
 git add .
-git commit -m "feat: publica KitsuneDesk v0.16.0"
+git commit -m "feat(release): publish KitsuneDesk v0.17.0 stable"
 git push origin main
 
-git tag -a v0.16.0 -m "KitsuneDesk v0.16.0"
-git push origin v0.16.0
+git tag -a v0.17.0 -m "KitsuneDesk v0.17.0"
+git push origin v0.17.0
 ```
 
 </details>
@@ -270,7 +269,7 @@ src/main/
   services/          autenticação, player, biblioteca, diagnóstico e atualização
 src/renderer/
   pages/              login, troca de senha e aplicação principal
-  js/                 interface, eventos e componentes
+  js/                 orquestração, navegação, utilitários, eventos e componentes
   css/                layout, temas e animações
 resources/
   goanime-bridge/     bridge Go e inicialização do MPV externo
@@ -283,13 +282,13 @@ tests/                testes unitários, integração e E2E Electron
 
 ## Melhorias recomendadas para as próximas versões
 
-- extrair progressivamente o restante de `home.js` e `playerService.js` para módulos independentes;
-- avaliar redução adicional de memória em uma atualização futura do Electron, sem desativar aceleração de vídeo;
+- repetir a comparação de memória por processo em futuras atualizações do Electron, adotando-as somente sem regressão no player;
 - adicionar cenários instalados em máquinas ARM64 quando houver artefato oficial para essa arquitetura.
 
 ## Limitações conhecidas
 
 - episódios e streams dependem de fontes externas;
+- telas secundárias são carregadas sob demanda e podem exibir brevemente o indicador de carregamento na primeira visita;
 - o MPV abre em uma janela separada nesta versão;
 - serviços oficiais com DRM são abertos no navegador;
 - o FAST Anime VSR depende de hardware, driver e runtime compatíveis;

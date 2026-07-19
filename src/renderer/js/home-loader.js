@@ -6,5 +6,14 @@ async function loadFragment(hostId, relativePath) {
   host.innerHTML = await response.text();
 }
 
-await loadFragment('player-components', '../pages/fragments/player.html');
+// O player e opcional para a primeira interacao. A interface principal nao deve
+// esperar o fragmento terminar de ler do disco para registrar seus cliques.
+globalThis.kitsuneDeskPlayerComponentsReady = loadFragment(
+  'player-components',
+  '../pages/fragments/player.html'
+).then(
+  () => true,
+  () => false
+);
+
 await import('./home.js');

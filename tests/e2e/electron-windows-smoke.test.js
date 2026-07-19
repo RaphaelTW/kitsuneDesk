@@ -41,6 +41,30 @@ test(
 
       const appName = await window.locator('.brand-block strong').textContent();
       assert.equal(appName, 'KitsuneDesk');
+
+      await window.waitForFunction(
+        () =>
+          globalThis.document.querySelector('#provider-health-summary')?.textContent ===
+          'Clique para verificar'
+      );
+      const firstInteraction = await window.evaluate(() => {
+        globalThis.document.querySelector('[data-view="tools"]').click();
+        const navigation = {
+          active: globalThis.document
+            .querySelector('[data-view="tools"]')
+            .classList.contains('is-active'),
+          visible: !globalThis.document
+            .querySelector('[data-view-panel="tools"]')
+            .classList.contains('d-none')
+        };
+        globalThis.document.querySelector('#provider-health-button').click();
+        return {
+          navigation,
+          providerSummary: globalThis.document.querySelector('#provider-health-summary').textContent
+        };
+      });
+      assert.deepEqual(firstInteraction.navigation, { active: true, visible: true });
+      assert.equal(firstInteraction.providerSummary, 'Verificando provedores');
     } finally {
       if (app) await app.close();
       fs.rmSync(userDataDir, { recursive: true, force: true });

@@ -11,29 +11,16 @@ export function createMaintenanceFeature(context) {
     state
   } = context;
   let bound = false;
+  let providerHealthPromise = null;
 
   function bind() {
     if (bound) return;
     bound = true;
-    $('provider-health-button').addEventListener('click', hydrateProviderHealth);
     $('run-diagnostics-button').addEventListener('click', runMaintenanceCheck);
     $('export-diagnostics-button').addEventListener('click', async () =>
       notifyResult(await animeDesk.diagnostics.export())
     );
     $('check-updates-button').addEventListener('click', () => checkUpdates(true));
-    $('updates-button').addEventListener('click', () => {
-      if (['available', 'downloading', 'downloaded'].includes(state.update?.state)) {
-        state.updateBannerDismissed = false;
-        renderUpdateBanner(state.update);
-        return;
-      }
-      void checkUpdates(true);
-    });
-    $('install-update-button').addEventListener('click', installDownloadedUpdate);
-    $('dismiss-update-button').addEventListener('click', () => {
-      state.updateBannerDismissed = true;
-      $('update-banner').classList.add('d-none');
-    });
     $('repair-native-button').addEventListener('click', async () => {
       appendLog('Iniciando reconstrução do better-sqlite3...');
       notifyResult(await animeDesk.diagnostics.repairNative());
@@ -63,8 +50,27 @@ export function createMaintenanceFeature(context) {
     });
   }
 
-  async function hydrateProviderHealth() {
+  async function openUpdates() {
+    if (['available', 'downloading', 'downloaded'].includes(state.update?.state)) {
+      state.updateBannerDismissed = false;
+      renderUpdateBanner(state.update);
+      return;
+    }
+    await checkUpdates(true);
+  }
+
+  function hydrateProviderHealth() {
+    if (providerHealthPromise) return providerHealthPromise;
+    providerHealthPromise = runProviderHealth().finally(() => {
+      providerHealthPromise = null;
+      $('provider-health-button').disabled = false;
+    });
+    return providerHealthPromise;
+  }
+
+  async function runProviderHealth() {
     const dot = $('provider-health-dot');
+    $('provider-health-button').disabled = true;
     dot.className = 'status-dot is-checking';
     $('provider-health-summary').textContent = 'Verificando provedores';
     const result = await animeDesk.providers.health();
@@ -306,7 +312,17 @@ export function createMaintenanceFeature(context) {
     return version ? `v${version.replace(/^v/i, '')}` : 'mais recente';
   }
 
-  return { bind, appendLog, checkUpdates, handleUpdateState, hydrateUpdateStatus, renderIdle };
+  return {
+    bind,
+    appendLog,
+    checkUpdates,
+    handleUpdateState,
+    hydrateProviderHealth,
+    hydrateUpdateStatus,
+    installDownloadedUpdate,
+    openUpdates,
+    renderIdle
+  };
 }
 
 export const features = ['diagnostics'];

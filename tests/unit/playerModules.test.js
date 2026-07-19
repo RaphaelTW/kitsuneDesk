@@ -6,6 +6,7 @@ const externalMpv = require('../../src/main/services/player/externalMpv');
 const playbackQueue = require('../../src/main/services/player/playbackQueue');
 const playbackState = require('../../src/main/services/player/playbackState');
 const providerAdapters = require('../../src/main/services/player/providerAdapters');
+const providerStatus = require('../../src/main/services/player/providerStatus');
 
 test('modulo de fila posiciona o episodio atual e preserva o estado ao reordenar', () => {
   const episodes = [
@@ -125,4 +126,76 @@ test('adaptador valida providers e escolhe o primeiro caminho estavel disponivel
   assert.throws(() => providerAdapters.normalizePayload({ query: 'x' }), {
     code: 'ANIME_NOT_FOUND'
   });
+});
+
+test('status dos provedores e composto sem depender do orquestrador do player', () => {
+  const available = { available: true, path: 'fixture' };
+  const unavailable = { available: false, path: null };
+  const status = providerStatus.buildProviderStatus({
+    aniCli: available,
+    animeCliBr: available,
+    cmd: available,
+    fastAnimeVsr: {
+      installed: true,
+      ready: false,
+      accelerated: false,
+      path: 'fixture-vsr',
+      runtime: { configured: true, cuda: false }
+    },
+    ffmpeg: available,
+    fzf: available,
+    git: available,
+    gitBash: available,
+    goAnime: available,
+    goAnimeBridge: available,
+    mpv: available,
+    nvidia: unavailable,
+    openssl: available,
+    python: available,
+    vlc: unavailable,
+    windowsTerminal: available
+  });
+
+  assert.equal(status.ready, true);
+  assert.equal(status.providers.goAnime.classicReady, true);
+  assert.equal(status.providers.animeCliBr.ready, false);
+  assert.equal(status.providers.aniCli.ready, true);
+  assert.equal(status.tools.fastAnimeVsr.ready, false);
+  assert.equal(status.dependencies.cmd, available);
+});
+
+test('status permanece seguro quando todos os executaveis estao ausentes', () => {
+  const missing = { available: false, path: null };
+  const status = providerStatus.buildProviderStatus({
+    aniCli: missing,
+    animeCliBr: missing,
+    cmd: missing,
+    fastAnimeVsr: {
+      installed: false,
+      ready: false,
+      accelerated: false,
+      path: null,
+      runtime: { configured: false, cuda: false, message: 'Ausente' }
+    },
+    ffmpeg: missing,
+    fzf: missing,
+    git: missing,
+    gitBash: missing,
+    goAnime: missing,
+    goAnimeBridge: missing,
+    mpv: missing,
+    nvidia: missing,
+    openssl: missing,
+    python: missing,
+    vlc: missing,
+    windowsTerminal: missing
+  });
+
+  assert.equal(status.ready, false);
+  assert.equal(status.recommendedProvider, null);
+  assert.equal(status.providers.goAnime.ready, false);
+  assert.equal(status.providers.goAnime.classicReady, false);
+  assert.equal(status.providers.animeCliBr.ready, false);
+  assert.equal(status.providers.aniCli.ready, false);
+  assert.equal(status.tools.fastAnimeVsr.installed, false);
 });
