@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const { EventEmitter } = require('events');
+const { Worker } = require('worker_threads');
 const AppError = require('../utils/AppError');
 const GoAnimeGuiService = require('./goAnimeGuiService');
 const InstallationService = require('./installationService');
@@ -39,6 +40,7 @@ class PlayerService extends EventEmitter {
       cacheService
     });
     this.statusCache = null;
+    this.statusPromise = null;
     this.healthCache = null;
     this.currentPlayback = null;
     this.lastProgressSaveAt = 0;
@@ -78,7 +80,7 @@ class PlayerService extends EventEmitter {
    * @returns {Promise<object>}
    */
   async playEpisode(payload) {
-    const status = this.status();
+    const status = await this.statusAsync();
 
     if (!status.providers.goAnime.ready) {
       throw new AppError(
@@ -153,7 +155,7 @@ class PlayerService extends EventEmitter {
    */
   async play(payload) {
     return providerAdapters.launchLegacyProvider(payload, {
-      status: () => this.status(),
+      status: () => this.statusAsync(),
       assertAnimeFireReachable: networkDiagnostics.assertAnimeFireReachable,
       launchGoAnime,
       launchAnimeCliBr,
@@ -167,7 +169,7 @@ class PlayerService extends EventEmitter {
    * @param {unknown} payload
    * @returns {{launched: boolean, tool: string, toolName: string, terminal: string, scriptPath: string}}
    */
-  openTool(payload) {
+  async openTool(payload) {
     const tool = String(payload?.tool ?? '');
     if (tool !== 'fast-anime-vsr') {
       throw new AppError('TOOL_UNAVAILABLE', 'A ferramenta solicitada nao e suportada.', {
@@ -175,7 +177,7 @@ class PlayerService extends EventEmitter {
       });
     }
 
-    const status = this.status();
+    const status = await this.statusAsync();
     const fast = status.tools.fastAnimeVsr;
 
     if (!fast.installed || !fast.path) {
@@ -221,43 +223,27 @@ class PlayerService extends EventEmitter {
     if (!force && this.statusCache && this.statusCache.expiresAt > Date.now()) {
       return this.statusCache.value;
     }
-    const goAnime = findGoAnime();
-    const goAnimeBridge = this.goAnimeGui.status();
-    const mpv = findMpv(goAnime.path);
-    const animeCliBr = findAnimeCliBr();
-    const vlc = findVlc();
-    const aniCli = findCommand('ani-cli');
-    const fzf = findCommand('fzf');
-    const ffmpeg = findCommand('ffmpeg');
-    const openssl = findCommand('openssl');
-    const git = findCommand('git');
-    const python = findPython();
-    const nvidia = findNvidia();
-    const fastAnimeVsr = findFastAnimeVsr({ python, ffmpeg, nvidia });
-    const gitBash = findGitBash();
-    const windowsTerminal = findCommand('wt');
-    const cmd = findCommand('cmd.exe');
-
-    const value = providerStatus.buildProviderStatus({
-      aniCli,
-      animeCliBr,
-      cmd,
-      fastAnimeVsr,
-      ffmpeg,
-      fzf,
-      git,
-      gitBash,
-      goAnime,
-      goAnimeBridge,
-      mpv,
-      nvidia,
-      openssl,
-      python,
-      vlc,
-      windowsTerminal
-    });
+    const value = discoverProviderStatus(this.goAnimeGui.status());
     this.statusCache = { value, expiresAt: Date.now() + STATUS_CACHE_TTL_MS };
     return value;
+  }
+
+  async statusAsync(force = false) {
+    if (this.status !== PlayerService.prototype.status) return this.status(force);
+    if (providerStatus.shouldUseE2eFixtures()) return providerStatus.createE2eProviderStatus();
+    if (!force && this.statusCache && this.statusCache.expiresAt > Date.now()) {
+      return this.statusCache.value;
+    }
+    if (this.statusPromise) return this.statusPromise;
+    this.statusPromise = runStatusWorker()
+      .then((value) => {
+        this.statusCache = { value, expiresAt: Date.now() + STATUS_CACHE_TTL_MS };
+        return value;
+      })
+      .finally(() => {
+        this.statusPromise = null;
+      });
+    return this.statusPromise;
   }
 
   invalidateStatusCache() {
@@ -277,7 +263,6 @@ class PlayerService extends EventEmitter {
     this.invalidateStatusCache();
     return this.installationService.start(provider, webContents);
   }
-
   /** @param {unknown} payload */
   cancelInstallation(payload) {
     return this.installationService.cancel(payload?.jobId);
@@ -375,7 +360,7 @@ class PlayerService extends EventEmitter {
     if (!force && this.healthCache && this.healthCache.expiresAt > Date.now()) {
       return this.healthCache.value;
     }
-    const value = await networkDiagnostics.buildProviderHealth(this.status(force));
+    const value = await networkDiagnostics.buildProviderHealth(await this.statusAsync(force));
     this.healthCache = { value, expiresAt: Date.now() + HEALTH_CACHE_TTL_MS };
     return value;
   }
@@ -831,6 +816,57 @@ function findGoAnime() {
   return { available: Boolean(match), path: match ?? null };
 }
 
+function discoverProviderStatus(goAnimeBridge) {
+  const goAnime = findGoAnime();
+  const mpv = findMpv(goAnime.path);
+  const animeCliBr = findAnimeCliBr();
+  const vlc = findVlc();
+  const aniCli = findCommand('ani-cli');
+  const fzf = findCommand('fzf');
+  const ffmpeg = findCommand('ffmpeg');
+  const openssl = findCommand('openssl');
+  const git = findCommand('git');
+  const python = findPython();
+  const nvidia = findNvidia();
+  const fastAnimeVsr = findFastAnimeVsr({ python, ffmpeg, nvidia });
+  const gitBash = findGitBash();
+  const windowsTerminal = findCommand('wt');
+  const cmd = findCommand('cmd.exe');
+  return providerStatus.buildProviderStatus({
+    aniCli,
+    animeCliBr,
+    cmd,
+    fastAnimeVsr,
+    ffmpeg,
+    fzf,
+    git,
+    gitBash,
+    goAnime,
+    goAnimeBridge,
+    mpv,
+    nvidia,
+    openssl,
+    python,
+    vlc,
+    windowsTerminal
+  });
+}
+
+function runStatusWorker() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(path.join(__dirname, 'player', 'providerDiscoveryWorker.js'));
+    worker.once('message', (message) => {
+      void worker.terminate();
+      if (message?.ok) resolve(message.status);
+      else reject(new Error(message?.error || 'Falha ao verificar ferramentas locais.'));
+    });
+    worker.once('error', reject);
+    worker.once('exit', (code) => {
+      if (code !== 0) reject(new Error(`Verificador encerrado com codigo ${code}.`));
+    });
+  });
+}
+
 /** @returns {{available: boolean, path: string | null}} */
 function findAnimeCliBr() {
   const localToolsRoot = path.join(
@@ -1272,3 +1308,4 @@ function samePath(left, right) {
 }
 
 module.exports = PlayerService;
+module.exports.discoverProviderStatus = discoverProviderStatus;

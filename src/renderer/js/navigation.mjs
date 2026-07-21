@@ -33,6 +33,7 @@ export function createNavigationController(context) {
 
     try {
       await loadViewFragment(view);
+      if (requestSequence !== sequence) return;
       await activateView(view);
       if (requestSequence !== sequence) return;
       await hydrateView(view);

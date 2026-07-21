@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.17.0 - Stable
+
+- Movida a descoberta de executáveis, runtimes e ferramentas para um `worker_thread`, removendo bloqueios do processo principal durante status, reprodução e diagnósticos.
+- Ferramentas passa a abrir imediatamente com o status em cache e atualizar a verificação em segundo plano, com deduplicação de consultas concorrentes.
+- Corrigidas condições de corrida entre fragmentos e módulos compartilhados que causavam `Cannot read properties of null (reading 'addEventListener')` logo após a abertura.
+- Navegações ultrapassadas deixam de ativar ou hidratar telas depois que o usuário seleciona outro menu.
+- Importações de biblioteca e perfis agora usam transações com rollback nos bancos nativo e de compatibilidade.
+- Backups passam a limitar arquivos a 64 MB e 1.000 perfis, usar leitura assíncrona e executar `scrypt` fora do fluxo bloqueante.
+- Chaves de backups agendados, limpeza de cache, restauração de componentes e diagnósticos deixam de usar I/O síncrono no processo principal.
+- Cache remoto ganhou proteção contra SSRF e DNS rebinding, bloqueando loopback, redes privadas, link-local, credenciais em URL e redirecionamentos inseguros.
+- Concorrência do aquecimento de imagens passa a se adaptar aos processadores disponíveis, reduzindo contenção em computadores com poucos núcleos.
+- Capas remotas passam pelo cache protegido e a CSP do renderer deixa de permitir conexões remotas genéricas.
+- Sessões locais agora expiram após 12 horas; a assinatura Authenticode continua opcional e é validada quando configurada no ambiente de publicação.
+- Estado da interface e registro de telas foram extraídos do orquestrador principal para módulos dedicados.
+- Adicionados testes de rollback SQLite, correspondência dos contratos IPC, navegação concorrente e política de rede.
+- Atualizadas dependências transitivas de desenvolvimento; `npm audit` não reporta vulnerabilidades.
+- Benchmark pós-refatoração registrou medianas de 9 ms/346,4 MB na abertura fria e 11 ms/344,3 MB na abertura quente, preservando a aceleração gráfica.
+
 ## v0.16.0 - Stable
 
 - Corrigida a navegação lateral para responder visualmente no primeiro clique, sem aguardar fragmentos, módulos ou hidratação de dados.

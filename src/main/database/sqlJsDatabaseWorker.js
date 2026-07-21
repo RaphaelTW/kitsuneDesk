@@ -8,6 +8,7 @@ const { seedInitialData } = require('./seed');
 let database;
 let persistTimer;
 let dirty = false;
+let transactionActive = false;
 
 void initializeWorker();
 
@@ -129,6 +130,14 @@ function run(sql, params = []) {
 function exec(sql) {
   if (!String(sql || '').trim()) return { ok: true };
   database.exec(sql);
+  const statement = String(sql).trim().toUpperCase();
+  if (statement.startsWith('BEGIN')) {
+    transactionActive = true;
+    return { ok: true };
+  }
+  if (statement.startsWith('COMMIT') || statement.startsWith('ROLLBACK')) {
+    transactionActive = false;
+  }
   markDirty();
   return { ok: true };
 }
@@ -145,6 +154,14 @@ function markDirty() {
 
 async function persistNow() {
   if (!dirty) return;
+  if (transactionActive) {
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      void persistNow();
+    }, 50);
+    persistTimer.unref?.();
+    return;
+  }
   dirty = false;
   const temporaryPath = `${workerData.databasePath}.tmp`;
   await fs.promises.mkdir(path.dirname(workerData.databasePath), { recursive: true });

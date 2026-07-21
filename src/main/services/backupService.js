@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { promisify } = require('util');
 const AppError = require('../utils/AppError');
 const { requireAdmin, requireUserId } = require('./authService');
 
@@ -8,6 +9,9 @@ const LIBRARY_FORMAT = 'kitsunedesk-library';
 const PROFILE_FORMAT = 'kitsunedesk-profiles-encrypted';
 const SCHEDULER_KEY_FILE = 'backup-scheduler.key';
 const CADENCES = new Set(['daily', 'weekly', 'monthly']);
+const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
+const MAX_PROFILE_COUNT = 1000;
+const scryptAsync = promisify(crypto.scrypt);
 
 class BackupService {
   constructor({ app, database, sessionRepository }) {
@@ -54,24 +58,26 @@ class BackupService {
 
   async importLibrary(filePath, mode = 'merge') {
     const userId = requireUserId(this.sessionRepository);
-    const payload = parseJsonFile(filePath);
+    const payload = await parseJsonFile(filePath);
     if (payload?.format !== LIBRARY_FORMAT || payload?.version !== 1) {
       throw new AppError('BACKUP_INVALID', 'O arquivo não é um backup de biblioteca válido.', {
         status: 400
       });
     }
     const importMode = mode === 'replace' ? 'replace' : 'merge';
-    if (importMode === 'replace') {
-      for (const table of ['favorites', 'watchlist', 'watch_history', 'playback_sessions']) {
-        await this.database.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+    await this.database.withTransaction(async () => {
+      if (importMode === 'replace') {
+        for (const table of ['favorites', 'watchlist', 'watch_history', 'playback_sessions']) {
+          await this.database.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+        }
       }
-    }
-
-    await importCollection(this.database, 'favorites', userId, payload.data?.favorites);
-    await importCollection(this.database, 'watchlist', userId, payload.data?.watchlist);
-    await importHistory(this.database, userId, payload.data?.history);
-    await importPlaybackSessions(this.database, userId, payload.data?.playbackSessions);
-    if (payload.data?.settings) await importSettings(this.database, userId, payload.data.settings);
+      await importCollection(this.database, 'favorites', userId, payload.data?.favorites);
+      await importCollection(this.database, 'watchlist', userId, payload.data?.watchlist);
+      await importHistory(this.database, userId, payload.data?.history);
+      await importPlaybackSessions(this.database, userId, payload.data?.playbackSessions);
+      if (payload.data?.settings)
+        await importSettings(this.database, userId, payload.data.settings);
+    });
 
     return {
       imported: true,
@@ -99,7 +105,7 @@ class BackupService {
       appVersion: this.app.getVersion(),
       users: usersWithSettings
     };
-    const encrypted = encryptPayload(payload, secret);
+    const encrypted = await encryptPayloadAsync(payload, secret);
     await fs.promises.writeFile(filePath, JSON.stringify(encrypted, null, 2), 'utf8');
     return { exported: true, path: filePath, profiles: users.length, encrypted: true };
   }
@@ -110,73 +116,75 @@ class BackupService {
 
     let imported = 0;
     let updated = 0;
-    for (const profile of payload.users) {
-      const username = String(profile.username || '')
-        .trim()
-        .toLowerCase();
-      if (!username) continue;
-      const protectsCurrentAdmin = username === currentAdmin.username;
-      const existing = await this.database.get('SELECT id FROM users WHERE username = ?', [
-        username
-      ]);
-      let userId;
-      if (existing) {
-        userId = existing.id;
-        await this.database.run(
-          `UPDATE users SET
+    await this.database.withTransaction(async () => {
+      for (const profile of payload.users.slice(0, MAX_PROFILE_COUNT)) {
+        const username = String(profile.username || '')
+          .trim()
+          .toLowerCase();
+        if (!username) continue;
+        const protectsCurrentAdmin = username === currentAdmin.username;
+        const existing = await this.database.get('SELECT id FROM users WHERE username = ?', [
+          username
+        ]);
+        let userId;
+        if (existing) {
+          userId = existing.id;
+          await this.database.run(
+            `UPDATE users SET
              password_hash = ?, name = ?, role = ?, must_change_password = ?, active = ?,
              profile_color = ?, avatar_seed = ?, avatar_style = ?, parental_level = ?,
              updated_at = CURRENT_TIMESTAMP
            WHERE id = ?`,
-          [
-            profile.password_hash,
-            profile.name,
-            protectsCurrentAdmin || profile.role === 'ADMIN' ? 'ADMIN' : 'USER',
-            profile.must_change_password ? 1 : 0,
-            protectsCurrentAdmin ? 1 : profile.active ? 1 : 0,
-            profile.profile_color || '#6f5cff',
-            profile.avatar_seed || username,
-            profile.avatar_style || 'thumbs',
-            profile.parental_level || 'ADULT',
-            userId
-          ]
-        );
-        updated += 1;
-      } else {
-        const result = await this.database.run(
-          `INSERT INTO users (
+            [
+              profile.password_hash,
+              profile.name,
+              protectsCurrentAdmin || profile.role === 'ADMIN' ? 'ADMIN' : 'USER',
+              profile.must_change_password ? 1 : 0,
+              protectsCurrentAdmin ? 1 : profile.active ? 1 : 0,
+              profile.profile_color || '#6f5cff',
+              profile.avatar_seed || username,
+              profile.avatar_style || 'thumbs',
+              profile.parental_level || 'ADULT',
+              userId
+            ]
+          );
+          updated += 1;
+        } else {
+          const result = await this.database.run(
+            `INSERT INTO users (
              username, password_hash, name, role, must_change_password, active,
              profile_color, avatar_seed, avatar_style, parental_level
            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            username,
-            profile.password_hash,
-            profile.name || username,
-            protectsCurrentAdmin || profile.role === 'ADMIN' ? 'ADMIN' : 'USER',
-            profile.must_change_password ? 1 : 0,
-            protectsCurrentAdmin ? 1 : profile.active ? 1 : 0,
-            profile.profile_color || '#6f5cff',
-            profile.avatar_seed || username,
-            profile.avatar_style || 'thumbs',
-            profile.parental_level || 'ADULT'
-          ]
-        );
-        userId = result.lastInsertRowid;
-        imported += 1;
+            [
+              username,
+              profile.password_hash,
+              profile.name || username,
+              protectsCurrentAdmin || profile.role === 'ADMIN' ? 'ADMIN' : 'USER',
+              profile.must_change_password ? 1 : 0,
+              protectsCurrentAdmin ? 1 : profile.active ? 1 : 0,
+              profile.profile_color || '#6f5cff',
+              profile.avatar_seed || username,
+              profile.avatar_style || 'thumbs',
+              profile.parental_level || 'ADULT'
+            ]
+          );
+          userId = result.lastInsertRowid;
+          imported += 1;
+        }
+        if (profile.settings) await importSettings(this.database, userId, profile.settings);
       }
-      if (profile.settings) await importSettings(this.database, userId, profile.settings);
-    }
 
-    const activeAdminRow = await this.database.get(
-      "SELECT COUNT(*) AS total FROM users WHERE role = 'ADMIN' AND active = 1"
-    );
-    const activeAdmins = Number(activeAdminRow?.total || 0);
-    if (activeAdmins === 0) {
-      await this.database.run(
-        "UPDATE users SET role = 'ADMIN', active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        [currentAdmin.id]
+      const activeAdminRow = await this.database.get(
+        "SELECT COUNT(*) AS total FROM users WHERE role = 'ADMIN' AND active = 1"
       );
-    }
+      const activeAdmins = Number(activeAdminRow?.total || 0);
+      if (activeAdmins === 0) {
+        await this.database.run(
+          "UPDATE users SET role = 'ADMIN', active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [currentAdmin.id]
+        );
+      }
+    });
     return {
       imported: true,
       createdProfiles: imported,
@@ -185,10 +193,10 @@ class BackupService {
     };
   }
 
-  validateProfilesEncrypted(filePath, password) {
+  async validateProfilesEncrypted(filePath, password) {
     requireAdmin(this.sessionRepository);
     const secret = normalizeBackupPassword(password);
-    const container = parseJsonFile(filePath);
+    const container = await parseJsonFile(filePath);
     if (container?.format !== PROFILE_FORMAT || container?.version !== 1) {
       throw new AppError('BACKUP_INVALID', 'O arquivo criptografado não é compatível.', {
         status: 400
@@ -196,14 +204,18 @@ class BackupService {
     }
     let payload;
     try {
-      payload = decryptPayload(container, secret);
+      payload = await decryptPayloadAsync(container, secret);
     } catch (error) {
       throw new AppError('BACKUP_PASSWORD_INVALID', 'Senha incorreta ou backup alterado.', {
         status: 401,
         technicalMessage: error.message
       });
     }
-    if (payload?.format !== 'kitsunedesk-profiles' || !Array.isArray(payload.users)) {
+    if (
+      payload?.format !== 'kitsunedesk-profiles' ||
+      !Array.isArray(payload.users) ||
+      payload.users.length > MAX_PROFILE_COUNT
+    ) {
       throw new AppError('BACKUP_INVALID', 'O conteúdo do backup não é válido.', { status: 400 });
     }
     return {
@@ -235,7 +247,7 @@ class BackupService {
     const password = normalizeBackupPassword(payload?.password);
     const validateRestore = payload?.validateRestore !== false;
     await fs.promises.mkdir(targetPath, { recursive: true });
-    const secret = encryptSchedulerSecret(password, getSchedulerKey(this.app));
+    const secret = encryptSchedulerSecret(password, await getSchedulerKey(this.app));
 
     const existing = await this.database.get(
       "SELECT id FROM backup_schedules WHERE user_id = ? AND kind = 'profiles'",
@@ -318,7 +330,10 @@ class BackupService {
       return { skipped: true, reason: 'not-due', schedule: mapScheduleRow(schedule) };
     }
 
-    const password = decryptSchedulerSecret(schedule.password_secret, getSchedulerKey(this.app));
+    const password = decryptSchedulerSecret(
+      schedule.password_secret,
+      await getSchedulerKey(this.app)
+    );
     const fileName = `kitsunedesk-perfis-agendado-${timestampForFile(new Date())}.kitsunebackup`;
     const filePath = path.join(schedule.target_path, fileName);
     try {
@@ -379,12 +394,41 @@ function encryptPayload(payload, password) {
   };
 }
 
+async function encryptPayloadAsync(payload, password) {
+  const salt = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12);
+  const key = await scryptAsync(password, salt, 32);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
+  return {
+    format: PROFILE_FORMAT,
+    version: 1,
+    kdf: 'scrypt',
+    cipher: 'aes-256-gcm',
+    salt: salt.toString('base64'),
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    data: encrypted.toString('base64')
+  };
+}
+
 function decryptPayload(container, password) {
   const salt = Buffer.from(container.salt, 'base64');
   const iv = Buffer.from(container.iv, 'base64');
   const tag = Buffer.from(container.tag, 'base64');
   const encrypted = Buffer.from(container.data, 'base64');
   const key = crypto.scryptSync(password, salt, 32);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8'));
+}
+
+async function decryptPayloadAsync(container, password) {
+  const salt = Buffer.from(container.salt, 'base64');
+  const iv = Buffer.from(container.iv, 'base64');
+  const tag = Buffer.from(container.tag, 'base64');
+  const encrypted = Buffer.from(container.data, 'base64');
+  const key = await scryptAsync(password, salt, 32);
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(tag);
   return JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8'));
@@ -414,9 +458,11 @@ function normalizeBackupDirectory(value) {
   return candidate;
 }
 
-function parseJsonFile(filePath) {
+async function parseJsonFile(filePath) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const stat = await fs.promises.stat(filePath);
+    if (stat.size > MAX_BACKUP_BYTES) throw new Error('Arquivo excede o limite de 64 MB.');
+    return JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
   } catch (error) {
     throw new AppError('BACKUP_READ_FAILED', 'Não foi possível ler o arquivo de backup.', {
       status: 400,
@@ -593,14 +639,23 @@ async function importSettings(database, userId, settings) {
   );
 }
 
-function getSchedulerKey(app) {
+async function getSchedulerKey(app) {
   const filePath = path.join(app.getPath('userData'), SCHEDULER_KEY_FILE);
   try {
-    if (fs.existsSync(filePath)) return fs.readFileSync(filePath);
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    try {
+      return await fs.promises.readFile(filePath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     const key = crypto.randomBytes(32);
-    fs.writeFileSync(filePath, key, { mode: 0o600 });
-    return key;
+    try {
+      await fs.promises.writeFile(filePath, key, { mode: 0o600, flag: 'wx' });
+      return key;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      return fs.promises.readFile(filePath);
+    }
   } catch (error) {
     throw new AppError('BACKUP_KEY_FAILED', 'Não foi possível acessar a chave local de backup.', {
       status: 500,

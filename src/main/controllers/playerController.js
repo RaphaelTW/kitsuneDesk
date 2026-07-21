@@ -68,7 +68,7 @@ class PlayerController {
   }
 
   status() {
-    return this.playerService.status();
+    return this.playerService.statusAsync();
   }
 
   playbackState() {

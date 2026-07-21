@@ -24,9 +24,10 @@ class DiagnosticsService {
 
   async run() {
     const paths = getAppPaths(this.app);
-    const player = this.playerService.status();
+    const playerPromise = this.playerService.statusAsync();
     const userId = this.currentUserId();
-    const [telemetryEnabled, telemetryPage, startupPerformance, cache] = await Promise.all([
+    const [player, telemetryEnabled, telemetryPage, startupPerformance, cache] = await Promise.all([
+      playerPromise,
       this.telemetryRepository?.enabledForUser(userId) ?? false,
       this.telemetryRepository?.list(userId, { pageSize: 10 }) ?? { items: [] },
       this.telemetryRepository?.startupSummary(userId) ?? {
@@ -166,20 +167,20 @@ class DiagnosticsService {
     for (const candidate of candidates) {
       if (!fs.existsSync(candidate)) continue;
       try {
-        fs.rmSync(candidate, { recursive: true, force: true });
+        await fs.promises.rm(candidate, { recursive: true, force: true });
         removed.push(candidate);
       } catch {
         // Arquivos em uso são ignorados e poderão ser limpos no próximo reinício.
       }
     }
 
-    const tempEntries = fs
-      .readdirSync(os.tmpdir(), { withFileTypes: true })
-      .filter((entry) => entry.name.toLowerCase().startsWith('kitsunedesk-'));
+    const tempEntries = (await fs.promises.readdir(os.tmpdir(), { withFileTypes: true })).filter(
+      (entry) => entry.name.toLowerCase().startsWith('kitsunedesk-')
+    );
     for (const entry of tempEntries) {
       const candidate = path.join(os.tmpdir(), entry.name);
       try {
-        fs.rmSync(candidate, { recursive: true, force: true });
+        await fs.promises.rm(candidate, { recursive: true, force: true });
         removed.push(candidate);
       } catch {
         // Ignora arquivos bloqueados.
@@ -191,7 +192,7 @@ class DiagnosticsService {
     return { cleared: true, removed, appCache };
   }
 
-  restoreComponents() {
+  async restoreComponents() {
     const localAppData = process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local');
     const toolsRoot = path.join(localAppData, 'KitsuneDesk', 'tools');
     const targets = [
@@ -203,7 +204,7 @@ class DiagnosticsService {
     const removed = [];
     for (const target of targets) {
       if (!fs.existsSync(target)) continue;
-      fs.rmSync(target, { recursive: true, force: true });
+      await fs.promises.rm(target, { recursive: true, force: true });
       removed.push(target);
     }
     return {

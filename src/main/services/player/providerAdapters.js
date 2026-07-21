@@ -6,7 +6,7 @@ const SUPPORTED_LANGUAGES = new Set(['sub', 'dub']);
 
 async function launchLegacyProvider(payload, adapters) {
   const request = normalizePayload(payload);
-  const status = adapters.status();
+  const status = await adapters.status();
   const provider = resolveProvider(request.provider, status);
 
   if (provider === 'goanime') {

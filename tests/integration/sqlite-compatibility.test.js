@@ -120,3 +120,23 @@ test('SQLite persistente repara banco existente e preserva dados', async () => {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }
 });
+
+test('SQLite de compatibilidade reverte toda transacao quando uma etapa falha', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kitsunedesk-sqlite-rollback-'));
+  const databasePath = path.join(tempDir, 'rollback.db');
+  try {
+    const database = await createSqlJsCompatibilityDatabase(databasePath);
+    await database.exec('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL);');
+    await assert.rejects(
+      database.withTransaction(async () => {
+        await database.run('INSERT INTO items (name) VALUES (?)', ['temporario']);
+        throw new Error('falha simulada');
+      }),
+      /falha simulada/
+    );
+    assert.equal((await database.get('SELECT COUNT(*) AS total FROM items')).total, 0);
+    await database.close();
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});

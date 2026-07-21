@@ -1,4 +1,5 @@
 let currentSession = null;
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 class SessionRepository {
   /**
@@ -7,13 +8,17 @@ class SessionRepository {
   create(user) {
     currentSession = {
       user,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString()
     };
 
     return currentSession;
   }
 
   getCurrent() {
+    if (currentSession && Date.parse(currentSession.expiresAt) <= Date.now()) {
+      currentSession = null;
+    }
     return currentSession;
   }
 

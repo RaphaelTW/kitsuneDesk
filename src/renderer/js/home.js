@@ -12,6 +12,8 @@ import {
   writeJsonStorage
 } from './utils/runtime.js';
 import { formatBytes } from './views/formatters.js';
+import { state } from './app/state.js';
+import { viewMeta, viewModules } from './app/viewRegistry.js';
 
 const fallbackCover = '../../../assets/icons/kitsunedesk-icon-512.png';
 const STARTUP_SNAPSHOT_KEY = 'kitsunedesk.startup-snapshot.v1';
@@ -24,19 +26,6 @@ const startupStartedAt = performance.now();
 let startupSnapshotRestored = false;
 let startupType = 'cold';
 let activeInterfaceLanguage = null;
-const viewMeta = Object.freeze({
-  home: ['navHome', 'navHome'],
-  search: ['navSearch', 'navSearch'],
-  continue: ['navContinue', 'navContinue'],
-  lists: ['navLists', 'navLists'],
-  history: ['navHistory', 'navHistory'],
-  tools: ['navTools', 'navTools'],
-  settings: ['navSettings', 'navSettings'],
-  diagnostics: ['navDiagnostics', 'navDiagnostics'],
-  telemetry: ['navTelemetry', 'navTelemetry'],
-  admin: ['navUsers', 'navUsers']
-});
-
 const installationDefinitions = Object.freeze({
   goanime: ['GoAnime clássico', 'MPV', 'Runtime Go', 'Código GoAnime', 'Bridge gráfico'],
   'goanime-gui': ['GoAnime clássico', 'MPV', 'Runtime Go', 'Código GoAnime', 'Bridge gráfico'],
@@ -44,31 +33,6 @@ const installationDefinitions = Object.freeze({
   'ani-cli': ['Git Bash', 'fzf', 'FFmpeg', 'MPV', 'OpenSSL', 'ani-cli'],
   'fast-anime-vsr': ['Python 3.10', 'FFmpeg', 'FAST Anime VSR', 'PyTorch', 'GPU/CUDA']
 });
-
-const state = {
-  session: null,
-  appInfo: null,
-  settings: null,
-  playerStatus: null,
-  dashboard: null,
-  results: [],
-  selectedAnime: null,
-  episodes: [],
-  playback: null,
-  lastIssue: null,
-  parentalUnlockedUntil: 0,
-  pendingParentalAction: null,
-  activeInstallationJob: null,
-  installationProvider: null,
-  currentListTab: 'favorites',
-  users: [],
-  update: null,
-  updateBannerDismissed: false,
-  telemetryPage: 1,
-  telemetryPages: 1,
-  telemetryFacetsLoaded: false,
-  playerStatusHydration: null
-};
 
 const modals = {};
 const activatedFeatures = new Set();
@@ -81,18 +45,6 @@ let telemetryFeaturePromise = null;
 let searchFeaturePromise = null;
 let libraryFeaturePromise = null;
 let maintenanceFeaturePromise = null;
-const viewModules = Object.freeze({
-  search: './views/search.js',
-  continue: './views/library.js',
-  lists: './views/library.js',
-  history: './views/library.js',
-  tools: './views/tools.js',
-  settings: './views/settings.js',
-  diagnostics: './views/maintenance.js',
-  telemetry: './views/telemetry.js',
-  admin: './views/admin.js'
-});
-
 const $ = (id) => document.getElementById(id);
 
 function getPlayerFeature() {
@@ -329,7 +281,6 @@ function bootstrapHome() {
           await maintenance.checkUpdates(false);
         }
       }, 1400);
-      deferTask(hydratePlayerStatus, 600);
       deferTask(async () => (await getPlayerFeature()).hydrate(), 150);
       if (state.session.user.role === 'ADMIN') {
         deferTask(async () => (await getBackupFeature()).runDue(), 2200);
@@ -444,7 +395,10 @@ async function hydrateView(view) {
   if (view === 'continue') await (await getLibraryFeature()).renderContinueView();
   if (view === 'lists') await (await getLibraryFeature()).renderLists();
   if (view === 'history') await (await getLibraryFeature()).renderHistoryView();
-  if (view === 'tools') await hydratePlayerStatus();
+  if (view === 'tools') {
+    renderPlayerStatus(state.playerStatus || readProviderStatusSnapshot());
+    void hydratePlayerStatus();
+  }
   if (view === 'settings') {
     await hydrateSettings();
     const backup = await getBackupFeature();
@@ -623,32 +577,46 @@ function bindTools() {
 }
 
 async function hydratePlayerStatus() {
-  const result = await animeDesk.player.status();
-  if (!result.ok) return;
-  state.playerStatus = result.data;
-  writeJsonStorage(PROVIDER_STATUS_SNAPSHOT_KEY, { savedAt: Date.now(), status: result.data });
+  if (state.playerStatusHydration) return state.playerStatusHydration;
+  state.playerStatusHydration = animeDesk.player
+    .status()
+    .then((result) => {
+      if (!result.ok) return;
+      state.playerStatus = result.data;
+      writeJsonStorage(PROVIDER_STATUS_SNAPSHOT_KEY, { savedAt: Date.now(), status: result.data });
+      renderPlayerStatus(result.data);
+      updateSelectedProviderStatus();
+    })
+    .finally(() => {
+      state.playerStatusHydration = null;
+    });
+  return state.playerStatusHydration;
+}
+
+function renderPlayerStatus(statusData) {
+  if (!statusData) return;
   const cards = {
     'goanime-gui': [
-      result.data.providers.goAnime.ready,
-      result.data.providers.goAnime.bridge?.needsUpdate ? 'Atualização necessária' : 'Pronto'
+      statusData.providers.goAnime.ready,
+      statusData.providers.goAnime.bridge?.needsUpdate ? 'Atualização necessária' : 'Pronto'
     ],
     goanime: [
-      result.data.providers.goAnime.classicReady,
-      result.data.providers.goAnime.classicReady ? 'Pronto' : 'Não instalado'
+      statusData.providers.goAnime.classicReady,
+      statusData.providers.goAnime.classicReady ? 'Pronto' : 'Não instalado'
     ],
     'anime-cli-br': [
-      result.data.providers.animeCliBr.ready,
-      result.data.providers.animeCliBr.ready ? 'Pronto' : 'Não instalado'
+      statusData.providers.animeCliBr.ready,
+      statusData.providers.animeCliBr.ready ? 'Pronto' : 'Não instalado'
     ],
     'ani-cli': [
-      result.data.providers.aniCli.ready,
-      result.data.providers.aniCli.ready ? 'Pronto · experimental' : 'Não instalado'
+      statusData.providers.aniCli.ready,
+      statusData.providers.aniCli.ready ? 'Pronto · experimental' : 'Não instalado'
     ],
     'fast-anime-vsr': [
-      result.data.tools.fastAnimeVsr.ready,
-      result.data.tools.fastAnimeVsr.ready
+      statusData.tools.fastAnimeVsr.ready,
+      statusData.tools.fastAnimeVsr.ready
         ? 'Pronto'
-        : result.data.tools.fastAnimeVsr.runtime?.message || 'Não preparado'
+        : statusData.tools.fastAnimeVsr.runtime?.message || 'Não preparado'
     ]
   };
   document.querySelectorAll('[data-tool]').forEach((card) => {
@@ -657,7 +625,6 @@ async function hydratePlayerStatus() {
     status.textContent = message;
     status.classList.toggle('text-success', ready);
   });
-  updateSelectedProviderStatus();
 }
 
 function updateSelectedProviderStatus() {
@@ -1089,7 +1056,8 @@ function hideLoading() {
 
 function createImage(src, alt) {
   const image = document.createElement('img');
-  image.src = src || fallbackCover;
+  const remoteSource = src && /^https?:\/\//i.test(src);
+  image.src = remoteSource ? fallbackCover : src || fallbackCover;
   image.alt = alt || '';
   image.loading = 'lazy';
   image.decoding = 'async';
@@ -1101,7 +1069,7 @@ function createImage(src, alt) {
     },
     { once: true }
   );
-  if (src && /^https?:\/\//i.test(src)) {
+  if (remoteSource) {
     void animeDesk.cache.image(src, 'covers').then((result) => {
       const cachedUrl = result?.data?.fileUrl || result?.data?.url;
       if (result?.ok && cachedUrl) image.src = cachedUrl;

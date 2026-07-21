@@ -1,4 +1,5 @@
 const path = require('path');
+const { AsyncLocalStorage } = require('async_hooks');
 const { Worker } = require('worker_threads');
 
 async function createSqlJsCompatibilityDatabase(databasePath) {
@@ -13,6 +14,8 @@ class SqlJsWorkerClient {
     this.databasePath = databasePath;
     this.nextRequestId = 1;
     this.pending = new Map();
+    this.transactionContext = new AsyncLocalStorage();
+    this.transactionBarrier = Promise.resolve();
     this.worker = new Worker(path.join(__dirname, 'sqlJsDatabaseWorker.js'), {
       workerData: { databasePath }
     });
@@ -49,7 +52,8 @@ class SqlJsWorkerClient {
     this.pending.clear();
   }
 
-  request(operation, payload = {}) {
+  async request(operation, payload = {}) {
+    if (this.transactionContext.getStore() !== this) await this.transactionBarrier;
     const id = this.nextRequestId++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -75,6 +79,30 @@ class SqlJsWorkerClient {
 
   exec(sql) {
     return this.request('exec', { sql });
+  }
+
+  async withTransaction(action) {
+    const previous = this.transactionBarrier;
+    let release;
+    this.transactionBarrier = new Promise((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    return this.transactionContext.run(this, async () => {
+      let began = false;
+      try {
+        await this.exec('BEGIN TRANSACTION;');
+        began = true;
+        const result = await action();
+        await this.exec('COMMIT;');
+        return result;
+      } catch (error) {
+        if (began) await this.exec('ROLLBACK;');
+        throw error;
+      } finally {
+        release();
+      }
+    });
   }
 
   findUserByUsername(username) {

@@ -203,19 +203,22 @@ export function createLibraryFeature(context) {
   function bind() {
     $('favorite-button').addEventListener('click', () => toggleSelected('favorite'));
     $('watchlist-button').addEventListener('click', () => toggleSelected('watchlist'));
-    document.querySelectorAll('[data-list-tab]').forEach((button) =>
-      button.addEventListener('click', () => {
+    document.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-list-tab]');
+      if (button) {
         state.currentListTab = button.dataset.listTab;
         document
           .querySelectorAll('[data-list-tab]')
           .forEach((item) => item.classList.toggle('is-active', item === button));
         $('favorites-list').classList.toggle('d-none', state.currentListTab !== 'favorites');
         $('watchlist-list').classList.toggle('d-none', state.currentListTab !== 'watchlist');
-      })
-    );
-    $('history-search').addEventListener('input', debounce(renderHistoryView, 250));
-    $('export-history-button').addEventListener('click', exportHistory);
-    $('clear-history-button').addEventListener('click', async () => {
+        return;
+      }
+      if (event.target.closest('#export-history-button')) {
+        exportHistory();
+        return;
+      }
+      if (!event.target.closest('#clear-history-button')) return;
       if (
         !window.confirm(
           'Limpar todo o histórico deste usuário? Favoritos e configurações serão preservados.'
@@ -225,6 +228,10 @@ export function createLibraryFeature(context) {
       await animeDesk.history.clear();
       await renderHistoryView();
       await hydrateDashboard();
+    });
+    const renderFilteredHistory = debounce(renderHistoryView, 250);
+    document.addEventListener('input', (event) => {
+      if (event.target.matches('#history-search')) renderFilteredHistory();
     });
   }
 

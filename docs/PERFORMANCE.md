@@ -1,4 +1,8 @@
-# Performance da v0.16.0
+# Performance da v0.17.0
+
+## Resultado pós-refatoração
+
+Uma amostra curta de três aberturas frias e três quentes, registrada em `artifacts/post-refactor.json`, mediu 9 ms de mediana e 346,4 MB na abertura fria, e 11 ms e 344,3 MB na abertura quente. A amostra confirma a ausência de regressão imediata; comparações de release continuam exigindo as 20 iterações descritas abaixo.
 
 O benchmark pode ser repetido com:
 

@@ -53,6 +53,30 @@ test('falha de fragmento informa o usuario e permite nova tentativa', async () =
   assert.equal(fixture.toolsPanel.innerHTML, '<div>Ferramentas</div>');
 });
 
+test('navegacao antiga nao ativa nem hidrata uma tela depois de troca rapida', async () => {
+  const { createNavigationController } = await navigationModule;
+  const fixture = createFixture({ fragment: 'views/tools.html' });
+  let releaseFragment;
+  const fragment = new Promise((resolve) => {
+    releaseFragment = () => resolve({ ok: true, text: async () => '<div>Ferramentas</div>' });
+  });
+  const activated = [];
+  const hydrated = [];
+  const controller = createController(createNavigationController, fixture, {
+    activateView: async (view) => activated.push(view),
+    fetchImpl: () => fragment,
+    hydrateView: async (view) => hydrated.push(view)
+  });
+
+  const toolsRequest = controller.showView('tools');
+  await controller.showView('home');
+  releaseFragment();
+  await toolsRequest;
+
+  assert.deepEqual(activated, ['home']);
+  assert.deepEqual(hydrated, ['home']);
+});
+
 function createController(createNavigationController, fixture, overrides = {}) {
   return createNavigationController({
     $: (id) => fixture.byId[id],

@@ -46,7 +46,7 @@ test('workflow só publica release com metadados do atualizador', () => {
   assert.match(workflow, /WINDOWS_CSC_LINK/);
   assert.match(packageJson.scripts['release:win'], /release:verify-signing/);
   assert.match(packageJson.scripts['release:stable'], /release:verify-signing/);
-  assert.match(workflow, /-PreviousTag v0\.13\.0,v0\.14\.0/);
+  assert.match(workflow, /-PreviousTag v0\.14\.0,v0\.15\.0,v0\.16\.0/);
 
   assert.match(workflow, /dist\/latest\.yml/);
   assert.match(workflow, /resources\/providers\/SHA256SUMS/);

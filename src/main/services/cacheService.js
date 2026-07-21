@@ -2,15 +2,18 @@ const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { resolvePublicHttpUrl } = require('../utils/networkPolicy');
 
 const MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_CACHE_BYTES = Object.freeze({
   covers: 192 * 1024 * 1024,
   avatars: 64 * 1024 * 1024
 });
-const WARM_IMAGE_CONCURRENCY = 4;
+const AVAILABLE_PARALLELISM = os.availableParallelism?.() || os.cpus().length;
+const WARM_IMAGE_CONCURRENCY = Math.max(1, Math.min(4, Math.floor(AVAILABLE_PARALLELISM / 2)));
 const MAX_MEMORY_CACHE_BYTES = 16 * 1024 * 1024;
 const ASSET_TTL_MS = Object.freeze({
   covers: 14 * 24 * 60 * 60 * 1000,
@@ -257,26 +260,29 @@ class CacheService {
   }
 }
 
-function downloadBuffer(url, redirects = 0) {
+async function downloadBuffer(url, redirects = 0) {
+  const resolved = await resolvePublicHttpUrl(url);
+  const safeUrl = resolved.url;
   return new Promise((resolve, reject) => {
     if (redirects > 4) {
       reject(new Error('Muitos redirecionamentos.'));
       return;
     }
-    const client = url.startsWith('https:') ? https : http;
+    const client = safeUrl.startsWith('https:') ? https : http;
     const request = client.get(
-      url,
+      safeUrl,
       {
         headers: {
           'User-Agent': 'KitsuneDesk/0.11.0',
           Accept: 'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8'
         },
-        timeout: 10_000
+        timeout: 10_000,
+        lookup: (_hostname, _options, callback) => callback(null, resolved.address, resolved.family)
       },
       (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           response.resume();
-          resolve(downloadBuffer(new URL(response.headers.location, url).href, redirects + 1));
+          resolve(downloadBuffer(new URL(response.headers.location, safeUrl).href, redirects + 1));
           return;
         }
         if (response.statusCode !== 200) {

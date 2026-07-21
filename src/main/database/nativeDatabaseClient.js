@@ -40,6 +40,18 @@ class NativeDatabaseClient {
     return { ok: true };
   }
 
+  async withTransaction(action) {
+    this.database.exec('BEGIN IMMEDIATE;');
+    try {
+      const result = await action();
+      this.database.exec('COMMIT;');
+      return result;
+    } catch (error) {
+      this.database.exec('ROLLBACK;');
+      throw error;
+    }
+  }
+
   findUserByUsername(username) {
     return this.get('SELECT * FROM users WHERE username = ?', [username]);
   }
